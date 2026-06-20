@@ -18,22 +18,35 @@
 
 ## Запуск
 
-### 1. Backend (порт 8000)
-```bash
-./run_backend.sh
-# или вручную:
-cd backend && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-.venv/bin/uvicorn main:app --reload --port 8000
-```
-При первом запуске база `kpi.db` создаётся и заполняется примерами автоматически.
+Требуется Docker с поддержкой `docker compose`.
 
-### 2. Frontend (порт 5173) — требуется Node.js 18+
+### 1. Все сервисы
 ```bash
-./run_frontend.sh
-# или вручную:
-cd frontend && npm install && npm run dev
+docker compose up --build
 ```
-Откройте http://localhost:5173 (Vite проксирует `/api` на backend:8000).
+Откройте http://localhost:5173.
+
+### 2. Только backend
+```bash
+docker compose up --build backend
+```
+Backend доступен на http://localhost:8000.
+
+### 3. Frontend + backend
+```bash
+docker compose up --build frontend
+```
+Vite проксирует `/api` на backend-контейнер.
+
+При первом запуске база создаётся и заполняется примерами автоматически.
+Данные SQLite хранятся в Docker volume `backend_data`.
+
+### Полезные команды
+```bash
+docker compose down          # остановить сервисы
+docker compose down -v       # остановить и удалить volumes (сбросить БД)
+docker compose logs -f       # смотреть логи
+```
 
 ## Тестовые учётные записи
 | Логин   | Пароль   | Роль              |

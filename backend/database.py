@@ -1,8 +1,10 @@
 """Подключение к базе данных SQLite через SQLAlchemy."""
+import os
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///./kpi.db"
+SQLALCHEMY_DATABASE_URL = os.environ.get("KPI_DATABASE_URL", "sqlite:///./kpi.db")
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
