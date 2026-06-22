@@ -6,8 +6,9 @@ from database import SessionLocal, engine, Base
 from models import District, User, KpiCatalog, KpiEntry
 from auth import hash_password
 
-# Всего сотрудников (officer) в демо-базе.
-TARGET_OFFICERS = 100
+# Всего сотрудников с ролью officer в демо-базе (начальник считается отдельно).
+TARGET_OFFICERS = 20
+TARGET_KPI_ENTRIES = 1000
 
 DISTRICTS = [
     ("Центральный участок", 0.9),
@@ -107,23 +108,34 @@ def _make_officer(idx, rng):
 
 
 def _generate(seed_value=42):
-    """Доводит число сотрудников до TARGET_OFFICERS и создаёт для них записи KPI."""
+    """Доводит число сотрудников до TARGET_OFFICERS и создаёт ровно TARGET_KPI_ENTRIES записей KPI."""
     rng = random.Random(seed_value)
-    named_count = sum(1 for u in USERS if u[4] == "officer")
+    named_officers = [u for u in USERS if u[4] == "officer"]
+    named_count = len(named_officers)
+
     extra_users = []
     for i in range(named_count + 1, TARGET_OFFICERS + 1):
         extra_users.append(_make_officer(i, rng))
 
+    officer_usernames = [u[0] for u in named_officers] + [u[0] for u in extra_users]
     codes = [c[0] for c in CATALOG]
     statuses = ["confirmed"] * 6 + ["pending"] * 3 + ["rejected"]
+
+    remaining = TARGET_KPI_ENTRIES - len(SAMPLE_ENTRIES)
+    assigned_usernames = officer_usernames.copy()
+    while len(assigned_usernames) < remaining:
+        assigned_usernames.extend(officer_usernames)
+    assigned_usernames = assigned_usernames[:remaining]
+    rng.shuffle(assigned_usernames)
+
     extra_entries = []
-    for username, *_rest in extra_users:
-        for _ in range(rng.randint(3, 7)):
-            code = rng.choice(codes)
-            qty = rng.randint(1, 18)
-            days_ago = rng.randint(0, 210)  # разброс по месяцам/кварталам
-            status = rng.choice(statuses)
-            extra_entries.append((username, code, qty, days_ago, status))
+    for username in assigned_usernames:
+        code = rng.choice(codes)
+        qty = rng.randint(1, 18)
+        days_ago = rng.randint(0, 364)  # полный год
+        status = rng.choice(statuses)
+        extra_entries.append((username, code, qty, days_ago, status))
+
     return extra_users, extra_entries
 
 
