@@ -13,6 +13,17 @@ function Protected({ children }) {
   return children
 }
 
+function HeadOnly({ children }) {
+  const { user } = useAuth()
+  if (user?.role !== 'head') return <Navigate to="/entries" replace />
+  return children
+}
+
+function HomeRedirect() {
+  const { user } = useAuth()
+  return <Navigate to={user?.role === 'head' ? '/dashboard' : '/entries'} replace />
+}
+
 export default function App() {
   return (
     <Routes>
@@ -25,9 +36,24 @@ export default function App() {
           </Protected>
         }
       >
-        <Route index element={<Dashboard />} />
+        <Route index element={<HomeRedirect />} />
+        <Route
+          path="dashboard"
+          element={
+            <HeadOnly>
+              <Dashboard />
+            </HeadOnly>
+          }
+        />
         <Route path="entries" element={<Entries />} />
-        <Route path="officers" element={<Officers />} />
+        <Route
+          path="officers"
+          element={
+            <HeadOnly>
+              <Officers />
+            </HeadOnly>
+          }
+        />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

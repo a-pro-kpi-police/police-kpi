@@ -40,22 +40,22 @@ USERS = [
 
 # Примеры записей: (username, kpi_code, quantity, days_ago, status)
 SAMPLE_ENTRIES = [
-    ("aibek", "KPI-04", 6, 40, "confirmed"),
-    ("aibek", "KPI-08", 12, 35, "confirmed"),
-    ("aibek", "KPI-02", 3, 20, "confirmed"),
-    ("aibek", "KPI-03", 4, 10, "pending"),
-    ("dana", "KPI-01", 2, 45, "confirmed"),
-    ("dana", "KPI-05", 3, 30, "confirmed"),
+    ("aibek", "KPI-04", 1, 40, "confirmed"),
+    ("aibek", "KPI-08", 1, 35, "confirmed"),
+    ("aibek", "KPI-02", 1, 20, "confirmed"),
+    ("aibek", "KPI-03", 1, 10, "pending"),
+    ("dana", "KPI-01", 1, 45, "confirmed"),
+    ("dana", "KPI-05", 1, 30, "confirmed"),
     ("dana", "KPI-06", 1, 15, "confirmed"),
-    ("dana", "KPI-07", 9, 5, "pending"),
-    ("ruslan", "KPI-08", 15, 38, "confirmed"),
-    ("ruslan", "KPI-04", 4, 22, "confirmed"),
-    ("ruslan", "KPI-03", 7, 12, "rejected"),
-    ("ruslan", "KPI-02", 2, 3, "pending"),
-    ("aliya", "KPI-01", 3, 50, "confirmed"),
-    ("aliya", "KPI-06", 2, 28, "confirmed"),
-    ("aliya", "KPI-05", 4, 14, "confirmed"),
-    ("aliya", "KPI-07", 11, 4, "pending"),
+    ("dana", "KPI-07", 1, 5, "pending"),
+    ("ruslan", "KPI-08", 1, 38, "confirmed"),
+    ("ruslan", "KPI-04", 1, 22, "confirmed"),
+    ("ruslan", "KPI-03", 1, 12, "rejected"),
+    ("ruslan", "KPI-02", 1, 3, "pending"),
+    ("aliya", "KPI-01", 1, 50, "confirmed"),
+    ("aliya", "KPI-06", 1, 28, "confirmed"),
+    ("aliya", "KPI-05", 1, 14, "confirmed"),
+    ("aliya", "KPI-07", 1, 4, "pending"),
 ]
 
 # ---------- Генерация дополнительных сотрудников ----------
@@ -131,7 +131,7 @@ def _generate(seed_value=42):
     extra_entries = []
     for username in assigned_usernames:
         code = rng.choice(codes)
-        qty = rng.randint(1, 18)
+        qty = 1
         days_ago = rng.randint(0, 364)  # полный год
         status = rng.choice(statuses)
         extra_entries.append((username, code, qty, days_ago, status))

@@ -1,5 +1,5 @@
 """Pydantic-схемы для запросов и ответов API."""
-from datetime import date
+from datetime import date as date_type
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
@@ -41,7 +41,7 @@ class CatalogOut(BaseModel):
 class EntryCreate(BaseModel):
     catalog_id: int
     quantity: float = 1
-    date: Optional[date] = None
+    date: Optional[date_type] = None
     comments: str = ""
 
 
@@ -53,7 +53,7 @@ class EntryStatusUpdate(BaseModel):
 class EntryOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
-    date: date
+    date: date_type
     month: str
     officer_id: int
     officer_name: str
