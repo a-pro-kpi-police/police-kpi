@@ -161,10 +161,13 @@ def update_status(
 @app.get("/api/dashboard")
 def dashboard(
     month: Optional[str] = Query(None),
+    officer_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
     head: User = Depends(require_head),
 ):
     q = db.query(KpiEntry)
+    if officer_id:
+        q = q.filter(KpiEntry.officer_id == officer_id)
     if month:
         q = q.filter(KpiEntry.month == month)
     entries = q.all()
@@ -214,6 +217,41 @@ def dashboard(
         by_month[e.month] += e.final_score
     trend = [{"month": m, "final": round(v, 2)} for m, v in sorted(by_month.items())]
 
+    # Поток решений по месяцам помогает увидеть накопление неподтверждённых записей.
+    by_month_status = defaultdict(lambda: {"confirmed": 0, "pending": 0, "rejected": 0})
+    for e in entries:
+        by_month_status[e.month][e.status] += 1
+    status_trend = [
+        {"month": m, **counts}
+        for m, counts in sorted(by_month_status.items())
+    ]
+
+    # Объём выполненной работы по конкретным KPI (не баллы, а физические единицы).
+    by_indicator = defaultdict(lambda: {"quantity": 0.0, "code": "", "indicator": ""})
+    for e in entries:
+        code = e.catalog.code if e.catalog else "—"
+        item = by_indicator[code]
+        item["code"] = code
+        item["indicator"] = e.catalog.indicator if e.catalog else "—"
+        item["quantity"] += e.quantity
+    indicator_volume = [
+        {**item, "quantity": round(item["quantity"], 2)}
+        for item in sorted(by_indicator.values(), key=lambda value: -value["quantity"])
+    ]
+
+    # Очередь и отклонения по участкам выделяют зоны, требующие внимания руководителя.
+    by_district_review = defaultdict(lambda: {"pending": 0, "rejected": 0})
+    for e in pending + rejected:
+        district = e.officer.district.name if e.officer and e.officer.district else "—"
+        by_district_review[district][e.status] += 1
+    district_review = [
+        {"district": name, **counts}
+        for name, counts in sorted(
+            by_district_review.items(),
+            key=lambda item: -(item[1]["pending"] + item[1]["rejected"]),
+        )
+    ]
+
     total_decided = len(confirmed) + len(rejected)
     confirm_rate = round(100 * len(confirmed) / total_decided, 1) if total_decided else 0.0
 
@@ -227,6 +265,9 @@ def dashboard(
         "officers": officers,
         "blocks": blocks,
         "trend": trend,
+        "status_trend": status_trend,
+        "indicator_volume": indicator_volume,
+        "district_review": district_review,
     }
 
 
