@@ -162,11 +162,9 @@ def update_status(
 def dashboard(
     month: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    head: User = Depends(require_head),
 ):
     q = db.query(KpiEntry)
-    if user.role != "head":
-        q = q.filter(KpiEntry.officer_id == user.id)
     if month:
         q = q.filter(KpiEntry.month == month)
     entries = q.all()

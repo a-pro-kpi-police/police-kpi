@@ -1,11 +1,14 @@
 import { useMemo, useState } from 'react'
 import { useAuth } from '../auth.jsx'
-import { useI18n } from '../i18n.jsx'
 import api from '../api'
+import { getApiErrorMessage } from '../apiError.js'
+import { useI18n } from '../i18n.jsx'
+import { useNotify } from '../notifications.jsx'
 
 export default function EntryFormModal({ catalog, onClose, onCreated }) {
   const { t } = useI18n()
   const { user } = useAuth()
+  const { notify } = useNotify()
   const [catalogId, setCatalogId] = useState(catalog[0]?.id || '')
   const [quantity, setQuantity] = useState(1)
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
@@ -33,9 +36,12 @@ export default function EntryFormModal({ catalog, onClose, onCreated }) {
         comments,
       })
       onCreated(data)
+      notify(t('entryCreated'))
       onClose()
     } catch (err) {
-      setError(err.response?.data?.detail || 'Ошибка сохранения')
+      const message = getApiErrorMessage(err, t, 'saveError')
+      setError(message)
+      notify(message, 'error')
     } finally {
       setSaving(false)
     }

@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import api from '../api'
+import { getApiErrorMessage } from '../apiError.js'
 import { useAuth } from '../auth.jsx'
-import { useI18n } from '../i18n.jsx'
 import StatusBadge from '../components/StatusBadge.jsx'
 import EntryFormModal from '../components/EntryFormModal.jsx'
+import { useI18n } from '../i18n.jsx'
+import { useNotify } from '../notifications.jsx'
 
 const NUMERIC_KEYS = ['quantity', 'points_per_unit', 'coeff', 'raw_score', 'final_score']
 
@@ -27,6 +29,7 @@ function SortTh({ col, label, num, sort, onSort }) {
 export default function Entries() {
   const { t, fmtMonth, fmtQuarter } = useI18n()
   const { isHead } = useAuth()
+  const { notify } = useNotify()
   const [entries, setEntries] = useState([])
   const [catalog, setCatalog] = useState([])
   const [statusFilter, setStatusFilter] = useState('')
@@ -133,8 +136,13 @@ export default function Entries() {
     if (status === 'rejected') {
       head_comment = window.prompt(t('headResolution')) || ''
     }
-    const { data } = await api.patch(`/entries/${id}/status`, { status, head_comment })
-    setEntries((prev) => prev.map((e) => (e.id === id ? data : e)))
+    try {
+      const { data } = await api.patch(`/entries/${id}/status`, { status, head_comment })
+      setEntries((prev) => prev.map((e) => (e.id === id ? data : e)))
+      notify(t(status === 'confirmed' ? 'entryConfirmed' : 'entryRejected'))
+    } catch (err) {
+      notify(getApiErrorMessage(err, t, 'statusUpdateError'), 'error')
+    }
   }
 
   return (
