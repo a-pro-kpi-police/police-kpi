@@ -11,11 +11,10 @@ TARGET_OFFICERS = 20
 TARGET_KPI_ENTRIES = 1000
 
 DISTRICTS = [
-    ("Центральный участок", 0.9),
-    ("Участок №1", 1.0),
-    ("Участок №2", 1.1),
-    ("Участок №3", 1.2),
-    ("Сельский участок", 1.3),
+    ("Обычный участок", 1.0),
+    ("Повышенной сложности", 1.1),
+    ("Сложный участок", 1.2),
+    ("Особо сложный участок", 1.3),
 ]
 
 CATALOG = [
@@ -32,10 +31,10 @@ CATALOG = [
 # (username, password, ФИО, звание, роль, индекс участка)
 USERS = [
     ("head", "head123", "Нурланов Бекзат Сериккали", "Полковник полиции", "head", 0),
-    ("aibek", "pass123", "Ахметов Айбек Маратұлы", "Лейтенант полиции", "officer", 1),
-    ("dana", "pass123", "Сулейменова Дана Қанатқызы", "Капитан полиции", "officer", 2),
-    ("ruslan", "pass123", "Жумабеков Руслан Ермекұлы", "Старший лейтенант полиции", "officer", 3),
-    ("aliya", "pass123", "Оспанова Әлия Бауыржанқызы", "Майор полиции", "officer", 4),
+    ("aibek", "pass123", "Ахметов Айбек Маратұлы", "Лейтенант полиции", "officer", 0),
+    ("dana", "pass123", "Сулейменова Дана Қанатқызы", "Капитан полиции", "officer", 1),
+    ("ruslan", "pass123", "Жумабеков Руслан Ермекұлы", "Старший лейтенант полиции", "officer", 2),
+    ("aliya", "pass123", "Оспанова Әлия Бауыржанқызы", "Майор полиции", "officer", 3),
 ]
 
 # Примеры записей: (username, kpi_code, quantity, days_ago, status)
@@ -103,7 +102,7 @@ def _make_officer(idx, rng):
     patronymic = father + ("ұлы" if male else "қызы")
     fio = f"{surname} {first} {patronymic}"
     rank = rng.choice(RANKS)
-    district_idx = 1 + (idx % (len(DISTRICTS) - 1))  # участки 1..N (0 — для начальника)
+    district_idx = idx % len(DISTRICTS)
     return (f"officer{idx}", "pass123", fio, rank, "officer", district_idx)
 
 
@@ -143,6 +142,19 @@ def seed():
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     if db.query(User).count() > 0:
+        # Keep existing Docker volumes aligned with the current district catalog.
+        districts = db.query(District).order_by(District.id).all()
+        if len(districts) == 5 and districts[0].name == "Центральный участок":
+            central, districts = districts[0], districts[1:]
+            db.query(User).filter(User.district_id == central.id).update(
+                {User.district_id: districts[0].id}, synchronize_session=False
+            )
+            db.delete(central)
+        if len(districts) == len(DISTRICTS):
+            for district, (name, coeff) in zip(districts, DISTRICTS):
+                district.name = name
+                district.coeff = coeff
+            db.commit()
         db.close()
         return  # уже заполнено
 
