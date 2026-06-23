@@ -3,10 +3,9 @@ import random
 from datetime import date, timedelta
 
 from database import SessionLocal, engine, Base
-from models import District, User, KpiCatalog, KpiEntry
+from models import District, User, KpiCatalog, KpiEntry, KpiTarget
 from auth import hash_password
 
-# Всего сотрудников с ролью officer в демо-базе (начальник считается отдельно).
 TARGET_OFFICERS = 20
 TARGET_KPI_ENTRIES = 1000
 
@@ -28,7 +27,6 @@ CATALOG = [
     ("KPI-08", "Патрулирование территории", "Охрана порядка", "Закон 'Об ОВД'", 1, "смена"),
 ]
 
-# (username, password, ФИО, звание, роль, индекс участка)
 USERS = [
     ("head", "head123", "Нурланов Бекзат Сериккали", "Полковник полиции", "head", 0),
     ("aibek", "pass123", "Ахметов Айбек Маратұлы", "Лейтенант полиции", "officer", 0),
@@ -37,7 +35,6 @@ USERS = [
     ("aliya", "pass123", "Оспанова Әлия Бауыржанқызы", "Майор полиции", "officer", 3),
 ]
 
-# Примеры записей: (username, kpi_code, quantity, days_ago, status)
 SAMPLE_ENTRIES = [
     ("aibek", "KPI-04", 1, 40, "confirmed"),
     ("aibek", "KPI-08", 1, 35, "confirmed"),
@@ -57,7 +54,6 @@ SAMPLE_ENTRIES = [
     ("aliya", "KPI-07", 1, 4, "pending"),
 ]
 
-# ---------- Генерация дополнительных сотрудников ----------
 MALE_FIRST = [
     "Айбек", "Руслан", "Бекзат", "Ерлан", "Нурлан", "Дамир", "Арман", "Темирлан",
     "Алихан", "Дидар", "Санжар", "Ержан", "Мадияр", "Олжас", "Бауыржан", "Канат",
@@ -92,7 +88,6 @@ def _feminize_surname(s):
 
 
 def _make_officer(idx, rng):
-    """Возвращает (username, password, ФИО, звание, role, district_idx)."""
     male = rng.random() < 0.6
     surname = rng.choice(SURNAME_ROOTS)
     if not male:
@@ -107,7 +102,6 @@ def _make_officer(idx, rng):
 
 
 def _generate(seed_value=42):
-    """Доводит число сотрудников до TARGET_OFFICERS и создаёт ровно TARGET_KPI_ENTRIES записей KPI."""
     rng = random.Random(seed_value)
     named_officers = [u for u in USERS if u[4] == "officer"]
     named_count = len(named_officers)
@@ -131,18 +125,81 @@ def _generate(seed_value=42):
     for username in assigned_usernames:
         code = rng.choice(codes)
         qty = 1
-        days_ago = rng.randint(0, 364)  # полный год
+        days_ago = rng.randint(0, 364)
         status = rng.choice(statuses)
         extra_entries.append((username, code, qty, days_ago, status))
 
     return extra_users, extra_entries
 
 
+def _month_shift(base: date, offset: int) -> str:
+    total_months = base.year * 12 + (base.month - 1) + offset
+    year = total_months // 12
+    month = total_months % 12 + 1
+    return f"{year:04d}-{month:02d}"
+
+
+def _default_target_quantity(confirmed_quantity: float, officer_index: int, catalog_index: int, month_index: int) -> float:
+    profile = officer_index % 3
+    if confirmed_quantity > 0:
+        if profile == 0:
+            return round(confirmed_quantity, 2)
+        if profile == 1:
+            return round(max(confirmed_quantity - 0.5, 0.5), 2)
+        extra = 1.0 if (catalog_index + month_index) % 2 == 0 else 0.5
+        return round(confirmed_quantity + extra, 2)
+    if profile == 2 and (catalog_index + month_index) % 4 == 0:
+        return 1.0
+    return 0.0
+
+
+def _ensure_targets(db):
+    officers = db.query(User).filter(User.role == "officer").order_by(User.id).all()
+    catalog = db.query(KpiCatalog).order_by(KpiCatalog.code).all()
+    if not officers or not catalog:
+        return
+
+    months = [_month_shift(date.today(), 0), _month_shift(date.today(), -1)]
+    existing = {
+        (target.month, target.officer_id, target.catalog_id)
+        for target in db.query(KpiTarget).filter(KpiTarget.month.in_(months)).all()
+    }
+    confirmed_quantities = {}
+    confirmed_entries = db.query(KpiEntry).filter(
+        KpiEntry.status == "confirmed",
+        KpiEntry.month.in_(months),
+    ).all()
+    for entry in confirmed_entries:
+        key = (entry.month, entry.officer_id, entry.catalog_id)
+        confirmed_quantities[key] = round(confirmed_quantities.get(key, 0.0) + entry.quantity, 2)
+
+    changed = False
+    for officer_index, officer in enumerate(officers):
+        for month_index, month in enumerate(months):
+            for catalog_index, item in enumerate(catalog):
+                key = (month, officer.id, item.id)
+                if key in existing:
+                    continue
+                db.add(KpiTarget(
+                    month=month,
+                    officer_id=officer.id,
+                    catalog_id=item.id,
+                    target_quantity=_default_target_quantity(
+                        confirmed_quantities.get(key, 0.0),
+                        officer_index,
+                        catalog_index,
+                        month_index,
+                    ),
+                ))
+                changed = True
+    if changed:
+        db.commit()
+
+
 def seed():
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     if db.query(User).count() > 0:
-        # Keep existing Docker volumes aligned with the current district catalog.
         districts = db.query(District).order_by(District.id).all()
         if len(districts) == 5 and districts[0].name == "Центральный участок":
             central, districts = districts[0], districts[1:]
@@ -155,8 +212,9 @@ def seed():
                 district.name = name
                 district.coeff = coeff
             db.commit()
+        _ensure_targets(db)
         db.close()
-        return  # уже заполнено
+        return
 
     districts = [District(name=n, coeff=c) for n, c in DISTRICTS]
     db.add_all(districts)
@@ -211,6 +269,7 @@ def seed():
         ))
 
     db.commit()
+    _ensure_targets(db)
     db.close()
     print("База данных заполнена начальными данными.")
 

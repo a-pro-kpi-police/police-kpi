@@ -2,7 +2,7 @@
 from datetime import date as date_type
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Token(BaseModel):
@@ -36,6 +36,71 @@ class CatalogOut(BaseModel):
     npa: str
     points_per_unit: float
     unit: str
+
+
+class TargetOut(BaseModel):
+    catalog_id: int
+    code: str
+    indicator: str
+    unit: str
+    points_per_unit: float
+    target_quantity: float
+    target_score: float
+
+
+class TargetSaveItem(BaseModel):
+    catalog_id: int
+    target_quantity: float = Field(ge=0)
+
+
+class TargetSavePayload(BaseModel):
+    officer_id: int
+    month: str
+    items: list[TargetSaveItem]
+
+
+class TargetProgressItemOut(BaseModel):
+    catalog_id: int
+    code: str
+    indicator: str
+    unit: str
+    points_per_unit: float
+    target_quantity: float
+    confirmed_quantity: float
+    remaining_quantity: float
+    target_score: float
+    confirmed_score: float
+    achievement_percent: float
+
+
+class TargetProgressOut(BaseModel):
+    month: str
+    officer_id: int
+    actual_score: float
+    target_score: float
+    achievement_percent: float
+    items: list[TargetProgressItemOut]
+
+
+class TargetOverviewOfficerOut(BaseModel):
+    officer_id: int
+    name: str
+    actual_score: float
+    target_score: float
+    achievement_percent: float
+    gap: float
+    status: str
+
+
+class TargetOverviewOut(BaseModel):
+    month: str
+    actual_score: float
+    target_score: float
+    achievement_percent: float
+    on_target_count: int
+    officers_count: int
+    officers: list[TargetOverviewOfficerOut]
+    items: list[TargetProgressItemOut]
 
 
 class EntryCreate(BaseModel):

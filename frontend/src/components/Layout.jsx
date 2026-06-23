@@ -27,6 +27,7 @@ export default function Layout() {
           <NavLink to="/entries" className="nav-link">
             {isHead ? t('entries') : t('myEntries')}
           </NavLink>
+          {isHead && <NavLink to="/targets" className="nav-link">{t('targets')}</NavLink>}
           {isHead && <NavLink to="/officers" className="nav-link">{t('officers')}</NavLink>}
         </nav>
       </aside>

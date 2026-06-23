@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../auth.jsx'
 import api from '../api'
 import { getApiErrorMessage } from '../apiError.js'
@@ -15,6 +15,7 @@ export default function EntryFormModal({ catalog, onClose, onCreated }) {
   const [comments, setComments] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [targetProgress, setTargetProgress] = useState(null)
 
   const coeff = user?.district?.coeff ?? 1.0
   const selected = useMemo(
@@ -23,6 +24,14 @@ export default function EntryFormModal({ catalog, onClose, onCreated }) {
   )
   const raw = selected ? selected.points_per_unit * Number(quantity || 0) : 0
   const final = Math.round(raw * coeff * 100) / 100
+  const targetItem = targetProgress?.items?.find((item) => item.catalog_id === Number(catalogId))
+
+  useEffect(() => {
+    if (!date) return
+    api.get('/target-progress', { params: { month: date.slice(0, 7) } })
+      .then((r) => setTargetProgress(r.data))
+      .catch(() => setTargetProgress(null))
+  }, [date])
 
   const submit = async (e) => {
     e.preventDefault()
@@ -85,6 +94,10 @@ export default function EntryFormModal({ catalog, onClose, onCreated }) {
             <div><span>{t('colBlock')}</span><b>{selected?.block || '—'}</b></div>
             <div><span>{t('colNpa')}</span><b>{selected?.npa || '—'}</b></div>
             <div><span>{t('yourCoeff')}</span><b>{coeff}</b></div>
+            <div><span>{t('monthlyTarget')}</span><b>{targetItem?.target_quantity ? `${targetItem.target_quantity} ${selected?.unit || ''}` : '—'}</b></div>
+            <div><span>{t('confirmedSoFar')}</span><b>{targetItem ? `${targetItem.confirmed_quantity} ${selected?.unit || ''}` : '—'}</b></div>
+            <div><span>{t('remainingQuantity')}</span><b>{targetItem?.target_quantity ? `${targetItem.remaining_quantity} ${selected?.unit || ''}` : '—'}</b></div>
+            <div><span>{t('targetScore')}</span><b>{targetItem?.target_score || '—'}</b></div>
             <div><span>{t('computedRaw')}</span><b>{raw}</b></div>
             <div className="calc-final"><span>{t('computedFinal')}</span><b>{final}</b></div>
           </div>

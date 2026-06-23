@@ -1,5 +1,5 @@
 """Модели данных: пользователи, каталог KPI, участки и записи KPI."""
-from sqlalchemy import Column, Integer, String, Float, Date, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Float, Date, ForeignKey, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -39,6 +39,23 @@ class KpiCatalog(Base):
     npa = Column(String, default="")                      # НПА/статья
     points_per_unit = Column(Float, nullable=False)       # Балл за 1 ед.
     unit = Column(String, default="ед.")                  # Единица измерения
+
+
+class KpiTarget(Base):
+    """Плановый KPI сотрудника на месяц."""
+    __tablename__ = "kpi_targets"
+    __table_args__ = (
+        UniqueConstraint("month", "officer_id", "catalog_id", name="uq_kpi_targets_month_officer_catalog"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    month = Column(String, nullable=False)                # Месяц (YYYY-MM)
+    officer_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    catalog_id = Column(Integer, ForeignKey("kpi_catalog.id"), nullable=False)
+    target_quantity = Column(Float, nullable=False, default=0)
+
+    officer = relationship("User")
+    catalog = relationship("KpiCatalog")
 
 
 class KpiEntry(Base):

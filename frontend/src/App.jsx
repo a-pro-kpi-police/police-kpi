@@ -5,6 +5,7 @@ import Login from './pages/Login.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Entries from './pages/Entries.jsx'
 import Officers from './pages/Officers.jsx'
+import Targets from './pages/Targets.jsx'
 
 function Protected({ children }) {
   const { user, loading } = useAuth()
@@ -46,6 +47,14 @@ export default function App() {
           }
         />
         <Route path="entries" element={<Entries />} />
+        <Route
+          path="targets"
+          element={
+            <HeadOnly>
+              <Targets />
+            </HeadOnly>
+          }
+        />
         <Route
           path="officers"
           element={

@@ -1,6 +1,8 @@
 const DETAIL_TO_KEY = {
   'Показатель KPI не найден': 'catalogNotFoundError',
   'Количество должно быть больше нуля': 'quantityPositiveError',
+  'Месяц указан неверно': 'monthInvalidError',
+  'Сотрудник не найден': 'officerNotFoundError',
   'Запись не найдена': 'entryNotFoundError',
   'Недопустимый статус': 'statusInvalidError',
 }

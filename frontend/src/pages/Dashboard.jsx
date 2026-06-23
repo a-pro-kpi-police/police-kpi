@@ -148,11 +148,26 @@ function ComparisonCharts({ comparisons, fmtMonth, officer, t }) {
   </>
 }
 
+function TargetStatusBadge({ status, t }) {
+  const classes = {
+    on_target: 'badge-confirmed',
+    behind: 'badge-rejected',
+    no_target: 'badge-pending',
+  }
+  const labels = {
+    on_target: t('targetStatusOnTarget'),
+    behind: t('targetStatusBehind'),
+    no_target: t('targetStatusNoTarget'),
+  }
+  return <span className={`badge ${classes[status] || 'badge-pending'}`}>{labels[status] || status}</span>
+}
+
 export default function Dashboard() {
   const { t, fmtMonth } = useI18n()
   const { isHead } = useAuth()
   const [data, setData] = useState(null)
   const [comparisons, setComparisons] = useState(null)
+  const [targetOverview, setTargetOverview] = useState(null)
   const [months, setMonths] = useState([])
   const [month, setMonth] = useState('')
   const [officers, setOfficers] = useState([])
@@ -164,9 +179,10 @@ export default function Dashboard() {
     const params = {}
     if (m) params.month = m
     if (oid) params.officer_id = oid
-    const [dashboardResponse, allEntriesResponse] = await Promise.all([
+    const [dashboardResponse, allEntriesResponse, targetOverviewResponse] = await Promise.all([
       api.get('/dashboard', { params }),
       api.get('/entries'),
+      api.get('/target-overview', { params }),
     ])
     const filteredEntries = allEntriesResponse.data.filter((entry) =>
       (!m || entry.month === m) && (!oid || String(entry.officer_id) === String(oid)))
@@ -175,6 +191,7 @@ export default function Dashboard() {
       ...buildSupplementalCharts(filteredEntries),
     })
     setComparisons(buildComparisons(allEntriesResponse.data, m, oid))
+    setTargetOverview(targetOverviewResponse.data)
   }
 
   useEffect(() => {
@@ -239,14 +256,98 @@ export default function Dashboard() {
         </div>
       </div>
 
+      <div className="section-head">
+        <h2>{t('overviewMetrics')}</h2>
+      </div>
       <div className="stat-grid">
-        <StatCard label={t('totalFinal')} value={data.total_final} accent="#1e4d8c" />
         <StatCard label={t('confirmedCount')} value={data.confirmed_count} accent="#2f7d4f" />
         <StatCard label={t('pendingCount')} value={data.pending_count} accent="#b8860b" />
         <StatCard label={t('rejectedCount')} value={data.rejected_count} accent="#9c3848" />
         {!officer && <StatCard label={t('officersCount')} value={data.officers_count} accent="#5b4b8a" />}
         <StatCard label={t('confirmRate')} value={`${data.confirm_rate}%`} accent="#0f8b8d" />
       </div>
+
+      {targetOverview && (
+        <>
+          <div className="section-head">
+            <h2>{t('targetOverview')}</h2>
+            <div className="section-note">{t('summaryForMonth')} {fmtMonth(targetOverview.month)}</div>
+          </div>
+          <div className="stat-grid">
+            <StatCard label={t('actualScore')} value={targetOverview.actual_score} accent="#1e4d8c" />
+            <StatCard label={t('targetScore')} value={targetOverview.target_score} accent="#5b4b8a" />
+            <StatCard label={t('achievement')} value={`${targetOverview.achievement_percent}%`} accent="#2f7d4f" />
+            {!officer && (
+              <StatCard
+                label={t('officersOnTarget')}
+                value={`${targetOverview.on_target_count} / ${targetOverview.officers_count}`}
+                accent="#b8860b"
+              />
+            )}
+          </div>
+        </>
+      )}
+
+      {targetOverview && (
+        <div className="card table-card target-overview-card">
+          <div className="chart-head target-overview-head">
+            <h3>{officer ? t('targetKpiBreakdown') : t('targetOfficerOverview')}</h3>
+          </div>
+          <div className="table-scroll">
+            <table className="data-table">
+              <thead>
+                {officer ? (
+                  <tr>
+                    <th>{t('colCode')}</th>
+                    <th>{t('colIndicator')}</th>
+                    <th className="num">{t('colActualQuantity')}</th>
+                    <th className="num">{t('colTargetQuantity')}</th>
+                    <th className="num">{t('colActualScore')}</th>
+                    <th className="num">{t('colTargetScore')}</th>
+                    <th className="num">{t('colAchievement')}</th>
+                  </tr>
+                ) : (
+                  <tr>
+                    <th>{t('colOfficer')}</th>
+                    <th className="num">{t('actualScore')}</th>
+                    <th className="num">{t('targetScore')}</th>
+                    <th className="num">{t('colAchievement')}</th>
+                    <th className="num">{t('colGap')}</th>
+                    <th>{t('colStatus')}</th>
+                  </tr>
+                )}
+              </thead>
+              <tbody>
+                {officer ? targetOverview.items.map((item) => (
+                  <tr key={item.catalog_id}>
+                    <td><span className="code-chip">{item.code}</span></td>
+                    <td>{item.indicator}</td>
+                    <td className="num">{item.confirmed_quantity}</td>
+                    <td className="num">{item.target_quantity}</td>
+                    <td className="num strong">{item.confirmed_score}</td>
+                    <td className="num">{item.target_score}</td>
+                    <td className="num">{item.target_score ? `${item.achievement_percent}%` : '—'}</td>
+                  </tr>
+                )) : targetOverview.officers.map((item) => (
+                  <tr key={item.officer_id}>
+                    <td className="nowrap strong">{item.name}</td>
+                    <td className="num strong">{item.actual_score}</td>
+                    <td className="num">{item.target_score}</td>
+                    <td className="num">{item.target_score ? `${item.achievement_percent}%` : '—'}</td>
+                    <td className={`num ${item.gap < 0 ? 'target-gap-negative' : 'target-gap-positive'}`}>
+                      {item.gap > 0 ? `+${item.gap}` : item.gap}
+                    </td>
+                    <td><TargetStatusBadge status={item.status} t={t} /></td>
+                  </tr>
+                ))}
+                {((officer && targetOverview.items.length === 0) || (!officer && targetOverview.officers.length === 0)) && (
+                  <tr><td colSpan={officer ? 7 : 6} className="empty">{t('nothingFound')}</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {officer && comparisons && (
         <div className="chart-grid comparison-grid">

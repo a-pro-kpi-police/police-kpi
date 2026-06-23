@@ -8,6 +8,16 @@ import { useI18n } from '../i18n.jsx'
 import { useNotify } from '../notifications.jsx'
 
 const NUMERIC_KEYS = ['quantity', 'points_per_unit', 'coeff', 'raw_score', 'final_score']
+const currentMonth = () => new Date().toISOString().slice(0, 7)
+
+function SummaryCard({ label, value, accent }) {
+  return (
+    <div className="stat-card" style={{ borderTopColor: accent }}>
+      <div className="stat-value">{value}</div>
+      <div className="stat-label">{label}</div>
+    </div>
+  )
+}
 
 // "2026-06" -> "2026-Q2"
 const quarterOf = (ym) => {
@@ -38,6 +48,7 @@ export default function Entries() {
   const [nameQuery, setNameQuery] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [targetProgress, setTargetProgress] = useState(null)
   const [sort, setSort] = useState({ key: null, dir: 'asc' })
 
   const load = async () => {
@@ -87,6 +98,15 @@ export default function Entries() {
     const opts = periodOptions[periodType] || []
     setPeriodValue((prev) => (opts.includes(prev) ? prev : opts[0] || ''))
   }, [periodType, periodOptions])
+
+  const summaryMonth = periodType === 'month' && periodValue ? periodValue : currentMonth()
+
+  useEffect(() => {
+    if (isHead) return
+    api.get('/target-progress', { params: { month: summaryMonth } })
+      .then((r) => setTargetProgress(r.data))
+      .catch(() => setTargetProgress(null))
+  }, [isHead, summaryMonth])
 
   const periodLabel = (type, val) => {
     if (type === 'month') return fmtMonth(val)
@@ -184,6 +204,21 @@ export default function Entries() {
         </div>
       </div>
 
+      {!isHead && targetProgress && (
+        <>
+          <div className="summary-note">{t('summaryForMonth')} {fmtMonth(summaryMonth)}</div>
+          <div className="stat-grid">
+            <SummaryCard label={t('actualScore')} value={targetProgress.actual_score} accent="#1e4d8c" />
+            <SummaryCard label={t('targetScore')} value={targetProgress.target_score || '—'} accent="#5b4b8a" />
+            <SummaryCard
+              label={t('achievement')}
+              value={targetProgress.target_score ? `${targetProgress.achievement_percent}%` : '—'}
+              accent="#2f7d4f"
+            />
+          </div>
+        </>
+      )}
+
       <div className="card table-card">
         <div className="table-scroll">
           <table className="data-table">
@@ -260,7 +295,14 @@ export default function Entries() {
         <EntryFormModal
           catalog={catalog}
           onClose={() => setShowModal(false)}
-          onCreated={(entry) => setEntries((prev) => [entry, ...prev])}
+          onCreated={(entry) => {
+            setEntries((prev) => [entry, ...prev])
+            if (!isHead) {
+              api.get('/target-progress', { params: { month: summaryMonth } })
+                .then((r) => setTargetProgress(r.data))
+                .catch(() => setTargetProgress(null))
+            }
+          }}
         />
       )}
     </div>
