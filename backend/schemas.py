@@ -59,6 +59,16 @@ class TargetSavePayload(BaseModel):
     items: list[TargetSaveItem]
 
 
+class GroupTargetOut(TargetOut):
+    mixed: bool
+
+
+class GroupTargetSavePayload(BaseModel):
+    district_id: int
+    month: str
+    items: list[TargetSaveItem]
+
+
 class TargetProgressItemOut(BaseModel):
     catalog_id: int
     code: str
@@ -105,6 +115,7 @@ class TargetOverviewOut(BaseModel):
 
 class EntryCreate(BaseModel):
     catalog_id: int
+    officer_id: Optional[int] = None
     quantity: float = 1
     date: Optional[date_type] = None
     comments: str = ""

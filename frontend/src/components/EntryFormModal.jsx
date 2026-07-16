@@ -5,10 +5,11 @@ import { getApiErrorMessage } from '../apiError.js'
 import { useI18n } from '../i18n.jsx'
 import { useNotify } from '../notifications.jsx'
 
-export default function EntryFormModal({ catalog, onClose, onCreated }) {
+export default function EntryFormModal({ catalog, officers, onClose, onCreated }) {
   const { t } = useI18n()
-  const { user } = useAuth()
+  const { user, isHead } = useAuth()
   const { notify } = useNotify()
+  const [officerId, setOfficerId] = useState(isHead ? officers[0]?.id || '' : user?.id || '')
   const [catalogId, setCatalogId] = useState(catalog[0]?.id || '')
   const [quantity, setQuantity] = useState(1)
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
@@ -17,7 +18,10 @@ export default function EntryFormModal({ catalog, onClose, onCreated }) {
   const [error, setError] = useState('')
   const [targetProgress, setTargetProgress] = useState(null)
 
-  const coeff = user?.district?.coeff ?? 1.0
+  const officer = isHead
+    ? officers.find((item) => item.id === Number(officerId))
+    : user
+  const coeff = officer?.district?.coeff ?? 1.0
   const selected = useMemo(
     () => catalog.find((c) => c.id === Number(catalogId)),
     [catalog, catalogId]
@@ -27,11 +31,13 @@ export default function EntryFormModal({ catalog, onClose, onCreated }) {
   const targetItem = targetProgress?.items?.find((item) => item.catalog_id === Number(catalogId))
 
   useEffect(() => {
-    if (!date) return
-    api.get('/target-progress', { params: { month: date.slice(0, 7) } })
+    if (!date || (isHead && !officerId)) return
+    const params = { month: date.slice(0, 7) }
+    if (isHead) params.officer_id = Number(officerId)
+    api.get('/target-progress', { params })
       .then((r) => setTargetProgress(r.data))
       .catch(() => setTargetProgress(null))
-  }, [date])
+  }, [date, isHead, officerId])
 
   const submit = async (e) => {
     e.preventDefault()
@@ -40,6 +46,7 @@ export default function EntryFormModal({ catalog, onClose, onCreated }) {
     try {
       const { data } = await api.post('/entries', {
         catalog_id: Number(catalogId),
+        ...(isHead ? { officer_id: Number(officerId) } : {}),
         quantity: Number(quantity),
         date,
         comments,
@@ -61,6 +68,23 @@ export default function EntryFormModal({ catalog, onClose, onCreated }) {
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h2>{t('newEntry')}</h2>
         <form onSubmit={submit}>
+          {isHead && (
+            <>
+              <label>{t('selectOfficer')}</label>
+              <select
+                value={officerId}
+                onChange={(e) => setOfficerId(e.target.value)}
+                required
+              >
+                {officers.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.full_name} — {item.rank}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+
           <label>{t('selectKpi')}</label>
           <select value={catalogId} onChange={(e) => setCatalogId(e.target.value)}>
             {catalog.map((c) => (
@@ -93,7 +117,7 @@ export default function EntryFormModal({ catalog, onClose, onCreated }) {
           <div className="calc-box">
             <div><span>{t('colBlock')}</span><b>{selected?.block || '—'}</b></div>
             <div><span>{t('colNpa')}</span><b>{selected?.npa || '—'}</b></div>
-            <div><span>{t('yourCoeff')}</span><b>{coeff}</b></div>
+            <div><span>{t(isHead ? 'employeeCoeff' : 'yourCoeff')}</span><b>{coeff}</b></div>
             <div><span>{t('monthlyTarget')}</span><b>{targetItem?.target_quantity ? `${targetItem.target_quantity} ${selected?.unit || ''}` : '—'}</b></div>
             <div><span>{t('confirmedSoFar')}</span><b>{targetItem ? `${targetItem.confirmed_quantity} ${selected?.unit || ''}` : '—'}</b></div>
             <div><span>{t('remainingQuantity')}</span><b>{targetItem?.target_quantity ? `${targetItem.remaining_quantity} ${selected?.unit || ''}` : '—'}</b></div>

@@ -2,11 +2,44 @@ import { useEffect, useMemo, useState } from 'react'
 import api from '../api'
 import { useI18n } from '../i18n.jsx'
 
+const RANK_ORDER = [
+  'Сержант полиции',
+  'Старший сержант полиции',
+  'Лейтенант полиции',
+  'Старший лейтенант полиции',
+  'Капитан полиции',
+  'Майор полиции',
+  'Подполковник полиции',
+  'Полковник полиции',
+]
+
+const rankOrder = (rank) => {
+  const index = RANK_ORDER.indexOf(rank)
+  return index === -1 ? RANK_ORDER.length : index
+}
+
+const compareNames = (a, b) => (a.name || '').localeCompare(b.name || '', 'ru')
+
+function SortTh({ column, label, sort, onSort }) {
+  const active = sort.key === column
+  return (
+    <th
+      className={`sortable${active ? ' sorted' : ''}`}
+      aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+      onClick={() => onSort(column)}
+    >
+      {label}
+      <span className="sort-ind">{active ? (sort.dir === 'asc' ? '▲' : '▼') : '⇅'}</span>
+    </th>
+  )
+}
+
 export default function Officers() {
   const { t } = useI18n()
   const [officers, setOfficers] = useState([])
   const [max, setMax] = useState(1)
   const [query, setQuery] = useState('')
+  const [sort, setSort] = useState({ key: null, dir: 'asc' })
 
   useEffect(() => {
     api.get('/dashboard').then((r) => {
@@ -15,13 +48,30 @@ export default function Officers() {
     })
   }, [])
 
-  // Поиск по ФИО; ранг сохраняется по исходному рейтингу.
+  const toggleSort = (key) => {
+    setSort((current) => (
+      current.key === key
+        ? { key, dir: current.dir === 'asc' ? 'desc' : 'asc' }
+        : { key, dir: 'asc' }
+    ))
+  }
+
+  // Номер сохраняется по исходному рейтингу, независимо от выбранной сортировки.
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return officers
+    const rows = officers
       .map((o, i) => ({ ...o, rankNum: i + 1 }))
       .filter((o) => !q || (o.name || '').toLowerCase().includes(q))
-  }, [officers, query])
+
+    if (!sort.key) return rows
+    const factor = sort.dir === 'asc' ? 1 : -1
+    return [...rows].sort((a, b) => {
+      const comparison = sort.key === 'rank'
+        ? rankOrder(a.rank) - rankOrder(b.rank)
+        : compareNames(a, b)
+      return (comparison || compareNames(a, b)) * factor
+    })
+  }, [officers, query, sort])
 
   return (
     <div>
@@ -43,8 +93,8 @@ export default function Officers() {
           <thead>
             <tr>
               <th>#</th>
-              <th>{t('colOfficer')}</th>
-              <th>{t('colRank')}</th>
+              <SortTh column="surname" label={t('colOfficer')} sort={sort} onSort={toggleSort} />
+              <SortTh column="rank" label={t('colRank')} sort={sort} onSort={toggleSort} />
               <th>{t('colDistrict')}</th>
               <th className="num">{t('confirmedFinal')}</th>
               <th className="num">{t('confirmedCount')}</th>

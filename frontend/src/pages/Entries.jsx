@@ -42,6 +42,7 @@ export default function Entries() {
   const { notify } = useNotify()
   const [entries, setEntries] = useState([])
   const [catalog, setCatalog] = useState([])
+  const [officers, setOfficers] = useState([])
   const [statusFilter, setStatusFilter] = useState('')
   const [periodType, setPeriodType] = useState('') // '' | 'month' | 'quarter' | 'year'
   const [periodValue, setPeriodValue] = useState('')
@@ -61,7 +62,8 @@ export default function Entries() {
 
   useEffect(() => {
     api.get('/catalog').then((r) => setCatalog(r.data))
-  }, [])
+    if (isHead) api.get('/officers').then((r) => setOfficers(r.data))
+  }, [isHead])
 
   useEffect(() => {
     load()
@@ -198,9 +200,13 @@ export default function Entries() {
             <option value="confirmed">{t('confirmed')}</option>
             <option value="rejected">{t('rejected')}</option>
           </select>
-          {!isHead && (
-            <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ {t('addEntry')}</button>
-          )}
+          <button
+            className="btn btn-primary"
+            disabled={!catalog.length || (isHead && !officers.length)}
+            onClick={() => setShowModal(true)}
+          >
+            + {t('addEntry')}
+          </button>
         </div>
       </div>
 
@@ -294,6 +300,7 @@ export default function Entries() {
       {showModal && (
         <EntryFormModal
           catalog={catalog}
+          officers={officers}
           onClose={() => setShowModal(false)}
           onCreated={(entry) => {
             setEntries((prev) => [entry, ...prev])

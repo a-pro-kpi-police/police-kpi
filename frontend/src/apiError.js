@@ -2,7 +2,11 @@ const DETAIL_TO_KEY = {
   'Показатель KPI не найден': 'catalogNotFoundError',
   'Количество должно быть больше нуля': 'quantityPositiveError',
   'Месяц указан неверно': 'monthInvalidError',
+  'Сотрудник не указан': 'officerRequiredError',
   'Сотрудник не найден': 'officerNotFoundError',
+  'Группа не найдена': 'groupNotFoundError',
+  'В группе нет сотрудников': 'groupEmptyError',
+  'KPI с отрицательным баллом доступен только начальнику отдела': 'negativeKpiManagerOnlyError',
   'Запись не найдена': 'entryNotFoundError',
   'Недопустимый статус': 'statusInvalidError',
 }
