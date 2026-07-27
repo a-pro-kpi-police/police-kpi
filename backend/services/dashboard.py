@@ -5,7 +5,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from models import KpiEntry
+from models import KpiCatalog, KpiEntry
 
 
 def build_dashboard(
@@ -72,13 +72,20 @@ def build_dashboard(
     ]
     officers.sort(key=lambda item: item["final"], reverse=True)
 
-    by_block = defaultdict(float)
+    # Keep every catalog block in the response, even when the selected period
+    # has no confirmed entries for it. Otherwise valid blocks disappear from
+    # the chart and look as if they do not exist in the catalog.
+    catalog_blocks = []
+    for (block,) in db.query(KpiCatalog.block).order_by(KpiCatalog.code).all():
+        if block and block not in catalog_blocks:
+            catalog_blocks.append(block)
+    by_block = {block: 0.0 for block in catalog_blocks}
     for entry in confirmed:
         block = entry.catalog.block if entry.catalog else "—"
-        by_block[block] += entry.final_score
+        by_block[block] = by_block.get(block, 0.0) + entry.final_score
     blocks = [
         {"block": block, "final": round(value, 2)}
-        for block, value in sorted(by_block.items(), key=lambda item: -item[1])
+        for block, value in by_block.items()
     ]
 
     by_month = defaultdict(float)

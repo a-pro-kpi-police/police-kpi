@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
-  Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart,
+  Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, ReferenceLine,
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
 import api from '../api'
@@ -8,6 +8,7 @@ import { useAuth } from '../auth.jsx'
 import { useI18n } from '../i18n.jsx'
 
 const COLORS = ['#1e4d8c', '#2f7d4f', '#b8860b', '#9c3848', '#5b4b8a', '#0f8b8d', '#a85b2b', '#3b6ea5']
+const BLOCK_COLORS = ['#1e4d8c', '#2f7d4f', '#b8860b', '#5b4b8a', '#0f8b8d', '#a85b2b', '#3b6ea5']
 const STATUS_COLORS = { confirmed: '#2f7d4f', pending: '#b8860b', rejected: '#9c3848' }
 
 function median(values) {
@@ -227,13 +228,13 @@ export default function Dashboard() {
   const districtReview = data.district_review || []
 
   // "Эффективность по сотрудникам": при выборе блока считаем баллы только по нему
-  // и показываем лишь сотрудников с баллами по блоку — столбцы становятся крупнее.
+  // и показываем сотрудников с любым ненулевым результатом, включая штрафные баллы.
   let officerChart = data.officers.map((o) => ({
     name: o.name.split(' ').slice(0, 2).join(' '),
     final: block ? (o.blocks?.[block] || 0) : o.final,
   }))
   if (block) {
-    officerChart = officerChart.filter((o) => o.final > 0).sort((a, b) => b.final - a.final)
+    officerChart = officerChart.filter((o) => o.final !== 0).sort((a, b) => b.final - a.final)
   }
 
   return (
@@ -369,8 +370,9 @@ export default function Dashboard() {
             <BarChart data={officerChart} margin={{ top: 10, right: 20, bottom: 40, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="name" angle={-20} textAnchor="end" height={60} fontSize={12} />
-              <YAxis />
+              <YAxis domain={['auto', 'auto']} />
               <Tooltip />
+              <ReferenceLine y={0} stroke="#6b7785" />
               <Bar dataKey="final" name={t('colFinal')} radius={[4, 4, 0, 0]} maxBarSize={block ? 64 : 28}>
                 {officerChart.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
               </Bar>
@@ -380,18 +382,26 @@ export default function Dashboard() {
 
         <div className="card chart-card chart-wide">
           <h3>{t('byBlock')}</h3>
-          <ResponsiveContainer width="100%" height={340}>
-            <PieChart>
-              <Pie data={data.blocks} dataKey="final" nameKey="block" cx="50%" cy="45%" outerRadius={100} label>
-                {data.blocks.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-              </Pie>
-              <Tooltip />
-              <Legend
-                verticalAlign="bottom"
-                layout="horizontal"
-                wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
-              />
-            </PieChart>
+          <ResponsiveContainer width="100%" height={Math.max(360, data.blocks.length * 46)}>
+            <BarChart
+              data={data.blocks}
+              layout="vertical"
+              margin={{ top: 5, right: 30, bottom: 5, left: 10 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+              <XAxis type="number" domain={['auto', 'auto']} />
+              <YAxis type="category" dataKey="block" width={285} fontSize={11} />
+              <Tooltip formatter={(value) => [value, t('points')]} />
+              <ReferenceLine x={0} stroke="#6b7785" />
+              <Bar dataKey="final" name={t('colFinal')} radius={[0, 4, 4, 0]} maxBarSize={28}>
+                {data.blocks.map((item, i) => (
+                  <Cell
+                    key={item.block}
+                    fill={item.final < 0 ? STATUS_COLORS.rejected : BLOCK_COLORS[i % BLOCK_COLORS.length]}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
           </ResponsiveContainer>
         </div>
 

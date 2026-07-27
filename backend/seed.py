@@ -8,6 +8,7 @@ from auth import hash_password
 
 TARGET_OFFICERS = 20
 TARGET_KPI_ENTRIES = 1000
+LEGACY_DEMO_CODES = {f"KPI-{index:02d}" for index in range(1, 9)}
 
 DISTRICTS = [
     ("Обычный участок", 1.0),
@@ -16,77 +17,87 @@ DISTRICTS = [
     ("Особо сложный участок", 1.3),
 ]
 
+BLOCK_ADMIN = "Административная практика"
+BLOCK_GENERAL_PREVENTION = "Общая и ранняя профилактика"
+BLOCK_INDIVIDUAL_PREVENTION = "Профилактический учет и индивидуальная работа"
+BLOCK_RESPONSE = "Реагирование, защита и розыск несовершеннолетних"
+BLOCK_MATERIALS = "Качество материалов и соблюдение сроков"
+BLOCK_RECORDS = "Учетно-регистрационная дисциплина"
+BLOCK_INTERAGENCY = "Межведомственное взаимодействие"
+BLOCK_PUBLIC_TRUST = "Общественное доверие и репутация"
+BLOCK_SERVICE_DISCIPLINE = "Служебная и исполнительская дисциплина"
+
 CATALOG = [
-    ("KPI-01", "КоАП РК ст.127 ч.1", "Административная практика", "КоАП РК ст.127 ч.1", 6, "факт"),
-    ("KPI-02", "КоАП РК ст.127 ч.2", "Административная практика", "КоАП РК ст.127 ч.2", 7, "факт"),
-    ("KPI-03", "КоАП РК ст.127 ч.3", "Административная практика", "КоАП РК ст.127 ч.3", 7, "факт"),
-    ("KPI-04", "КоАП РК ст.127-1", "Административная практика", "КоАП РК ст.127-1", 7, "факт"),
-    ("KPI-05", "КоАП РК ст.127-2", "Административная практика", "КоАП РК ст.127-2", 7, "факт"),
-    ("KPI-06", "КоАП РК ст.128", "Административная практика", "КоАП РК ст.128", 6, "факт"),
-    ("KPI-07", "КоАП РК ст.131", "Административная практика", "КоАП РК ст.131", 5, "факт"),
-    ("KPI-08", "КоАП РК ст.132", "Административная практика", "КоАП РК ст.132", 4, "факт"),
-    ("KPI-09", "КоАП РК ст.133", "Административная практика", "КоАП РК ст.133", 4, "факт"),
-    ("KPI-10", "КоАП РК ст.200 ч.1", "Административная практика", "КоАП РК ст.200 ч.1", 4, "факт"),
-    ("KPI-11", "КоАП РК ст.200 ч.2", "Административная практика", "КоАП РК ст.200 ч.2", 5, "факт"),
-    ("KPI-12", "КоАП РК ст.441-1", "Административная практика", "КоАП РК ст.441-1", 2, "факт"),
-    ("KPI-13", "КоАП РК ст.442 ч.1", "Административная практика", "КоАП РК ст.442 ч.1", 4, "факт"),
-    ("KPI-14", "КоАП РК ст.442 ч.2", "Административная практика", "КоАП РК ст.442 ч.2", 5, "факт"),
-    ("KPI-15", "КоАП РК ст.442 ч.3", "Административная практика", "КоАП РК ст.442 ч.3", 6, "факт"),
-    ("KPI-16", "КоАП РК ст.434", "Административная практика", "КоАП РК ст.434", 5, "факт"),
-    ("KPI-17", "КоАП РК ст.435", "Административная практика", "КоАП РК ст.435", 6, "факт"),
-    ("KPI-18", "КоАП РК ст.440", "Административная практика", "КоАП РК ст.440", 7, "факт"),
-    ("KPI-19", "КоАП РК ст.444", "Административная практика", "КоАП РК ст.444", 6, "факт"),
-    ("KPI-20", "КоАП РК ст.448", "Административная практика", "КоАП РК ст.448", 7, "факт"),
-    ("KPI-21", "Профилактическая беседа с несовершеннолетним", "Профилактика несовершеннолетних", "", 2, "беседа"),
-    ("KPI-22", "Профилактическая беседа с родителем (законным представителем)", "Профилактика несовершеннолетних", "", 3, "беседа"),
-    ("KPI-23", "Лекция/выступление в школе, колледже", "Профилактика несовершеннолетних", "", 3, "факт"),
-    ("KPI-24", "Родительское собрание", "Профилактика несовершеннолетних", "", 4, "факт"),
-    ("KPI-25", "Рейд/ОПМ без выявлений", "Профилактика несовершеннолетних", "", 5, "факт"),
-    ("KPI-26", "Рейд/ОПМ с выявлением и принятием мер", "Профилактика несовершеннолетних", "", 8, "факт"),
-    ("KPI-27", "Представление об устранении причин и условий", "Профилактика несовершеннолетних", "", 7, "факт"),
-    ("KPI-28", "Совместная работа со школой, психологом, органом опеки, акиматом", "Профилактика несовершеннолетних", "", 8, "факт"),
-    ("KPI-29", "Выявление троллинга/кибербуллинга", "Профилактика несовершеннолетних", "", 8, "факт"),
-    ("KPI-30", "Выявление кризисного риска для жизни и здоровья ребенка", "Профилактика несовершеннолетних", "", 7, "факт"),
-    ("KPI-31", "Организация занятости несовершеннолетнего", "Профилактика несовершеннолетних", "", 6, "факт"),
-    ("KPI-32", "Месячный профилактический план выполнен без замечаний", "Профилактика несовершеннолетних", "", 4, "факт"),
-    ("KPI-33", "Постановка несовершеннолетнего на профилактический учет", "Профилактика несовершеннолетних", "", 7, "факт"),
-    ("KPI-34", "Постановка родителя на профилактический контроль", "Профилактика несовершеннолетних", "", 6, "факт"),
-    ("KPI-35", "Проверка подучетного/семьи по месту жительства", "Профилактика несовершеннолетних", "", 5, "факт"),
-    ("KPI-36", "Индивидуальный план профилактики оформлен без замечаний", "Профилактика несовершеннолетних", "", 5, "факт"),
-    ("KPI-37", "Корректировка индивидуального плана", "Профилактика несовершеннолетних", "", 6, "факт"),
-    ("KPI-38", "Снятие с учета по положительным основаниям", "Профилактика несовершеннолетних", "", 7, "факт"),
-    ("KPI-39", "Повторное правонарушение подучетного", "Профилактика несовершеннолетних", "", -2, "факт"),
-    ("KPI-40", "Отсутствие повторных правонарушений среди подучетных", "Профилактика несовершеннолетних", "", 7, "факт"),
-    ("KPI-41", "Выявление неблагополучной семьи", "Профилактика несовершеннолетних", "", 7, "факт"),
-    ("KPI-42", "Положительная динамика по семье/несовершеннолетнему", "Профилактика несовершеннолетних", "", 7, "факт"),
-    ("KPI-43", "Выезд по сообщению с участием несовершеннолетнего", "Профилактика несовершеннолетних", "", 7, "факт"),
-    ("KPI-44", "Ночной/неотложный выезд", "Профилактика несовершеннолетних", "", 7, "факт"),
-    ("KPI-45", "Семейно-бытовой конфликт", "Профилактика несовершеннолетних", "", 7, "факт"),
-    ("KPI-46", "Доставление несовершеннолетнего в ЦАН/центр защиты", "Профилактика несовершеннолетних", "", 7, "факт"),
-    ("KPI-47", "Материал направлен в КДН, комиссия удовлетворила материал", "Профилактика несовершеннолетних", "", 10, "факт"),
-    ("KPI-48", "Мероприятия по самовольному уходу/розыску", "Профилактика несовершеннолетних", "", 8, "факт"),
-    ("KPI-49", "Установление местонахождения и возвращение несовершеннолетнего", "Профилактика несовершеннолетних", "", 8, "факт"),
-    ("KPI-50", "Материал оформлен без замечаний руководителя/суда/КДН", "Профилактика несовершеннолетних", "", 6, "факт"),
-    ("KPI-51", "Возврат материала на доработку по вине сотрудника", "Профилактика несовершеннолетних", "", -2, "факт"),
-    ("KPI-52", "Просрочка материала/ответа", "Профилактика несовершеннолетних", "", -3, "факт"),
-    ("KPI-53", "Отмена материала из-за ошибок оформления", "Профилактика несовершеннолетних", "", -4, "факт"),
-    ("KPI-54", "Своевременная отработка Е-өтініш/КУИ", "Профилактика несовершеннолетних", "", 5, "факт"),
-    ("KPI-55", "Проверка учетного дела без замечаний", "Профилактика несовершеннолетних", "", 5, "факт"),
-    ("KPI-56", "Своевременное внесение данных в ИПС/ЕРАП", "Профилактика несовершеннолетних", "", 4, "факт"),
-    ("KPI-57", "Ошибка в ИПС/ЕРАП/учете", "Профилактика несовершеннолетних", "", -2, "факт"),
-    ("KPI-58", "Неактуальное ведение учета", "Профилактика несовершеннолетних", "", -2, "факт"),
-    ("KPI-59", "Полный комплект подтверждающих документов", "Профилактика несовершеннолетних", "", 5, "факт"),
-    ("KPI-60", "Запросы и взаимодействие со школой, психологом, органом опеки", "Профилактика несовершеннолетних", "", 6, "факт"),
-    ("KPI-61", "Участие в заседании КДН/межведомственной комиссии", "Профилактика несовершеннолетних", "", 7, "факт"),
-    ("KPI-62", "Благодарность/положительный отзыв", "Профилактика несовершеннолетних", "", 6, "факт"),
-    ("KPI-63", "Подтвержденная жалоба на сотрудника", "Профилактика несовершеннолетних", "", -5, "факт"),
-    ("KPI-64", "Подтвержденная негативная публикация по вине сотрудника", "Профилактика несовершеннолетних", "", -5, "факт"),
-    ("KPI-65", "Опоздание на службу", "Профилактика несовершеннолетних", "", -1, "факт"),
-    ("KPI-66", "Нарушение формы одежды", "Профилактика несовершеннолетних", "", -1, "факт"),
-    ("KPI-67", "Отсутствие жетона/удостоверения", "Профилактика несовершеннолетних", "", -1, "факт"),
-    ("KPI-68", "Дисциплинарное взыскание", "Профилактика несовершеннолетних", "", -5, "факт"),
-    ("KPI-69", "Отсутствие взысканий и замечаний за месяц", "Профилактика несовершеннолетних", "", 5, "факт"),
-    ("KPI-70", "Неисполнение поручения/отчета в срок", "Профилактика несовершеннолетних", "", -3, "факт"),
+    ("KPI-01", "КоАП РК ст.127 ч.1", BLOCK_ADMIN, "КоАП РК ст.127 ч.1", 6, "факт"),
+    ("KPI-02", "КоАП РК ст.127 ч.2", BLOCK_ADMIN, "КоАП РК ст.127 ч.2", 7, "факт"),
+    ("KPI-03", "КоАП РК ст.127 ч.3", BLOCK_ADMIN, "КоАП РК ст.127 ч.3", 7, "факт"),
+    ("KPI-04", "КоАП РК ст.127-1", BLOCK_ADMIN, "КоАП РК ст.127-1", 7, "факт"),
+    ("KPI-05", "КоАП РК ст.127-2", BLOCK_ADMIN, "КоАП РК ст.127-2", 7, "факт"),
+    ("KPI-06", "КоАП РК ст.128", BLOCK_ADMIN, "КоАП РК ст.128", 6, "факт"),
+    ("KPI-07", "КоАП РК ст.131", BLOCK_ADMIN, "КоАП РК ст.131", 5, "факт"),
+    ("KPI-08", "КоАП РК ст.132", BLOCK_ADMIN, "КоАП РК ст.132", 4, "факт"),
+    ("KPI-09", "КоАП РК ст.133", BLOCK_ADMIN, "КоАП РК ст.133", 4, "факт"),
+    ("KPI-10", "КоАП РК ст.200 ч.1", BLOCK_ADMIN, "КоАП РК ст.200 ч.1", 4, "факт"),
+    ("KPI-11", "КоАП РК ст.200 ч.2", BLOCK_ADMIN, "КоАП РК ст.200 ч.2", 5, "факт"),
+    ("KPI-12", "КоАП РК ст.441-1", BLOCK_ADMIN, "КоАП РК ст.441-1", 2, "факт"),
+    ("KPI-13", "КоАП РК ст.442 ч.1", BLOCK_ADMIN, "КоАП РК ст.442 ч.1", 4, "факт"),
+    ("KPI-14", "КоАП РК ст.442 ч.2", BLOCK_ADMIN, "КоАП РК ст.442 ч.2", 5, "факт"),
+    ("KPI-15", "КоАП РК ст.442 ч.3", BLOCK_ADMIN, "КоАП РК ст.442 ч.3", 6, "факт"),
+    ("KPI-16", "КоАП РК ст.434", BLOCK_ADMIN, "КоАП РК ст.434", 5, "факт"),
+    ("KPI-17", "КоАП РК ст.435", BLOCK_ADMIN, "КоАП РК ст.435", 6, "факт"),
+    ("KPI-18", "КоАП РК ст.440", BLOCK_ADMIN, "КоАП РК ст.440", 7, "факт"),
+    ("KPI-19", "КоАП РК ст.444", BLOCK_ADMIN, "КоАП РК ст.444", 6, "факт"),
+    ("KPI-20", "КоАП РК ст.448", BLOCK_ADMIN, "КоАП РК ст.448", 7, "факт"),
+    ("KPI-21", "Профилактическая беседа с несовершеннолетним", BLOCK_GENERAL_PREVENTION, "", 2, "беседа"),
+    ("KPI-22", "Профилактическая беседа с родителем (законным представителем)", BLOCK_GENERAL_PREVENTION, "", 3, "беседа"),
+    ("KPI-23", "Лекция/выступление в школе, колледже", BLOCK_GENERAL_PREVENTION, "", 3, "факт"),
+    ("KPI-24", "Родительское собрание", BLOCK_GENERAL_PREVENTION, "", 4, "факт"),
+    ("KPI-25", "Рейд/ОПМ без выявлений", BLOCK_GENERAL_PREVENTION, "", 5, "факт"),
+    ("KPI-26", "Рейд/ОПМ с выявлением и принятием мер", BLOCK_GENERAL_PREVENTION, "", 8, "факт"),
+    ("KPI-27", "Представление об устранении причин и условий", BLOCK_GENERAL_PREVENTION, "", 7, "факт"),
+    ("KPI-28", "Совместная работа со школой, психологом, органом опеки, акиматом", BLOCK_GENERAL_PREVENTION, "", 8, "факт"),
+    ("KPI-29", "Выявление троллинга/кибербуллинга", BLOCK_GENERAL_PREVENTION, "", 8, "факт"),
+    ("KPI-30", "Выявление кризисного риска для жизни и здоровья ребенка", BLOCK_GENERAL_PREVENTION, "", 7, "факт"),
+    ("KPI-31", "Организация занятости несовершеннолетнего", BLOCK_GENERAL_PREVENTION, "", 6, "факт"),
+    ("KPI-32", "Месячный профилактический план выполнен без замечаний", BLOCK_GENERAL_PREVENTION, "", 4, "факт"),
+    ("KPI-33", "Постановка несовершеннолетнего на профилактический учет", BLOCK_INDIVIDUAL_PREVENTION, "", 7, "факт"),
+    ("KPI-34", "Постановка родителя на профилактический контроль", BLOCK_INDIVIDUAL_PREVENTION, "", 6, "факт"),
+    ("KPI-35", "Проверка подучетного/семьи по месту жительства", BLOCK_INDIVIDUAL_PREVENTION, "", 5, "факт"),
+    ("KPI-36", "Индивидуальный план профилактики оформлен без замечаний", BLOCK_INDIVIDUAL_PREVENTION, "", 5, "факт"),
+    ("KPI-37", "Корректировка индивидуального плана", BLOCK_INDIVIDUAL_PREVENTION, "", 6, "факт"),
+    ("KPI-38", "Снятие с учета по положительным основаниям", BLOCK_INDIVIDUAL_PREVENTION, "", 7, "факт"),
+    ("KPI-39", "Повторное правонарушение подучетного", BLOCK_INDIVIDUAL_PREVENTION, "", -2, "факт"),
+    ("KPI-40", "Отсутствие повторных правонарушений среди подучетных", BLOCK_INDIVIDUAL_PREVENTION, "", 7, "факт"),
+    ("KPI-41", "Выявление неблагополучной семьи", BLOCK_INDIVIDUAL_PREVENTION, "", 7, "факт"),
+    ("KPI-42", "Положительная динамика по семье/несовершеннолетнему", BLOCK_INDIVIDUAL_PREVENTION, "", 7, "факт"),
+    ("KPI-43", "Выезд по сообщению с участием несовершеннолетнего", BLOCK_RESPONSE, "", 7, "факт"),
+    ("KPI-44", "Ночной/неотложный выезд", BLOCK_RESPONSE, "", 7, "факт"),
+    ("KPI-45", "Семейно-бытовой конфликт", BLOCK_RESPONSE, "", 7, "факт"),
+    ("KPI-46", "Доставление несовершеннолетнего в ЦАН/центр защиты", BLOCK_RESPONSE, "", 7, "факт"),
+    ("KPI-47", "Материал направлен в КДН, комиссия удовлетворила материал", BLOCK_RESPONSE, "", 10, "факт"),
+    ("KPI-48", "Мероприятия по самовольному уходу/розыску", BLOCK_RESPONSE, "", 8, "факт"),
+    ("KPI-49", "Установление местонахождения и возвращение несовершеннолетнего", BLOCK_RESPONSE, "", 8, "факт"),
+    ("KPI-50", "Материал оформлен без замечаний руководителя/суда/КДН", BLOCK_MATERIALS, "", 6, "факт"),
+    ("KPI-51", "Возврат материала на доработку по вине сотрудника", BLOCK_MATERIALS, "", -2, "факт"),
+    ("KPI-52", "Просрочка материала/ответа", BLOCK_MATERIALS, "", -3, "факт"),
+    ("KPI-53", "Отмена материала из-за ошибок оформления", BLOCK_MATERIALS, "", -4, "факт"),
+    ("KPI-54", "Своевременная отработка Е-өтініш/КУИ", BLOCK_RECORDS, "", 5, "факт"),
+    ("KPI-55", "Проверка учетного дела без замечаний", BLOCK_RECORDS, "", 5, "факт"),
+    ("KPI-56", "Своевременное внесение данных в ИПС/ЕРАП", BLOCK_RECORDS, "", 4, "факт"),
+    ("KPI-57", "Ошибка в ИПС/ЕРАП/учете", BLOCK_RECORDS, "", -2, "факт"),
+    ("KPI-58", "Неактуальное ведение учета", BLOCK_RECORDS, "", -2, "факт"),
+    ("KPI-59", "Полный комплект подтверждающих документов", BLOCK_RECORDS, "", 5, "факт"),
+    ("KPI-60", "Запросы и взаимодействие со школой, психологом, органом опеки", BLOCK_INTERAGENCY, "", 6, "факт"),
+    ("KPI-61", "Участие в заседании КДН/межведомственной комиссии", BLOCK_INTERAGENCY, "", 7, "факт"),
+    ("KPI-62", "Благодарность/положительный отзыв", BLOCK_PUBLIC_TRUST, "", 6, "факт"),
+    ("KPI-63", "Подтвержденная жалоба на сотрудника", BLOCK_PUBLIC_TRUST, "", -5, "факт"),
+    ("KPI-64", "Подтвержденная негативная публикация по вине сотрудника", BLOCK_PUBLIC_TRUST, "", -5, "факт"),
+    ("KPI-65", "Опоздание на службу", BLOCK_SERVICE_DISCIPLINE, "", -1, "факт"),
+    ("KPI-66", "Нарушение формы одежды", BLOCK_SERVICE_DISCIPLINE, "", -1, "факт"),
+    ("KPI-67", "Отсутствие жетона/удостоверения", BLOCK_SERVICE_DISCIPLINE, "", -1, "факт"),
+    ("KPI-68", "Дисциплинарное взыскание", BLOCK_SERVICE_DISCIPLINE, "", -5, "факт"),
+    ("KPI-69", "Отсутствие взысканий и замечаний за месяц", BLOCK_SERVICE_DISCIPLINE, "", 5, "факт"),
+    ("KPI-70", "Неисполнение поручения/отчета в срок", BLOCK_SERVICE_DISCIPLINE, "", -3, "факт"),
 ]
 
 USERS = [
@@ -163,7 +174,7 @@ def _make_officer(idx, rng):
     return (f"officer{idx}", "pass123", fio, rank, "officer", district_idx)
 
 
-def _generate(seed_value=42):
+def _generate(seed_value=42, include_penalty_codes=False):
     rng = random.Random(seed_value)
     named_officers = [u for u in USERS if u[4] == "officer"]
     named_count = len(named_officers)
@@ -173,7 +184,11 @@ def _generate(seed_value=42):
         extra_users.append(_make_officer(i, rng))
 
     officer_usernames = [u[0] for u in named_officers] + [u[0] for u in extra_users]
-    codes = [c[0] for c in CATALOG]
+    codes = [
+        code
+        for code, _, _, _, points, _ in CATALOG
+        if include_penalty_codes or points > 0
+    ]
     statuses = ["confirmed"] * 6 + ["pending"] * 3 + ["rejected"]
 
     remaining = TARGET_KPI_ENTRIES - len(SAMPLE_ENTRIES)
@@ -283,6 +298,162 @@ def _sync_catalog(db):
     db.commit()
 
 
+def _is_legacy_demo_database(db, entries):
+    """Recognize the old generated dataset without touching real user data."""
+    if len(entries) != TARGET_KPI_ENTRIES:
+        return False
+    if db.query(User).filter(User.role == "officer").count() != TARGET_OFFICERS:
+        return False
+
+    entry_codes = {
+        entry.catalog.code
+        for entry in entries
+        if entry.catalog
+    }
+    if entry_codes != LEGACY_DEMO_CODES:
+        return False
+
+    for entry, (username, code, quantity, _, status) in zip(
+        entries[:len(SAMPLE_ENTRIES)],
+        SAMPLE_ENTRIES,
+    ):
+        if (
+            not entry.officer
+            or not entry.catalog
+            or entry.officer.username != username
+            or entry.catalog.code != code
+            or entry.quantity != quantity
+            or entry.status != status
+            or (entry.comments or "")
+        ):
+            return False
+    return True
+
+
+def _migrate_legacy_demo_entries(db):
+    """Bring the persisted eight-code demo dataset in sync with the catalog.
+
+    Catalog synchronization deliberately preserves historical entries. That is
+    correct for real data, but the bundled demo database created before the
+    catalog expansion then contains no entries for KPI-09..70. Only the first
+    1,000 recognized generated rows are refreshed; entries added later remain
+    untouched.
+    """
+    entries = (
+        db.query(KpiEntry)
+        .order_by(KpiEntry.id)
+        .limit(TARGET_KPI_ENTRIES)
+        .all()
+    )
+    if not _is_legacy_demo_database(db, entries):
+        return False
+
+    _, generated_entries = _generate()
+    definitions = SAMPLE_ENTRIES + generated_entries
+    users = {user.username: user for user in db.query(User).all()}
+    catalog = {item.code: item for item in db.query(KpiCatalog).all()}
+    today = date.today()
+
+    for entry, (username, code, quantity, days_ago, status) in zip(
+        entries,
+        definitions,
+    ):
+        officer = users[username]
+        item = catalog[code]
+        entry_date = today - timedelta(days=days_ago)
+        coeff = officer.district.coeff if officer.district else 1.0
+        raw_score = item.points_per_unit * quantity
+
+        entry.date = entry_date
+        entry.month = entry_date.strftime("%Y-%m")
+        entry.officer = officer
+        entry.catalog = item
+        entry.quantity = quantity
+        entry.points_per_unit = item.points_per_unit
+        entry.coeff = coeff
+        entry.raw_score = raw_score
+        entry.final_score = round(raw_score * coeff, 2)
+        entry.status = status
+        entry.comments = ""
+        entry.head_comment = (
+            "Подтверждено"
+            if status == "confirmed"
+            else "Недостаточно данных"
+            if status == "rejected"
+            else ""
+        )
+
+    db.commit()
+    return True
+
+
+def _matches_generated_demo_entries(db, entries, definitions):
+    """Check the deterministic demo rows while allowing status review changes."""
+    if len(entries) != TARGET_KPI_ENTRIES:
+        return False
+    if db.query(User).filter(User.role == "officer").count() != TARGET_OFFICERS:
+        return False
+
+    for entry, (username, code, quantity, _, _) in zip(entries, definitions):
+        if (
+            not entry.officer
+            or not entry.catalog
+            or entry.officer.username != username
+            or entry.catalog.code != code
+            or entry.quantity != quantity
+        ):
+            return False
+    return True
+
+
+def _migrate_demo_penalties(db):
+    """Replace penalty indicators only in the recognized generated demo rows."""
+    entries = (
+        db.query(KpiEntry)
+        .order_by(KpiEntry.id)
+        .limit(TARGET_KPI_ENTRIES)
+        .all()
+    )
+    _, generated_entries = _generate(include_penalty_codes=True)
+    definitions = SAMPLE_ENTRIES + generated_entries
+    if not _matches_generated_demo_entries(db, entries, definitions):
+        return False
+
+    replacement_codes = {
+        "KPI-39": "KPI-40",
+        "KPI-51": "KPI-50",
+        "KPI-52": "KPI-50",
+        "KPI-53": "KPI-50",
+        "KPI-57": "KPI-56",
+        "KPI-58": "KPI-55",
+        "KPI-63": "KPI-62",
+        "KPI-64": "KPI-62",
+        "KPI-65": "KPI-69",
+        "KPI-66": "KPI-69",
+        "KPI-67": "KPI-69",
+        "KPI-68": "KPI-69",
+        "KPI-70": "KPI-69",
+    }
+    catalog = {item.code: item for item in db.query(KpiCatalog).all()}
+    changed = False
+
+    for entry in entries:
+        replacement_code = replacement_codes.get(entry.catalog.code)
+        if not replacement_code:
+            continue
+        item = catalog[replacement_code]
+        raw_score = item.points_per_unit * entry.quantity
+        entry.catalog = item
+        entry.points_per_unit = item.points_per_unit
+        entry.raw_score = raw_score
+        entry.final_score = round(raw_score * entry.coeff, 2)
+        changed = True
+
+    if changed:
+        db.commit()
+    return changed
+
+
 def seed():
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
@@ -300,6 +471,8 @@ def seed():
                 district.coeff = coeff
             db.commit()
         _sync_catalog(db)
+        _migrate_legacy_demo_entries(db)
+        _migrate_demo_penalties(db)
         _ensure_targets(db)
         db.close()
         return
