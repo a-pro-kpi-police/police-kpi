@@ -20,7 +20,9 @@ def entry_to_out(entry: KpiEntry) -> schemas.EntryOut:
         code=entry.catalog.code if entry.catalog else "",
         indicator=entry.catalog.indicator if entry.catalog else "",
         block=entry.catalog.block if entry.catalog else "",
+        subblock=entry.catalog.subblock if entry.catalog else "",
         npa=entry.catalog.npa if entry.catalog else "",
+        source_url=entry.catalog.source_url if entry.catalog else "",
         quantity=entry.quantity,
         points_per_unit=entry.points_per_unit,
         coeff=entry.coeff,
@@ -29,4 +31,7 @@ def entry_to_out(entry: KpiEntry) -> schemas.EntryOut:
         status=entry.status,
         comments=entry.comments or "",
         head_comment=entry.head_comment or "",
+        attachment_name=entry.attachment_name or "",
+        attachment_content_type=entry.attachment_content_type or "",
+        attachment_size=entry.attachment_size or 0,
     )

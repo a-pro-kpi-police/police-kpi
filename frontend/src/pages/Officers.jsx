@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import api from '../api'
+import NameFilterCombobox from '../components/NameFilterCombobox.jsx'
+import ProfileHoverCard from '../components/ProfileHoverCard.jsx'
+import { districtName } from '../districtLocale.js'
+import {
+  EFFECTIVENESS_CATEGORIES,
+  effectivenessCategory,
+} from '../effectiveness.js'
 import { useI18n } from '../i18n.jsx'
 
 const RANK_ORDER = [
@@ -34,19 +42,82 @@ function SortTh({ column, label, sort, onSort }) {
   )
 }
 
+function EffectivenessBadge({ category, t }) {
+  const labelKey = {
+    very_effective: 'categoryVeryEffective',
+    effective: 'categoryEffective',
+    middle_effective: 'categoryMiddleEffective',
+    little_effective: 'categoryLittleEffective',
+  }[category]
+  return (
+    <span className={`effectiveness-badge effectiveness-${category}`}>
+      {t(labelKey)}
+    </span>
+  )
+}
+
 export default function Officers() {
-  const { t } = useI18n()
+  const { t, fmtMonth, lang } = useI18n()
+  const [searchParams] = useSearchParams()
+  const initialCategory = searchParams.get('category') || ''
   const [officers, setOfficers] = useState([])
-  const [max, setMax] = useState(1)
-  const [query, setQuery] = useState('')
-  const [sort, setSort] = useState({ key: null, dir: 'asc' })
+  const [months, setMonths] = useState([])
+  const [districts, setDistricts] = useState([])
+  const [month, setMonth] = useState(searchParams.get('month') || '')
+  const [districtFilter, setDistrictFilter] = useState(searchParams.get('district') || '')
+  const [officerFilter, setOfficerFilter] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState(
+    EFFECTIVENESS_CATEGORIES.includes(initialCategory) ? initialCategory : '',
+  )
+  const [sort, setSort] = useState({ key: 'score', dir: 'desc' })
+  const [profileStats, setProfileStats] = useState({})
 
   useEffect(() => {
-    api.get('/dashboard').then((r) => {
-      setOfficers(r.data.officers)
-      setMax(Math.max(1, ...r.data.officers.map((o) => o.final)))
+    Promise.all([api.get('/months'), api.get('/districts')]).then((responses) => {
+      setMonths(responses[0].data)
+      setDistricts(responses[1].data)
     })
   }, [])
+
+  useEffect(() => {
+    const params = month ? { month } : {}
+    Promise.all([
+      api.get('/dashboard', { params }),
+      api.get('/target-overview', { params }),
+      api.get('/officers'),
+    ]).then(([dashboardResponse, targetResponse, directoryResponse]) => {
+      const dashboardById = Object.fromEntries(
+        dashboardResponse.data.officers.map((officer) => [officer.officer_id, officer]),
+      )
+      const targetById = Object.fromEntries(
+        targetResponse.data.officers.map((officer) => [officer.officer_id, officer]),
+      )
+      const directoryById = Object.fromEntries(
+        directoryResponse.data.map((officer) => [officer.id, officer]),
+      )
+      setProfileStats(directoryById)
+      setOfficers(directoryResponse.data
+        .map((profile) => {
+          const dashboard = dashboardById[profile.id] || {}
+          const target = targetById[profile.id] || {}
+          const achievement = Number(target.achievement_percent) || 0
+          return {
+            officer_id: profile.id,
+            name: profile.full_name,
+            rank: profile.rank,
+            district: profile.district?.name || '',
+            district_id: profile.district?.id || '',
+            final: Number(dashboard.final) || 0,
+            confirmed: Number(dashboard.confirmed) || 0,
+            pending: Number(dashboard.pending) || 0,
+            achievement_percent: achievement,
+            target_score: Number(target.target_score) || 0,
+            effectivenessCategory: effectivenessCategory(achievement),
+          }
+        })
+        .sort((a, b) => (b.final - a.final) || compareNames(a, b)))
+    })
+  }, [month])
 
   const toggleSort = (key) => {
     setSort((current) => (
@@ -55,41 +126,111 @@ export default function Officers() {
         : { key, dir: 'asc' }
     ))
   }
+  const officerOptions = useMemo(
+    () => officers
+      .filter((officer) => (
+        !districtFilter || String(officer.district_id) === String(districtFilter)
+      ))
+      .map((officer) => ({
+      id: officer.officer_id,
+      label: officer.name,
+      description: `${officer.rank} · ${districtName(officer.district, lang)}`,
+    })),
+    [districtFilter, lang, officers]
+  )
 
   // Номер сохраняется по исходному рейтингу, независимо от выбранной сортировки.
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
     const rows = officers
       .map((o, i) => ({ ...o, rankNum: i + 1 }))
-      .filter((o) => !q || (o.name || '').toLowerCase().includes(q))
+      .filter((o) => !districtFilter || String(o.district_id) === String(districtFilter))
+      .filter((o) => !officerFilter || String(o.officer_id) === String(officerFilter))
+      .filter((o) => !categoryFilter || o.effectivenessCategory === categoryFilter)
 
-    if (!sort.key) return rows
     const factor = sort.dir === 'asc' ? 1 : -1
     return [...rows].sort((a, b) => {
-      const comparison = sort.key === 'rank'
-        ? rankOrder(a.rank) - rankOrder(b.rank)
-        : compareNames(a, b)
-      return (comparison || compareNames(a, b)) * factor
+      const comparison = sort.key === 'score'
+        ? a.final - b.final
+        : sort.key === 'rank'
+          ? rankOrder(a.rank) - rankOrder(b.rank)
+          : compareNames(a, b)
+      return comparison ? comparison * factor : compareNames(a, b)
     })
-  }, [officers, query, sort])
+  }, [officers, districtFilter, officerFilter, categoryFilter, sort])
+
+  const displayedMonths = month && !months.includes(month)
+    ? [month, ...months]
+    : months
 
   return (
     <div>
-      <div className="page-head">
+      <div className="page-head officers-page-head">
         <h1>{t('rating')}</h1>
         <div className="page-head-actions">
-          <input
-            className="search-input"
-            type="search"
-            placeholder={t('searchName')}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
+          <NameFilterCombobox
+            items={officerOptions}
+            value={officerFilter}
+            onChange={setOfficerFilter}
           />
+          <select
+            className="select officers-period-select"
+            value={month}
+            onChange={(event) => setMonth(event.target.value)}
+            aria-label={t('period')}
+          >
+            <option value="">{t('periodAll')}</option>
+            {displayedMonths.map((item) => <option key={item} value={item}>{fmtMonth(item)}</option>)}
+          </select>
+          <select
+            className="select officers-district-select"
+            value={districtFilter}
+            onChange={(event) => {
+              setDistrictFilter(event.target.value)
+              setOfficerFilter('')
+            }}
+            aria-label={t('selectGroup')}
+          >
+            <option value="">{t('allGroups')}</option>
+            {districts.map((item) => (
+              <option key={item.id} value={item.id}>{districtName(item, lang)}</option>
+            ))}
+          </select>
+          <select
+            className="select officers-category-select"
+            value={categoryFilter}
+            onChange={(event) => setCategoryFilter(event.target.value)}
+            aria-label={t('effectivenessCategory')}
+          >
+            <option value="">{t('allEffectivenessCategories')}</option>
+            <option value="very_effective">{t('categoryVeryEffective')}</option>
+            <option value="effective">{t('categoryEffective')}</option>
+            <option value="middle_effective">{t('categoryMiddleEffective')}</option>
+            <option value="little_effective">{t('categoryLittleEffective')}</option>
+          </select>
+          <select
+            className="select officers-score-sort"
+            value={sort.key === 'score' ? sort.dir : ''}
+            onChange={(event) => setSort({ key: 'score', dir: event.target.value })}
+            aria-label={t('sortEffectiveness')}
+          >
+            {sort.key !== 'score' && <option value="">{t('sortEffectiveness')}</option>}
+            <option value="desc">{t('sortBestFirst')}</option>
+            <option value="asc">{t('sortWorstFirst')}</option>
+          </select>
         </div>
       </div>
       <div className="card table-card">
-        <div className="table-scroll">
-        <table className="data-table">
+        <div className="table-scroll officers-table-scroll">
+        <table className="data-table officers-table">
+          <colgroup>
+            <col className="officers-col-position" />
+            <col className="officers-col-name" />
+            <col className="officers-col-rank" />
+            <col className="officers-col-district" />
+            <col className="officers-col-score" />
+            <col className="officers-col-achievement" />
+            <col className="officers-col-category" />
+          </colgroup>
           <thead>
             <tr>
               <th>#</th>
@@ -97,30 +238,48 @@ export default function Officers() {
               <SortTh column="rank" label={t('colRank')} sort={sort} onSort={toggleSort} />
               <th>{t('colDistrict')}</th>
               <th className="num">{t('confirmedFinal')}</th>
-              <th className="num">{t('confirmedCount')}</th>
-              <th className="num">{t('pendingShort')}</th>
-              <th className="bar-col">{t('byOfficer')}</th>
+              <th className="num">{t('colAchievement')}</th>
+              <th>{t('effectivenessCategory')}</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((o) => (
               <tr key={o.officer_id}>
                 <td className="rank-cell"><span className={`rank-num rank-${o.rankNum}`}>{o.rankNum}</span></td>
-                <td className="nowrap strong">{o.name}</td>
+                <td className="strong officer-name-cell">
+                  <ProfileHoverCard profile={{
+                    id: o.officer_id,
+                    name: o.name,
+                    rank: o.rank,
+                    district: o.district,
+                    efficiencyRank: profileStats[o.officer_id]?.efficiency_rank,
+                    efficiencyTotal: profileStats[o.officer_id]?.efficiency_total,
+                    totalScore: profileStats[o.officer_id]?.efficiency_score,
+                    confirmed: o.confirmed,
+                  }}>
+                    <Link
+                      className="officer-dashboard-link"
+                      to={`/dashboard/officers/${o.officer_id}`}
+                      aria-label={`${t('openOfficerDashboard')}: ${o.name}`}
+                      title={t('openOfficerDashboard')}
+                    >
+                      {o.name}
+                    </Link>
+                  </ProfileHoverCard>
+                </td>
                 <td className="muted">{o.rank}</td>
-                <td className="muted">{o.district}</td>
+                <td className="muted">{districtName(o.district, lang)}</td>
                 <td className="num strong">{o.final}</td>
-                <td className="num">{o.confirmed}</td>
-                <td className="num">{o.pending}</td>
-                <td className="bar-col">
-                  <div className="bar-track">
-                    <div className="bar-fill" style={{ width: `${(o.final / max) * 100}%` }} />
-                  </div>
+                <td className="num">
+                  {o.target_score ? `${o.achievement_percent}%` : '0%'}
+                </td>
+                <td>
+                  <EffectivenessBadge category={o.effectivenessCategory} t={t} />
                 </td>
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={8} className="empty">{officers.length === 0 ? t('noEntries') : t('nothingFound')}</td></tr>
+              <tr><td colSpan={7} className="empty">{officers.length === 0 ? t('noEntries') : t('nothingFound')}</td></tr>
             )}
           </tbody>
         </table>

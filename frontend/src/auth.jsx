@@ -34,6 +34,7 @@ export function AuthProvider({ children }) {
     localStorage.setItem('token', data.access_token)
     const me = await api.get('/auth/me')
     setUser(me.data)
+    return me.data
   }
 
   const logout = () => {

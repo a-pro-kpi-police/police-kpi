@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from './auth.jsx'
 import Layout from './components/Layout.jsx'
 import Login from './pages/Login.jsx'
+import Messenger from './pages/Messenger.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Entries from './pages/Entries.jsx'
 import Officers from './pages/Officers.jsx'
@@ -46,15 +47,17 @@ export default function App() {
             </HeadOnly>
           }
         />
-        <Route path="entries" element={<Entries />} />
         <Route
-          path="targets"
+          path="dashboard/officers/:officerId"
           element={
             <HeadOnly>
-              <Targets />
+              <Dashboard />
             </HeadOnly>
           }
         />
+        <Route path="entries" element={<Entries />} />
+        <Route path="messenger" element={<Messenger />} />
+        <Route path="targets" element={<Targets />} />
         <Route
           path="officers"
           element={

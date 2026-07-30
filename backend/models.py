@@ -1,5 +1,7 @@
 """Модели данных: пользователи, каталог KPI, участки и записи KPI."""
-from sqlalchemy import Column, Integer, String, Float, Date, ForeignKey, Text, UniqueConstraint
+from datetime import datetime
+
+from sqlalchemy import Boolean, Column, Integer, String, Float, Date, DateTime, ForeignKey, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -36,9 +38,12 @@ class KpiCatalog(Base):
     code = Column(String, unique=True, nullable=False)    # Код KPI
     indicator = Column(String, nullable=False)            # Показатель
     block = Column(String, nullable=False)                # Блок
+    subblock = Column(String, default="")                 # Подблок
     npa = Column(String, default="")                      # НПА/статья
     points_per_unit = Column(Float, nullable=False)       # Балл за 1 ед.
     unit = Column(String, default="ед.")                  # Единица измерения
+    source_url = Column(String, default="")               # URL источника
+    is_active = Column(Boolean, nullable=False, default=True)
 
 
 class KpiTarget(Base):
@@ -78,6 +83,44 @@ class KpiEntry(Base):
     status = Column(String, nullable=False, default="pending")  # pending|confirmed|rejected
     comments = Column(Text, default="")                   # Comments (сотрудник)
     head_comment = Column(Text, default="")               # Резолюция начальника
+    attachment_name = Column(String, default="")          # Исходное имя файла
+    attachment_storage_name = Column(String, default="")  # Безопасное имя на диске
+    attachment_content_type = Column(String, default="")
+    attachment_size = Column(Integer, nullable=False, default=0)
 
     officer = relationship("User")
     catalog = relationship("KpiCatalog")
+
+
+class AppNotification(Base):
+    """Персональное системное уведомление пользователя."""
+    __tablename__ = "app_notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    kind = Column(String, nullable=False)
+    title = Column(String, nullable=False)
+    message = Column(Text, nullable=False)
+    link = Column(String, nullable=False, default="")
+    is_read = Column(Boolean, nullable=False, default=False, index=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+
+    user = relationship("User")
+
+
+class DirectMessage(Base):
+    """Личное сообщение между начальником и сотрудником."""
+    __tablename__ = "direct_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    sender_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    recipient_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    entry_id = Column(Integer, ForeignKey("kpi_entries.id"), nullable=True, index=True)
+    body = Column(Text, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    read_at = Column(DateTime, nullable=True)
+    deleted_at = Column(DateTime, nullable=True)
+
+    sender = relationship("User", foreign_keys=[sender_id])
+    recipient = relationship("User", foreign_keys=[recipient_id])
+    entry = relationship("KpiEntry")

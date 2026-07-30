@@ -10,6 +10,7 @@ import schemas
 from auth import get_current_user, require_head
 from database import get_db
 from models import User
+from services.activity import add_notification
 from services.targets import (
     apply_target_quantities,
     build_group_target_rows,
@@ -28,11 +29,18 @@ router = APIRouter(prefix="/api", tags=["targets"])
 @router.get("/targets", response_model=list[schemas.TargetOut])
 def get_targets(
     month: str = Query(...),
-    officer_id: int = Query(...),
+    officer_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
-    head: User = Depends(require_head),
+    user: User = Depends(get_current_user),
 ):
-    officer = get_officer_or_404(db, officer_id)
+    if user.role == "head":
+        if not officer_id:
+            raise HTTPException(status_code=400, detail="Сотрудник не указан")
+        officer = get_officer_or_404(db, officer_id)
+    else:
+        if officer_id and officer_id != user.id:
+            raise HTTPException(status_code=403, detail="Недостаточно прав")
+        officer = user
     return build_target_rows(db, officer, month)
 
 
@@ -51,6 +59,14 @@ def save_targets(
         payload.month,
         quantities,
         replace=True,
+    )
+    add_notification(
+        db,
+        user_id=officer.id,
+        kind="targets_updated",
+        title="Обновлены целевые KPI",
+        message=f"Начальник установил целевые показатели на {payload.month}.",
+        link="/targets",
     )
     db.commit()
     return build_target_rows(db, officer, payload.month)
@@ -93,6 +109,15 @@ def save_group_targets(
         quantities,
         replace=False,
     )
+    for officer_id in officer_ids:
+        add_notification(
+            db,
+            user_id=officer_id,
+            kind="targets_updated",
+            title="Обновлены целевые KPI",
+            message=f"Начальник установил целевые показатели на {payload.month}.",
+            link="/targets",
+        )
     db.commit()
     return build_group_target_rows(db, district, payload.month)
 
@@ -121,8 +146,14 @@ def target_progress(
 def target_overview(
     month: Optional[str] = Query(None),
     officer_id: Optional[int] = Query(None),
+    district_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
     head: User = Depends(require_head),
 ):
     selected_month = month or date.today().strftime("%Y-%m")
-    return build_target_overview(db, selected_month, officer_id)
+    return build_target_overview(
+        db,
+        selected_month,
+        officer_id=officer_id,
+        district_id=district_id,
+    )

@@ -5,17 +5,22 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from models import KpiCatalog, KpiEntry
+from models import KpiCatalog, KpiEntry, User
 
 
 def build_dashboard(
     db: Session,
     month: Optional[str] = None,
     officer_id: Optional[int] = None,
+    district_id: Optional[int] = None,
 ) -> dict:
     query = db.query(KpiEntry)
     if officer_id:
         query = query.filter(KpiEntry.officer_id == officer_id)
+    if district_id:
+        query = query.join(User, KpiEntry.officer_id == User.id).filter(
+            User.district_id == district_id,
+        )
     if month:
         query = query.filter(KpiEntry.month == month)
     entries = query.all()
@@ -76,7 +81,12 @@ def build_dashboard(
     # has no confirmed entries for it. Otherwise valid blocks disappear from
     # the chart and look as if they do not exist in the catalog.
     catalog_blocks = []
-    for (block,) in db.query(KpiCatalog.block).order_by(KpiCatalog.code).all():
+    for (block,) in (
+        db.query(KpiCatalog.block)
+        .filter(KpiCatalog.is_active.is_(True))
+        .order_by(KpiCatalog.block, KpiCatalog.code)
+        .all()
+    ):
         if block and block not in catalog_blocks:
             catalog_blocks.append(block)
     by_block = {block: 0.0 for block in catalog_blocks}
@@ -139,9 +149,13 @@ def build_dashboard(
         )
     ]
 
-    total_decided = len(confirmed) + len(rejected)
+    # Negative KPI entries are penalties, not achievements awaiting approval.
+    # Keep them in the status totals, but exclude them from this rate.
+    rate_confirmed = [entry for entry in confirmed if entry.points_per_unit >= 0]
+    rate_rejected = [entry for entry in rejected if entry.points_per_unit >= 0]
+    total_decided = len(rate_confirmed) + len(rate_rejected)
     confirm_rate = (
-        round(100 * len(confirmed) / total_decided, 1)
+        round(100 * len(rate_confirmed) / total_decided, 1)
         if total_decided
         else 0.0
     )
@@ -152,6 +166,8 @@ def build_dashboard(
         "rejected_count": len(rejected),
         "officers_count": len(officers),
         "confirm_rate": confirm_rate,
+        "confirm_rate_confirmed_count": len(rate_confirmed),
+        "confirm_rate_decided_count": total_decided,
         "officers": officers,
         "blocks": blocks,
         "trend": trend,

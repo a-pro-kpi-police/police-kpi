@@ -9,6 +9,10 @@ const DETAIL_TO_KEY = {
   'KPI с отрицательным баллом доступен только начальнику отдела': 'negativeKpiManagerOnlyError',
   'Запись не найдена': 'entryNotFoundError',
   'Недопустимый статус': 'statusInvalidError',
+  'Файл не прикреплён': 'attachmentMissingError',
+  'Недопустимый тип файла': 'attachmentTypeError',
+  'Файл слишком большой': 'attachmentTooLargeError',
+  'Вложение не найдено': 'attachmentNotFoundError',
 }
 
 export function getApiErrorMessage(err, t, fallbackKey = 'saveError') {

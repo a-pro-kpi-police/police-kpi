@@ -1,26 +1,31 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth.jsx'
 import { useI18n } from '../i18n.jsx'
+import { useNotify } from '../notifications.jsx'
 
 export default function Login() {
   const { login, user } = useAuth()
   const { t, lang, setLang } = useI18n()
+  const { notify } = useNotify()
   const navigate = useNavigate()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
-  if (user) navigate('/')
+  useEffect(() => {
+    if (user) navigate('/', { replace: true })
+  }, [navigate, user])
 
   const submit = async (e) => {
     e.preventDefault()
     setBusy(true)
     setError('')
     try {
-      await login(username, password)
-      navigate('/')
+      const loggedInUser = await login(username, password)
+      notify(`${t('welcome')}, ${loggedInUser.full_name}!`, 'welcome')
+      navigate('/', { replace: true })
     } catch {
       setError(t('loginError'))
     } finally {

@@ -1,14 +1,16 @@
 """Начальное наполнение базы: участки, каталог KPI, пользователи и примеры записей."""
+import csv
 import random
 from datetime import date, timedelta
+from pathlib import Path
 
+from sqlalchemy import inspect, text
 from database import SessionLocal, engine, Base
-from models import District, User, KpiCatalog, KpiEntry, KpiTarget
+from models import DirectMessage, District, User, KpiCatalog, KpiEntry, KpiTarget
 from auth import hash_password
 
 TARGET_OFFICERS = 20
 TARGET_KPI_ENTRIES = 1000
-LEGACY_DEMO_CODES = {f"KPI-{index:02d}" for index in range(1, 9)}
 
 DISTRICTS = [
     ("Обычный участок", 1.0),
@@ -27,7 +29,9 @@ BLOCK_INTERAGENCY = "Межведомственное взаимодействи
 BLOCK_PUBLIC_TRUST = "Общественное доверие и репутация"
 BLOCK_SERVICE_DISCIPLINE = "Служебная и исполнительская дисциплина"
 
-CATALOG = [
+# The pre-spreadsheet catalog is retained only to recognize and migrate bundled
+# demo databases created by earlier versions of the application.
+LEGACY_CATALOG = [
     ("KPI-01", "КоАП РК ст.127 ч.1", BLOCK_ADMIN, "КоАП РК ст.127 ч.1", 6, "факт"),
     ("KPI-02", "КоАП РК ст.127 ч.2", BLOCK_ADMIN, "КоАП РК ст.127 ч.2", 7, "факт"),
     ("KPI-03", "КоАП РК ст.127 ч.3", BLOCK_ADMIN, "КоАП РК ст.127 ч.3", 7, "факт"),
@@ -100,6 +104,56 @@ CATALOG = [
     ("KPI-70", "Неисполнение поручения/отчета в срок", BLOCK_SERVICE_DISCIPLINE, "", -3, "факт"),
 ]
 
+
+def _load_catalog():
+    path = Path(__file__).with_name("kpi_catalog.csv")
+    with path.open(encoding="utf-8", newline="") as catalog_file:
+        reader = csv.DictReader(catalog_file)
+        expected_columns = {
+            "code",
+            "block",
+            "subblock",
+            "indicator",
+            "npa",
+            "points_per_unit",
+            "source_url",
+            "unit",
+        }
+        if set(reader.fieldnames or []) != expected_columns:
+            raise RuntimeError("Неверная структура файла kpi_catalog.csv")
+
+        catalog = []
+        for row_number, row in enumerate(reader, start=2):
+            code = row["code"].strip()
+            if not code:
+                raise RuntimeError(
+                    f"Пустой код KPI в kpi_catalog.csv, строка {row_number}",
+                )
+            unit = row["unit"].strip()
+            if not unit:
+                raise RuntimeError(
+                    f"Пустая единица измерения в kpi_catalog.csv, строка {row_number}",
+                )
+            catalog.append((
+                code,
+                row["indicator"].strip(),
+                row["block"].strip(),
+                row["subblock"].strip(),
+                row["npa"].strip(),
+                float(row["points_per_unit"]),
+                unit,
+                row["source_url"].strip(),
+            ))
+
+    codes = [item[0] for item in catalog]
+    if len(codes) != len(set(codes)):
+        raise RuntimeError("Повторяющиеся коды KPI в kpi_catalog.csv")
+    return catalog
+
+
+CATALOG = _load_catalog()
+LEGACY_CATALOG_CODES = {item[0] for item in LEGACY_CATALOG}
+
 USERS = [
     ("head", "head123", "Нурланов Бекзат Сериккали", "Полковник полиции", "head", 0),
     ("aibek", "pass123", "Ахметов Айбек Маратұлы", "Лейтенант полиции", "officer", 0),
@@ -108,7 +162,7 @@ USERS = [
     ("aliya", "pass123", "Оспанова Әлия Бауыржанқызы", "Майор полиции", "officer", 3),
 ]
 
-SAMPLE_ENTRIES = [
+LEGACY_SAMPLE_ENTRIES = [
     ("aibek", "KPI-04", 1, 40, "confirmed"),
     ("aibek", "KPI-08", 1, 35, "confirmed"),
     ("aibek", "KPI-02", 1, 20, "confirmed"),
@@ -125,6 +179,25 @@ SAMPLE_ENTRIES = [
     ("aliya", "KPI-06", 1, 28, "confirmed"),
     ("aliya", "KPI-05", 1, 14, "confirmed"),
     ("aliya", "KPI-07", 1, 4, "pending"),
+]
+
+SAMPLE_ENTRIES = [
+    ("aibek", "A590-1", 1, 40, "confirmed"),
+    ("aibek", "A591-1", 1, 35, "confirmed"),
+    ("aibek", "R001", 1, 20, "confirmed"),
+    ("aibek", "O434", 1, 10, "pending"),
+    ("dana", "A592-1", 1, 45, "confirmed"),
+    ("dana", "O437", 1, 30, "confirmed"),
+    ("dana", "R002", 1, 15, "confirmed"),
+    ("dana", "H001", 1, 5, "pending"),
+    ("ruslan", "A599-1", 1, 38, "confirmed"),
+    ("ruslan", "A600-1", 1, 22, "confirmed"),
+    ("ruslan", "R005", 1, 12, "rejected"),
+    ("ruslan", "C001", 1, 3, "pending"),
+    ("aliya", "A606-1", 1, 50, "confirmed"),
+    ("aliya", "C002", 1, 28, "confirmed"),
+    ("aliya", "H002", 1, 14, "confirmed"),
+    ("aliya", "S001", 1, 4, "pending"),
 ]
 
 MALE_FIRST = [
@@ -186,7 +259,7 @@ def _generate(seed_value=42, include_penalty_codes=False):
     officer_usernames = [u[0] for u in named_officers] + [u[0] for u in extra_users]
     codes = [
         code
-        for code, _, _, _, points, _ in CATALOG
+        for code, _, _, _, _, points, _, _ in CATALOG
         if include_penalty_codes or points > 0
     ]
     statuses = ["confirmed"] * 6 + ["pending"] * 3 + ["rejected"]
@@ -233,8 +306,9 @@ def _default_target_quantity(confirmed_quantity: float, officer_index: int, cata
 def _ensure_targets(db):
     officers = db.query(User).filter(User.role == "officer").order_by(User.id).all()
     catalog = db.query(KpiCatalog).filter(
+        KpiCatalog.is_active.is_(True),
         KpiCatalog.points_per_unit >= 0,
-    ).order_by(KpiCatalog.code).all()
+    ).order_by(KpiCatalog.block, KpiCatalog.code).all()
     if not officers or not catalog:
         return
 
@@ -275,25 +349,121 @@ def _ensure_targets(db):
         db.commit()
 
 
+def _ensure_catalog_columns():
+    """Adds catalog columns to databases created before the sheet import."""
+    columns = {
+        column["name"]
+        for column in inspect(engine).get_columns(KpiCatalog.__tablename__)
+    }
+    statements = {
+        "subblock": (
+            "ALTER TABLE kpi_catalog "
+            "ADD COLUMN subblock VARCHAR NOT NULL DEFAULT ''"
+        ),
+        "source_url": (
+            "ALTER TABLE kpi_catalog "
+            "ADD COLUMN source_url VARCHAR NOT NULL DEFAULT ''"
+        ),
+        "is_active": (
+            "ALTER TABLE kpi_catalog "
+            "ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT 1"
+        ),
+    }
+    with engine.begin() as connection:
+        for column_name, statement in statements.items():
+            if column_name not in columns:
+                connection.execute(text(statement))
+
+
+def _ensure_entry_columns():
+    """Adds attachment metadata to databases created before file uploads."""
+    columns = {
+        column["name"]
+        for column in inspect(engine).get_columns(KpiEntry.__tablename__)
+    }
+    statements = {
+        "attachment_name": (
+            "ALTER TABLE kpi_entries "
+            "ADD COLUMN attachment_name VARCHAR NOT NULL DEFAULT ''"
+        ),
+        "attachment_storage_name": (
+            "ALTER TABLE kpi_entries "
+            "ADD COLUMN attachment_storage_name VARCHAR NOT NULL DEFAULT ''"
+        ),
+        "attachment_content_type": (
+            "ALTER TABLE kpi_entries "
+            "ADD COLUMN attachment_content_type VARCHAR NOT NULL DEFAULT ''"
+        ),
+        "attachment_size": (
+            "ALTER TABLE kpi_entries "
+            "ADD COLUMN attachment_size INTEGER NOT NULL DEFAULT 0"
+        ),
+    }
+    with engine.begin() as connection:
+        for column_name, statement in statements.items():
+            if column_name not in columns:
+                connection.execute(text(statement))
+
+
+def _ensure_message_columns():
+    """Adds message metadata introduced after the original messenger schema."""
+    columns = {
+        column["name"]
+        for column in inspect(engine).get_columns(DirectMessage.__tablename__)
+    }
+    statements = {
+        "deleted_at": (
+            "ALTER TABLE direct_messages ADD COLUMN deleted_at DATETIME"
+        ),
+        "entry_id": (
+            "ALTER TABLE direct_messages "
+            "ADD COLUMN entry_id INTEGER REFERENCES kpi_entries(id)"
+        ),
+    }
+    with engine.begin() as connection:
+        for column_name, statement in statements.items():
+            if column_name not in columns:
+                connection.execute(text(statement))
+
+
 def _sync_catalog(db):
-    """Обновляет справочник без удаления связанных исторических записей."""
+    """Activates sheet rows and retains old rows only for entry history."""
     existing = {item.code: item for item in db.query(KpiCatalog).all()}
-    for code, indicator, block, npa, points, unit in CATALOG:
+    active_codes = {item[0] for item in CATALOG}
+    for item in existing.values():
+        item.is_active = item.code in active_codes
+
+    for (
+        code,
+        indicator,
+        block,
+        subblock,
+        npa,
+        points,
+        unit,
+        source_url,
+    ) in CATALOG:
         item = existing.get(code)
         if item:
             item.indicator = indicator
             item.block = block
+            item.subblock = subblock
             item.npa = npa
             item.points_per_unit = points
             item.unit = unit
+            item.source_url = source_url
+            item.is_active = True
         else:
             db.add(KpiCatalog(
                 code=code,
                 indicator=indicator,
                 block=block,
+                subblock=subblock,
                 npa=npa,
                 points_per_unit=points,
                 unit=unit,
+                source_url=source_url,
+                is_active=True,
             ))
     db.commit()
 
@@ -310,12 +480,12 @@ def _is_legacy_demo_database(db, entries):
         for entry in entries
         if entry.catalog
     }
-    if entry_codes != LEGACY_DEMO_CODES:
+    if not entry_codes or not entry_codes.issubset(LEGACY_CATALOG_CODES):
         return False
 
     for entry, (username, code, quantity, _, status) in zip(
-        entries[:len(SAMPLE_ENTRIES)],
-        SAMPLE_ENTRIES,
+        entries[:len(LEGACY_SAMPLE_ENTRIES)],
+        LEGACY_SAMPLE_ENTRIES,
     ):
         if (
             not entry.officer
@@ -456,6 +626,9 @@ def _migrate_demo_penalties(db):
 
 def seed():
     Base.metadata.create_all(bind=engine)
+    _ensure_catalog_columns()
+    _ensure_entry_columns()
+    _ensure_message_columns()
     db = SessionLocal()
     if db.query(User).count() > 0:
         districts = db.query(District).order_by(District.id).all()
@@ -482,8 +655,27 @@ def seed():
     db.flush()
 
     catalog = [
-        KpiCatalog(code=c, indicator=i, block=b, npa=n, points_per_unit=p, unit=u)
-        for c, i, b, n, p, u in CATALOG
+        KpiCatalog(
+            code=code,
+            indicator=indicator,
+            block=block,
+            subblock=subblock,
+            npa=npa,
+            points_per_unit=points,
+            unit=unit,
+            source_url=source_url,
+            is_active=True,
+        )
+        for (
+            code,
+            indicator,
+            block,
+            subblock,
+            npa,
+            points,
+            unit,
+            source_url,
+        ) in CATALOG
     ]
     db.add_all(catalog)
     db.flush()

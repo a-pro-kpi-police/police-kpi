@@ -14,6 +14,7 @@ npm-debug.log*
 # Databases (regenerated/seeded on first run)
 *.db
 *.sqlite3
+backend/uploads/
 
 # IDE / OS
 .idea/

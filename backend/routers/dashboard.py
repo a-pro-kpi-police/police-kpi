@@ -17,7 +17,13 @@ router = APIRouter(prefix="/api", tags=["dashboard"])
 def dashboard(
     month: Optional[str] = Query(None),
     officer_id: Optional[int] = Query(None),
+    district_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
     head: User = Depends(require_head),
 ):
-    return build_dashboard(db, month=month, officer_id=officer_id)
+    return build_dashboard(
+        db,
+        month=month,
+        officer_id=officer_id,
+        district_id=district_id,
+    )

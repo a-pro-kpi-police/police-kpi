@@ -1,26 +1,46 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
-  Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, ReferenceLine,
-  ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart,
+  ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
 import api from '../api'
 import { useAuth } from '../auth.jsx'
+import NameFilterCombobox from '../components/NameFilterCombobox.jsx'
+import ProfileHoverCard from '../components/ProfileHoverCard.jsx'
+import { districtName } from '../districtLocale.js'
+import {
+  compareEffectiveness,
+  EFFECTIVENESS_CATEGORIES,
+  effectivenessCategory,
+} from '../effectiveness.js'
 import { useI18n } from '../i18n.jsx'
+import { kpiIndicator } from '../kpiLocale.js'
 
 const COLORS = ['#1e4d8c', '#2f7d4f', '#b8860b', '#9c3848', '#5b4b8a', '#0f8b8d', '#a85b2b', '#3b6ea5']
 const BLOCK_COLORS = ['#1e4d8c', '#2f7d4f', '#b8860b', '#5b4b8a', '#0f8b8d', '#a85b2b', '#3b6ea5']
 const STATUS_COLORS = { confirmed: '#2f7d4f', pending: '#b8860b', rejected: '#9c3848' }
-
-function median(values) {
-  if (!values.length) return 0
-  const sorted = [...values].sort((a, b) => a - b)
-  const middle = Math.floor(sorted.length / 2)
-  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2
+const EFFECTIVENESS_COLORS = {
+  very_effective: '#2f7d4f',
+  effective: '#b8860b',
+  middle_effective: '#c66a18',
+  little_effective: '#9c3848',
 }
+const CHART_CURSOR = { fill: 'var(--chart-hover)' }
+const DONUT_RADIUS = 40
+const DONUT_STROKE_WIDTH = 17
 
-function buildComparisons(entries, selectedMonth, officerId) {
+function buildComparisons(entries, selectedMonth, officerId, officerDirectory = []) {
   const periodEntries = selectedMonth ? entries.filter((entry) => entry.month === selectedMonth) : entries
   const byOfficer = {}
+
+  for (const officer of officerDirectory) {
+    byOfficer[officer.officer_id] = {
+      officer_id: officer.officer_id,
+      name: officer.name,
+      score: 0,
+    }
+  }
 
   for (const entry of periodEntries) {
     if (!byOfficer[entry.officer_id]) {
@@ -37,10 +57,24 @@ function buildComparisons(entries, selectedMonth, officerId) {
   }
 
   const officers = Object.values(byOfficer)
-  const peerMedian = median(officers.map((item) => item.score))
   const selected = officers.find((item) => String(item.officer_id) === String(officerId))
+  const selectedScore = selected?.score || 0
+  const selectedRank = officerId && selected
+    ? 1 + officers.filter((item) => item.score > selectedScore).length
+    : null
+  const peerScores = officerId
+    ? officers
+      .filter((item) => String(item.officer_id) !== String(officerId))
+      .map((item) => item.score)
+    : []
+  const peerAverage = peerScores.length
+    ? peerScores.reduce((sum, score) => sum + score, 0) / peerScores.length
+    : 0
+  const relativePercent = peerScores.length && peerAverage !== 0
+    ? ((selectedScore - peerAverage) / Math.abs(peerAverage)) * 100
+    : (peerScores.length && selectedScore === 0 ? 0 : null)
   const focusScore = officerId
-    ? (selected?.score || 0)
+    ? selectedScore
     : (officers.length ? officers.reduce((sum, item) => sum + item.score, 0) / officers.length : 0)
 
   const focusHistory = officerId
@@ -49,6 +83,7 @@ function buildComparisons(entries, selectedMonth, officerId) {
   const currentMonth = selectedMonth || [...new Set(focusHistory.map((entry) => entry.month))].sort().at(-1) || ''
   const scoresByMonth = {}
   for (const entry of focusHistory) {
+    if (!(entry.month in scoresByMonth)) scoresByMonth[entry.month] = 0
     if (entry.status !== 'confirmed') continue
     scoresByMonth[entry.month] = (scoresByMonth[entry.month] || 0) + entry.final_score
   }
@@ -62,10 +97,17 @@ function buildComparisons(entries, selectedMonth, officerId) {
 
   return {
     focusScore: Number(focusScore.toFixed(2)),
-    peerMedian: Number(peerMedian.toFixed(2)),
     currentScore: Number(currentScore.toFixed(2)),
     baseline: Number(baseline.toFixed(2)),
+    previousMonthCount: baselineValues.length,
     currentMonth,
+    rank: selectedRank,
+    officerCount: officers.length,
+    peerAverage: Number(peerAverage.toFixed(2)),
+    relativePercent: relativePercent === null ? null : Number(relativePercent.toFixed(1)),
+    history: Object.entries(scoresByMonth)
+      .map(([month, score]) => ({ month, score: Number(score.toFixed(2)) }))
+      .sort((a, b) => a.month.localeCompare(b.month)),
   }
 }
 
@@ -111,121 +153,622 @@ function StatCard({ label, value, accent }) {
   )
 }
 
-function ComparisonCharts({ comparisons, fmtMonth, officer, t }) {
-  return <>
-    <div className="card chart-card">
-      <h3>{t('peerMedian')}</h3>
-      <ResponsiveContainer width="100%" height={220}>
-        <BarChart data={[
-          { label: officer ? t('selectedOfficer') : t('officerAverage'), value: comparisons.focusScore, color: '#1e4d8c' },
-          { label: t('peerMedianValue'), value: comparisons.peerMedian, color: '#8ba3bd' },
-        ]} margin={{ top: 10, right: 20, bottom: 15, left: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-          <XAxis dataKey="label" fontSize={11} />
-          <YAxis />
-          <Tooltip formatter={(value) => [value, t('points')]} />
-          <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={80}>
-            {[0, 1].map((index) => <Cell key={index} fill={index === 0 ? '#1e4d8c' : '#8ba3bd'} />)}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-
-    <div className="card chart-card">
-      <h3>{t('personalBaseline')}</h3>
-      <ResponsiveContainer width="100%" height={220}>
-        <BarChart data={[
-          { label: comparisons.currentMonth ? fmtMonth(comparisons.currentMonth) : t('currentMonth'), value: comparisons.currentScore },
-          { label: t('personalBaselineValue'), value: comparisons.baseline },
-        ]} margin={{ top: 10, right: 20, bottom: 15, left: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-          <XAxis dataKey="label" fontSize={11} />
-          <YAxis />
-          <Tooltip formatter={(value) => [value, t('points')]} />
-          <Bar dataKey="value" fill="#0f8b8d" radius={[4, 4, 0, 0]} maxBarSize={80} />
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  </>
+function BlockAxisTick({ y, payload }) {
+  return (
+    <text
+      className="block-axis-label"
+      x={6}
+      y={y}
+      dy="0.35em"
+      fill="#6b7785"
+      fontSize={11}
+      textAnchor="start"
+    >
+      {payload.value}
+    </text>
+  )
 }
 
-function TargetStatusBadge({ status, t }) {
-  const classes = {
-    on_target: 'badge-confirmed',
-    behind: 'badge-rejected',
-    no_target: 'badge-pending',
+function IndicatorVolumeTooltip({ active, payload, t, lang }) {
+  if (!active || !payload?.length) return null
+  const item = payload[0].payload
+  return (
+    <div className="indicator-volume-tooltip">
+      <div className="indicator-volume-tooltip-title">{kpiIndicator(item, lang) || item.code}</div>
+      <div className="indicator-volume-tooltip-value">
+        {t('unitsCompleted')}: <strong>{item.quantity}</strong>
+      </div>
+    </div>
+  )
+}
+
+function StatusDonut({
+  items,
+  total,
+  label,
+  order = ['confirmed', 'rejected', 'pending'],
+}) {
+  let offset = 0
+  const segments = order
+    .map((key) => items.find((item) => item.key === key))
+    .filter(Boolean)
+    .map((item) => {
+      const percent = (item.value / total) * 100
+      const segment = { ...item, offset, percent }
+      offset += percent
+      return segment
+    })
+
+  if (segments.length === 1) {
+    return (
+      <svg className="overview-status-donut" viewBox="0 0 120 120" role="img" aria-label={label}>
+        <circle
+          className="overview-status-segment"
+          cx="60"
+          cy="60"
+          r={DONUT_RADIUS}
+          pathLength="100"
+          fill="none"
+          stroke={segments[0].color}
+          strokeWidth={DONUT_STROKE_WIDTH}
+          strokeDasharray="100 0"
+        >
+          <title>{segments[0].label}: {segments[0].value}</title>
+        </circle>
+      </svg>
+    )
+  }
+
+  return (
+    <svg className="overview-status-donut" viewBox="0 0 120 120" role="img" aria-label={label}>
+      {segments.map((segment) => (
+        <circle
+          key={segment.key}
+          className="overview-status-segment"
+          cx="60"
+          cy="60"
+          r={DONUT_RADIUS}
+          pathLength="100"
+          fill="none"
+          stroke={segment.color}
+          strokeWidth={DONUT_STROKE_WIDTH}
+          strokeDasharray={`${segment.percent} ${100 - segment.percent}`}
+          strokeDashoffset={-segment.offset}
+          transform="rotate(180 60 60)"
+        >
+          <title>{segment.label}: {segment.value}</title>
+        </circle>
+      ))}
+      {segments.map((segment) => {
+        const angle = (180 + segment.offset * 3.6) * (Math.PI / 180)
+        return (
+          <circle
+            key={`${segment.key}-cap`}
+            className="overview-status-segment-cap"
+            cx={60 + DONUT_RADIUS * Math.cos(angle)}
+            cy={60 + DONUT_RADIUS * Math.sin(angle)}
+            r={DONUT_STROKE_WIDTH / 2}
+            fill={segment.color}
+          />
+        )
+      })}
+    </svg>
+  )
+}
+
+function EffectivenessOverviewChart({ officers, t }) {
+  const counts = Object.fromEntries(
+    EFFECTIVENESS_CATEGORIES.map((category) => [category, 0]),
+  )
+  for (const officer of officers) {
+    counts[effectivenessCategory(officer.achievement_percent)] += 1
   }
   const labels = {
-    on_target: t('targetStatusOnTarget'),
-    behind: t('targetStatusBehind'),
-    no_target: t('targetStatusNoTarget'),
+    very_effective: t('categoryVeryEffective'),
+    effective: t('categoryEffective'),
+    middle_effective: t('categoryMiddleEffective'),
+    little_effective: t('categoryLittleEffective'),
   }
-  return <span className={`badge ${classes[status] || 'badge-pending'}`}>{labels[status] || status}</span>
+  const items = EFFECTIVENESS_CATEGORIES.map((category) => ({
+    key: category,
+    label: labels[category],
+    value: counts[category],
+    color: EFFECTIVENESS_COLORS[category],
+  }))
+  const chartItems = items.filter((item) => item.value > 0)
+  const total = officers.length
+
+  return (
+    <section className="card overview-chart-card overview-status-card effectiveness-overview-card">
+      <h3>{t('effectivenessDistribution')}</h3>
+      <div className="overview-status-body">
+        <div className="overview-status-chart">
+          {total > 0 ? (
+            <StatusDonut
+              items={chartItems}
+              total={total}
+              label={`${t('effectivenessDistribution')}: ${total}`}
+              order={EFFECTIVENESS_CATEGORIES}
+            />
+          ) : (
+            <div className="overview-empty-chart">{t('nothingFound')}</div>
+          )}
+        </div>
+        <div className="overview-status-legend">
+          {items.map((item) => (
+            <div key={item.key}>
+              <span
+                className="overview-legend-swatch"
+                style={{ background: item.color }}
+                aria-hidden="true"
+              />
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function OverviewCharts({ data, t }) {
+  const statusData = [
+    { key: 'confirmed', label: t('confirmedCount'), value: data.confirmed_count, color: STATUS_COLORS.confirmed },
+    { key: 'pending', label: t('pendingCount'), value: data.pending_count, color: STATUS_COLORS.pending },
+    { key: 'rejected', label: t('rejectedCount'), value: data.rejected_count, color: STATUS_COLORS.rejected },
+  ]
+  const totalRecords = statusData.reduce((sum, item) => sum + item.value, 0)
+  const confirmedRateRecords = data.confirm_rate_confirmed_count ?? data.confirmed_count
+  const decidedRecords = data.confirm_rate_decided_count ?? (data.confirmed_count + data.rejected_count)
+  const statusChartData = statusData.filter((item) => item.value > 0)
+  const confirmationRate = Math.min(100, Math.max(0, Number(data.confirm_rate) || 0))
+
+  return (
+    <div className="overview-visual-grid">
+      <section className="card overview-chart-card overview-status-card">
+        <h3>{t('entryStatusOverview')}</h3>
+        <div className="overview-status-body">
+          <div className="overview-status-chart">
+            {totalRecords > 0 ? (
+              <StatusDonut
+                items={statusChartData}
+                total={totalRecords}
+                label={`${t('entryStatusOverview')}: ${totalRecords}`}
+              />
+            ) : (
+              <div className="overview-empty-chart">{t('nothingFound')}</div>
+            )}
+          </div>
+          <div className="overview-status-legend">
+            {statusData.map((item) => (
+              <div key={item.key}>
+                <span className="overview-legend-swatch" style={{ background: item.color }} aria-hidden="true" />
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="card overview-chart-card overview-rate-card">
+        <h3>{t('confirmRate')}</h3>
+        <div className="overview-rate-body">
+          <div className="overview-rate-chart">
+            <svg
+              viewBox="0 0 120 120"
+              role="img"
+              aria-label={`${t('confirmRate')}: ${confirmationRate}%`}
+            >
+              <circle
+                className="overview-rate-track"
+                cx="60"
+                cy="60"
+                r={DONUT_RADIUS}
+                strokeWidth={DONUT_STROKE_WIDTH}
+              />
+              <circle
+                key={confirmationRate}
+                className="overview-rate-progress"
+                cx="60"
+                cy="60"
+                r={DONUT_RADIUS}
+                strokeWidth={DONUT_STROKE_WIDTH}
+                pathLength="100"
+                strokeDasharray="100"
+                strokeDashoffset={100 - confirmationRate}
+                transform="rotate(-90 60 60)"
+              />
+            </svg>
+          </div>
+          <div className="overview-rate-copy">
+            <strong>{confirmationRate}%</strong>
+            <span>
+              {t('confirmRateSummary')
+                .replace('{confirmed}', confirmedRateRecords)
+                .replace('{total}', decidedRecords)}
+            </span>
+          </div>
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function PerformanceSummary({ comparisons, t }) {
+  const change = comparisons.relativePercent
+  const direction = change === null ? 'unavailable' : change > 0 ? 'up' : change < 0 ? 'down' : 'equal'
+  const changeLabel = {
+    up: t('abovePeerAverage'),
+    down: t('belowPeerAverage'),
+    equal: t('equalPeerAverage'),
+    unavailable: t('peerComparisonUnavailable'),
+  }[direction]
+
+  return (
+    <div className="performance-summary">
+      <section className="performance-metric" aria-label={t('effectivenessPlace')}>
+        <div className="performance-value">
+          <strong>{comparisons.rank ? `#${comparisons.rank}` : '—'}</strong>
+          <span>/ {comparisons.officerCount}</span>
+        </div>
+        <div className="performance-title">{t('effectivenessPlace')}</div>
+        <div className="performance-detail">
+          {comparisons.focusScore} {t('points')} · {t('selectedPeriodScore')}
+        </div>
+      </section>
+
+      <section className={`performance-metric performance-${direction}`} aria-label={changeLabel}>
+        <div className="performance-value performance-change">
+          <span className="performance-arrow" aria-hidden="true">
+            {direction === 'up' ? '↑' : direction === 'down' ? '↓' : '—'}
+          </span>
+          <strong>{change === null ? '—' : `${Math.abs(change)}%`}</strong>
+        </div>
+        <div className="performance-title">{changeLabel}</div>
+        <div className="performance-detail">
+          {t('peerAverageScore')}: {comparisons.peerAverage} {t('points')}
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function TeamPerformanceSummary({ comparisons, fmtMonth, t }) {
+  const hasComparison = comparisons.previousMonthCount > 0 && comparisons.baseline !== 0
+  const change = hasComparison
+    ? Number((((comparisons.currentScore - comparisons.baseline) / Math.abs(comparisons.baseline)) * 100).toFixed(1))
+    : null
+  const direction = change === null ? 'unavailable' : change > 0 ? 'up' : change < 0 ? 'down' : 'equal'
+  const comparisonLabel = {
+    up: t('abovePreviousAverage'),
+    down: t('belowPreviousAverage'),
+    equal: t('equalPreviousAverage'),
+    unavailable: t('previousComparisonUnavailable'),
+  }[direction]
+
+  return (
+    <section className={`team-performance-summary team-performance-${direction}`}>
+      <div>
+        <strong>{t('teamEffectiveness')}</strong>
+        <p>
+          {fmtMonth(comparisons.currentMonth)}: {t('teamScored')}{' '}
+          <b>{comparisons.currentScore} {t('points')}</b>.
+        </p>
+      </div>
+      <div className="team-performance-comparison">
+        {change !== null && (
+          <strong>{direction === 'up' ? '↑' : direction === 'down' ? '↓' : '—'} {Math.abs(change)}%</strong>
+        )}
+        <span>{comparisonLabel}</span>
+        {comparisons.previousMonthCount > 0 && (
+          <span className="team-performance-baseline">
+            {t('previousAverage')}: {comparisons.baseline} {t('points')}
+          </span>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function OfficerProgressChart({ comparisons, fmtMonth, t }) {
+  return (
+    <div className="card chart-card chart-wide officer-progress-chart">
+      <h3>{t('personalProgress')}</h3>
+      {comparisons.history.length ? (
+        <ResponsiveContainer width="100%" height={230}>
+          <LineChart data={comparisons.history} margin={{ top: 12, right: 24, bottom: 8, left: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="month" tickFormatter={fmtMonth} fontSize={11} />
+            <YAxis domain={['auto', 'auto']} />
+            <Tooltip
+              labelFormatter={fmtMonth}
+              formatter={(value) => [value, t('points')]}
+            />
+            <Line
+              type="monotone"
+              dataKey="score"
+              name={t('confirmedFinal')}
+              stroke="#1e4d8c"
+              strokeWidth={3}
+              dot={{ r: 4, fill: '#fff', strokeWidth: 2 }}
+              activeDot={{ r: 5 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      ) : (
+        <div className="chart-empty">{t('nothingFound')}</div>
+      )}
+    </div>
+  )
+}
+
+function EffectivenessBadge({ category, t }) {
+  const labels = {
+    very_effective: t('categoryVeryEffective'),
+    effective: t('categoryEffective'),
+    middle_effective: t('categoryMiddleEffective'),
+    little_effective: t('categoryLittleEffective'),
+  }
+  return (
+    <span className={`effectiveness-badge effectiveness-${category}`}>
+      {labels[category]}
+    </span>
+  )
+}
+
+function KpiBlockProgress({ blocks, t, className = '' }) {
+  if (!blocks?.length) return null
+  return (
+    <section className={`kpi-block-progress-section ${className}`.trim()}>
+      <div className="section-head">
+        <h2>{t('targetBlockOverview')}</h2>
+      </div>
+      <div className="card kpi-block-progress">
+        {blocks.map((item) => {
+          const percent = Math.min(100, Math.max(0, Number(item.achievement_percent) || 0))
+          return (
+            <div className="kpi-block-progress-item" key={item.block}>
+              <div className="kpi-block-progress-head">
+                <strong>{item.block}</strong>
+                <span>{percent}%</span>
+              </div>
+              <div
+                className="kpi-block-progress-track"
+                role="progressbar"
+                aria-label={`${item.block}: ${percent}%`}
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow={percent}
+              >
+                <div
+                  className={`kpi-block-progress-fill progress-${effectivenessCategory(percent)}`}
+                  style={{ width: `${percent}%` }}
+                />
+              </div>
+              <div className="kpi-block-progress-detail">
+                {t('blockScoreProgress')
+                  .replace('{actual}', item.actual_score)
+                  .replace('{target}', item.target_score)}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+function TargetOfficerToolbar({ category, month, district, onCategory, t }) {
+  const params = new URLSearchParams()
+  if (category) params.set('category', category)
+  if (month) params.set('month', month)
+  if (district) params.set('district', district)
+  const query = params.toString()
+  const fullListUrl = `/officers${query ? `?${query}` : ''}`
+
+  return (
+    <div className="target-officer-toolbar">
+      <select
+        className="select"
+        value={category}
+        onChange={(event) => onCategory(event.target.value)}
+        aria-label={t('effectivenessCategory')}
+      >
+        <option value="">{t('allEffectivenessCategories')}</option>
+        {EFFECTIVENESS_CATEGORIES.map((item) => (
+          <option key={item} value={item}>
+            {t({
+              very_effective: 'categoryVeryEffective',
+              effective: 'categoryEffective',
+              middle_effective: 'categoryMiddleEffective',
+              little_effective: 'categoryLittleEffective',
+            }[item])}
+          </option>
+        ))}
+      </select>
+      <Link className="full-list-link" to={fullListUrl}>{t('seeFullList')} →</Link>
+    </div>
+  )
+}
+
+function PenaltyPanel({ score, count, t }) {
+  return (
+    <aside className="target-penalty-panel" aria-label={t('penaltyPanel')}>
+      <div>
+        <strong>{t('penaltyPanel')}</strong>
+        <span>{t('penaltyPanelHint')}</span>
+      </div>
+      <dl>
+        <div>
+          <dt>{t('penaltyRecords')}</dt>
+          <dd>{count || 0}</dd>
+        </div>
+        <div>
+          <dt>{t('penaltyPoints')}</dt>
+          <dd>{Number(score) || 0}</dd>
+        </div>
+      </dl>
+    </aside>
+  )
 }
 
 export default function Dashboard() {
-  const { t, fmtMonth } = useI18n()
+  const { t, fmtMonth, lang } = useI18n()
   const { isHead } = useAuth()
+  const navigate = useNavigate()
+  const { officerId = '' } = useParams()
   const [data, setData] = useState(null)
   const [comparisons, setComparisons] = useState(null)
   const [targetOverview, setTargetOverview] = useState(null)
   const [months, setMonths] = useState([])
   const [month, setMonth] = useState('')
   const [officers, setOfficers] = useState([])
-  const [officer, setOfficer] = useState('')
+  const [officer, setOfficer] = useState(officerId)
+  const [districts, setDistricts] = useState([])
+  const [district, setDistrict] = useState('')
   const [blocks, setBlocks] = useState([])
   const [block, setBlock] = useState('')
+  const [targetCategory, setTargetCategory] = useState('')
+  const [ready, setReady] = useState(false)
+  const officerOptions = useMemo(
+    () => officers
+      .filter((item) => !district || String(item.districtId) === String(district))
+      .map((item) => ({
+      id: item.officer_id,
+      label: item.name,
+      description: [item.rank, districtName(item.district, lang)].filter(Boolean).join(' · '),
+    })),
+    [district, lang, officers]
+  )
 
-  const load = async (m, oid) => {
+  const load = async (m, oid, did, officerDirectory = officers) => {
     const params = {}
     if (m) params.month = m
     if (oid) params.officer_id = oid
+    if (did) params.district_id = did
     const [dashboardResponse, allEntriesResponse, targetOverviewResponse] = await Promise.all([
       api.get('/dashboard', { params }),
       api.get('/entries'),
       api.get('/target-overview', { params }),
     ])
-    const filteredEntries = allEntriesResponse.data.filter((entry) =>
+    const districtOfficerIds = new Set(
+      officerDirectory
+        .filter((item) => !did || String(item.districtId) === String(did))
+        .map((item) => String(item.officer_id))
+    )
+    const comparisonEntries = allEntriesResponse.data.filter((entry) => (
+      !did || districtOfficerIds.has(String(entry.officer_id))
+    ))
+    const filteredEntries = comparisonEntries.filter((entry) =>
       (!m || entry.month === m) && (!oid || String(entry.officer_id) === String(oid)))
+    const comparisonDirectory = did
+      ? officerDirectory.filter((item) => String(item.districtId) === String(did))
+      : officerDirectory
     setData({
       ...dashboardResponse.data,
       ...buildSupplementalCharts(filteredEntries),
     })
-    setComparisons(buildComparisons(allEntriesResponse.data, m, oid))
+    setComparisons(buildComparisons(comparisonEntries, m, oid, comparisonDirectory))
     setTargetOverview(targetOverviewResponse.data)
   }
 
   useEffect(() => {
-    api.get('/months').then((r) => setMonths(r.data))
-    api.get('/catalog').then((r) => {
+    Promise.all([
+      api.get('/months'),
+      api.get('/catalog'),
+      api.get('/districts'),
+      isHead ? api.get('/officers') : Promise.resolve({ data: [] }),
+    ]).then(([monthsResponse, catalogResponse, districtsResponse, officersResponse]) => {
+      setMonths(monthsResponse.data)
+      setDistricts(districtsResponse.data)
       const list = []
-      for (const c of r.data) if (c.block && !list.includes(c.block)) list.push(c.block)
+      for (const c of catalogResponse.data) if (c.block && !list.includes(c.block)) list.push(c.block)
       setBlocks(list)
-    })
-    if (isHead) {
-      api.get('/dashboard').then((r) => {
-        setOfficers([...r.data.officers].sort((a, b) => a.name.localeCompare(b.name)))
-      })
-    }
-    load('', '')
+      const directory = officersResponse.data.map((item) => ({
+        officer_id: item.id,
+        name: item.full_name,
+        rank: item.rank,
+        district: item.district?.name || '',
+        districtId: item.district?.id || '',
+        efficiencyRank: item.efficiency_rank,
+        efficiencyTotal: item.efficiency_total,
+        totalScore: item.efficiency_score,
+      }))
+      setOfficers(directory)
+      return load('', officerId, '', directory)
+    }).finally(() => setReady(true))
   }, [])
+
+  useEffect(() => {
+    if (!ready || String(officer) === String(officerId)) return
+    setOfficer(officerId)
+    setDistrict('')
+    setBlock('')
+    load(month, officerId, '')
+  }, [officerId, ready])
 
   const onMonth = (m) => {
     setMonth(m)
-    load(m, officer)
+    load(m, officer, district)
   }
 
   const onOfficer = (oid) => {
     setOfficer(oid)
+    setDistrict('')
     setBlock('')
-    load(month, oid)
+    navigate(oid ? `/dashboard/officers/${oid}` : '/dashboard')
+    load(month, oid, '')
+  }
+
+  const onDistrict = (did) => {
+    setDistrict(did)
+    setOfficer('')
+    setBlock('')
+    navigate('/dashboard')
+    load(month, '', did)
+  }
+
+  const openOfficerDashboard = (oid) => {
+    const selectedId = String(oid)
+    setOfficer(selectedId)
+    setDistrict('')
+    setBlock('')
+    navigate(`/dashboard/officers/${selectedId}`)
+    load(month, selectedId, '')
+    window.scrollTo({ top: 0 })
   }
 
   if (!data) return <div className="loading">Загрузка…</div>
 
   const statusTrend = data.status_trend || []
   const indicatorVolume = data.indicator_volume || []
-  const districtReview = data.district_review || []
+  const districtReview = (data.district_review || []).map((item) => ({
+    ...item,
+    district: districtName(item.district, lang),
+  }))
+  const targetKpiItems = officer
+    ? (targetOverview?.items || []).filter((item) => Number(item.target_score) > 0)
+    : []
+  const targetOfficerRows = !officer
+    ? (targetOverview?.officers || [])
+      .map((item) => ({
+        ...item,
+        effectivenessCategory: effectivenessCategory(item.achievement_percent),
+      }))
+      .filter((item) => (
+        !targetCategory || item.effectivenessCategory === targetCategory
+      ))
+      .sort(compareEffectiveness)
+      .slice(0, 10)
+    : []
+  const selectedOfficer = officers.find((item) => (
+    String(item.officer_id) === String(officer)
+  ))
+  const selectedDistrict = districts.find((item) => (
+    String(item.id) === String(district)
+  ))
 
   // "Эффективность по сотрудникам": при выборе блока считаем баллы только по нему
   // и показываем сотрудников с любым ненулевым результатом, включая штрафные баллы.
@@ -240,15 +783,33 @@ export default function Dashboard() {
   return (
     <div>
       <div className="page-head">
-        <h1>{t('dashboard')}</h1>
+        <h1>
+          {selectedOfficer
+            ? `${t('dashboard')}: ${selectedOfficer.name}`
+            : selectedDistrict
+              ? `${t('dashboard')}: ${districtName(selectedDistrict, lang)}`
+              : t('dashboard')}
+        </h1>
         <div className="page-head-actions">
           {isHead && (
-            <select className="select employee-select" value={officer} onChange={(e) => onOfficer(e.target.value)}>
-              <option value="">{t('allOfficers')}</option>
-              {officers.map((item) => (
-                <option key={item.officer_id} value={item.officer_id}>{item.name}</option>
+            <select
+              className="select dashboard-district-select"
+              value={district}
+              onChange={(event) => onDistrict(event.target.value)}
+              aria-label={t('selectGroup')}
+            >
+              <option value="">{t('allGroups')}</option>
+              {districts.map((item) => (
+                <option key={item.id} value={item.id}>{districtName(item, lang)}</option>
               ))}
             </select>
+          )}
+          {isHead && (
+            <NameFilterCombobox
+              items={officerOptions}
+              value={officer}
+              onChange={onOfficer}
+            />
           )}
           <select className="select" value={month} onChange={(e) => onMonth(e.target.value)}>
             <option value="">{t('allMonths')}</option>
@@ -257,16 +818,17 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {officer && comparisons && (
+        <PerformanceSummary comparisons={comparisons} t={t} />
+      )}
+      {!officer && comparisons && (
+        <TeamPerformanceSummary comparisons={comparisons} fmtMonth={fmtMonth} t={t} />
+      )}
+
       <div className="section-head">
         <h2>{t('overviewMetrics')}</h2>
       </div>
-      <div className="stat-grid">
-        <StatCard label={t('confirmedCount')} value={data.confirmed_count} accent="#2f7d4f" />
-        <StatCard label={t('pendingCount')} value={data.pending_count} accent="#b8860b" />
-        <StatCard label={t('rejectedCount')} value={data.rejected_count} accent="#9c3848" />
-        {!officer && <StatCard label={t('officersCount')} value={data.officers_count} accent="#5b4b8a" />}
-        <StatCard label={t('confirmRate')} value={`${data.confirm_rate}%`} accent="#0f8b8d" />
-      </div>
+      <OverviewCharts data={data} t={t} />
 
       {targetOverview && (
         <>
@@ -277,7 +839,6 @@ export default function Dashboard() {
           <div className="stat-grid">
             <StatCard label={t('actualScore')} value={targetOverview.actual_score} accent="#1e4d8c" />
             <StatCard label={t('targetScore')} value={targetOverview.target_score} accent="#5b4b8a" />
-            <StatCard label={t('achievement')} value={`${targetOverview.achievement_percent}%`} accent="#2f7d4f" />
             {!officer && (
               <StatCard
                 label={t('officersOnTarget')}
@@ -289,11 +850,40 @@ export default function Dashboard() {
         </>
       )}
 
+      {targetOverview && !officer && (
+        <EffectivenessOverviewChart officers={targetOverview.officers || []} t={t} />
+      )}
+
+      {targetOverview && officer && (
+        <KpiBlockProgress
+          blocks={targetOverview.blocks}
+          t={t}
+          className="kpi-block-progress-personal"
+        />
+      )}
+
       {targetOverview && (
         <div className="card table-card target-overview-card">
           <div className="chart-head target-overview-head">
             <h3>{officer ? t('targetKpiBreakdown') : t('targetOfficerOverview')}</h3>
+            {!officer && (
+              <TargetOfficerToolbar
+                category={targetCategory}
+                month={targetOverview.month}
+                district={district}
+                onCategory={setTargetCategory}
+                t={t}
+              />
+            )}
           </div>
+          {!officer && (
+            <PenaltyPanel
+              score={targetOverview.penalty_score}
+              count={targetOverview.penalty_count}
+              t={t}
+            />
+          )}
+          {!officer && <div className="target-overview-note">{t('topTenOfficers')}</div>}
           <div className="table-scroll">
             <table className="data-table">
               <thead>
@@ -314,35 +904,66 @@ export default function Dashboard() {
                     <th className="num">{t('targetScore')}</th>
                     <th className="num">{t('colAchievement')}</th>
                     <th className="num">{t('colGap')}</th>
-                    <th>{t('colStatus')}</th>
+                    <th className="num">{t('penaltyPoints')}</th>
+                    <th>{t('effectivenessCategory')}</th>
                   </tr>
                 )}
               </thead>
               <tbody>
-                {officer ? targetOverview.items.map((item) => (
+                {officer ? targetKpiItems.map((item) => (
                   <tr key={item.catalog_id}>
                     <td><span className="code-chip">{item.code}</span></td>
-                    <td>{item.indicator}</td>
+                    <td>{kpiIndicator(item, lang)}</td>
                     <td className="num">{item.confirmed_quantity}</td>
                     <td className="num">{item.target_quantity}</td>
                     <td className="num strong">{item.confirmed_score}</td>
                     <td className="num">{item.target_score}</td>
                     <td className="num">{item.target_score ? `${item.achievement_percent}%` : '—'}</td>
                   </tr>
-                )) : targetOverview.officers.map((item) => (
-                  <tr key={item.officer_id}>
-                    <td className="nowrap strong">{item.name}</td>
-                    <td className="num strong">{item.actual_score}</td>
-                    <td className="num">{item.target_score}</td>
-                    <td className="num">{item.target_score ? `${item.achievement_percent}%` : '—'}</td>
-                    <td className={`num ${item.gap < 0 ? 'target-gap-negative' : 'target-gap-positive'}`}>
-                      {item.gap > 0 ? `+${item.gap}` : item.gap}
-                    </td>
-                    <td><TargetStatusBadge status={item.status} t={t} /></td>
-                  </tr>
-                ))}
-                {((officer && targetOverview.items.length === 0) || (!officer && targetOverview.officers.length === 0)) && (
-                  <tr><td colSpan={officer ? 7 : 6} className="empty">{t('nothingFound')}</td></tr>
+                )) : targetOfficerRows.map((item) => {
+                  const directoryOfficer = officers.find((entry) => (
+                    String(entry.officer_id) === String(item.officer_id)
+                  ))
+                  return (
+                    <tr key={item.officer_id}>
+                      <td className="nowrap">
+                        <ProfileHoverCard profile={{
+                          id: item.officer_id,
+                          name: item.name,
+                          rank: directoryOfficer?.rank,
+                          district: directoryOfficer?.district,
+                          efficiencyRank: directoryOfficer?.efficiencyRank,
+                          efficiencyTotal: directoryOfficer?.efficiencyTotal,
+                          totalScore: directoryOfficer?.totalScore,
+                        }}>
+                          <button
+                            type="button"
+                            className="officer-dashboard-link"
+                            onClick={() => openOfficerDashboard(item.officer_id)}
+                            aria-label={`${t('openOfficerDashboard')}: ${item.name}`}
+                            title={t('openOfficerDashboard')}
+                          >
+                            {item.name}
+                          </button>
+                        </ProfileHoverCard>
+                      </td>
+                      <td className="num strong">{item.actual_score}</td>
+                      <td className="num">{item.target_score}</td>
+                      <td className="num">{item.target_score ? `${item.achievement_percent}%` : '—'}</td>
+                      <td className={`num ${item.gap < 0 ? 'target-gap-negative' : 'target-gap-positive'}`}>
+                        {item.gap > 0 ? `+${item.gap}` : item.gap}
+                      </td>
+                      <td className={`num ${item.penalty_score < 0 ? 'penalty-score' : ''}`}>
+                        {item.penalty_score || 0}
+                      </td>
+                      <td>
+                        <EffectivenessBadge category={item.effectivenessCategory} t={t} />
+                      </td>
+                    </tr>
+                  )
+                })}
+                {((officer && targetKpiItems.length === 0) || (!officer && targetOfficerRows.length === 0)) && (
+                  <tr><td colSpan={officer ? 7 : 7} className="empty">{t('nothingFound')}</td></tr>
                 )}
               </tbody>
             </table>
@@ -350,13 +971,13 @@ export default function Dashboard() {
         </div>
       )}
 
-      {officer && comparisons && (
-        <div className="chart-grid comparison-grid">
-          <ComparisonCharts comparisons={comparisons} fmtMonth={fmtMonth} officer={officer} t={t} />
+      {officer && !month && comparisons && (
+        <div className="chart-grid comparison-grid dashboard-chart-grid">
+          <OfficerProgressChart comparisons={comparisons} fmtMonth={fmtMonth} t={t} />
         </div>
       )}
 
-      <div className="chart-grid">
+      <div className="chart-grid dashboard-chart-grid">
         {!officer && <>
           <div className="card chart-card chart-wide">
           <div className="chart-head">
@@ -366,12 +987,12 @@ export default function Dashboard() {
               {blocks.map((b) => <option key={b} value={b}>{b}</option>)}
             </select>
           </div>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={230}>
             <BarChart data={officerChart} margin={{ top: 10, right: 20, bottom: 40, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="name" angle={-20} textAnchor="end" height={60} fontSize={12} />
               <YAxis domain={['auto', 'auto']} />
-              <Tooltip />
+              <Tooltip cursor={CHART_CURSOR} />
               <ReferenceLine y={0} stroke="#6b7785" />
               <Bar dataKey="final" name={t('colFinal')} radius={[4, 4, 0, 0]} maxBarSize={block ? 64 : 28}>
                 {officerChart.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
@@ -380,18 +1001,28 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </div>
 
-        <div className="card chart-card chart-wide">
+        {targetOverview && (
+          <KpiBlockProgress blocks={targetOverview.blocks} t={t} />
+        )}
+
+        <div className="card chart-card chart-wide block-chart-card">
           <h3>{t('byBlock')}</h3>
-          <ResponsiveContainer width="100%" height={Math.max(360, data.blocks.length * 46)}>
+          <ResponsiveContainer width="100%" height={Math.min(280, Math.max(210, data.blocks.length * 30))}>
             <BarChart
               data={data.blocks}
               layout="vertical"
-              margin={{ top: 5, right: 30, bottom: 5, left: 10 }}
+              margin={{ top: 5, right: 30, bottom: 5, left: 0 }}
             >
               <CartesianGrid strokeDasharray="3 3" horizontal={false} />
               <XAxis type="number" domain={['auto', 'auto']} />
-              <YAxis type="category" dataKey="block" width={285} fontSize={11} />
-              <Tooltip formatter={(value) => [value, t('points')]} />
+              <YAxis
+                type="category"
+                dataKey="block"
+                width={220}
+                tick={<BlockAxisTick />}
+                tickLine={false}
+              />
+              <Tooltip cursor={CHART_CURSOR} formatter={(value) => [value, t('points')]} />
               <ReferenceLine x={0} stroke="#6b7785" />
               <Bar dataKey="final" name={t('colFinal')} radius={[0, 4, 4, 0]} maxBarSize={28}>
                 {data.blocks.map((item, i) => (
@@ -405,67 +1036,71 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </div>
 
-        <div className="card chart-card chart-wide">
-          <h3>{t('trend')}</h3>
-          <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={data.trend} margin={{ top: 10, right: 20, bottom: 10, left: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" fontSize={12} tickFormatter={fmtMonth} />
-              <YAxis />
-              <Tooltip labelFormatter={fmtMonth} />
-              <Line type="monotone" dataKey="final" name={t('colFinal')} stroke="#1e4d8c" strokeWidth={3} dot={{ r: 4 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        {comparisons && (
-          <ComparisonCharts comparisons={comparisons} fmtMonth={fmtMonth} officer={officer} t={t} />
+        {!month && (
+          <div className="card chart-card chart-wide">
+            <h3>{t('trend')}</h3>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={data.trend} margin={{ top: 10, right: 20, bottom: 10, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" fontSize={12} tickFormatter={fmtMonth} />
+                <YAxis />
+                <Tooltip cursor={CHART_CURSOR} labelFormatter={fmtMonth} />
+                <Line type="monotone" dataKey="final" name={t('colFinal')} stroke="#1e4d8c" strokeWidth={3} dot={{ r: 4 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         )}
+
         </>}
 
-        <div className="card chart-card chart-wide">
-          <h3>{t('reviewFlow')}</h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={statusTrend} margin={{ top: 10, right: 20, bottom: 10, left: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="month" tickFormatter={fmtMonth} fontSize={12} />
-              <YAxis allowDecimals={false} />
-              <Tooltip labelFormatter={fmtMonth} />
-              <Legend />
-              <Bar dataKey="confirmed" name={t('confirmed')} stackId="status" fill={STATUS_COLORS.confirmed} />
-              <Bar dataKey="pending" name={t('pending')} stackId="status" fill={STATUS_COLORS.pending} />
-              <Bar dataKey="rejected" name={t('rejected')} stackId="status" fill={STATUS_COLORS.rejected} radius={[3, 3, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        {!month && (
+          <div className="card chart-card chart-wide">
+            <h3>{t('reviewFlow')}</h3>
+            <ResponsiveContainer width="100%" height={210}>
+              <BarChart data={statusTrend} margin={{ top: 10, right: 20, bottom: 10, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="month" tickFormatter={fmtMonth} fontSize={12} />
+                <YAxis allowDecimals={false} />
+                <Tooltip cursor={CHART_CURSOR} labelFormatter={fmtMonth} />
+                <Legend />
+                <Bar dataKey="confirmed" name={t('confirmed')} stackId="status" fill={STATUS_COLORS.confirmed} barSize={12} />
+                <Bar dataKey="pending" name={t('pending')} stackId="status" fill={STATUS_COLORS.pending} barSize={12} />
+                <Bar dataKey="rejected" name={t('rejected')} stackId="status" fill={STATUS_COLORS.rejected} radius={[3, 3, 0, 0]} barSize={12} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
 
-        <div className="card chart-card">
+        <div className="card chart-card indicator-volume-card">
           <h3>{t('indicatorVolume')}</h3>
-          <ResponsiveContainer width="100%" height={320}>
+          <ResponsiveContainer width="100%" height={220}>
             <BarChart data={indicatorVolume} layout="vertical" margin={{ top: 5, right: 25, bottom: 5, left: 10 }}>
               <CartesianGrid strokeDasharray="3 3" horizontal={false} />
               <XAxis type="number" />
               <YAxis type="category" dataKey="code" width={58} fontSize={12} />
               <Tooltip
-                formatter={(value) => [value, t('unitsCompleted')]}
-                labelFormatter={(code) => indicatorVolume.find((item) => item.code === code)?.indicator || code}
+                content={<IndicatorVolumeTooltip t={t} lang={lang} />}
+                allowEscapeViewBox={{ x: false, y: true }}
+                offset={12}
+                cursor={CHART_CURSOR}
+                wrapperStyle={{ zIndex: 5 }}
               />
-              <Bar dataKey="quantity" name={t('unitsCompleted')} fill="#0f8b8d" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="quantity" name={t('unitsCompleted')} fill="#0f8b8d" radius={[0, 4, 4, 0]} barSize={12} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         <div className="card chart-card">
           <h3>{t('districtReview')}</h3>
-          <ResponsiveContainer width="100%" height={320}>
+          <ResponsiveContainer width="100%" height={220}>
             <BarChart data={districtReview} layout="vertical" margin={{ top: 5, right: 25, bottom: 5, left: 15 }}>
               <CartesianGrid strokeDasharray="3 3" horizontal={false} />
               <XAxis type="number" allowDecimals={false} />
               <YAxis type="category" dataKey="district" width={125} fontSize={11} />
-              <Tooltip />
+              <Tooltip cursor={CHART_CURSOR} />
               <Legend />
-              <Bar dataKey="pending" name={t('pending')} stackId="review" fill={STATUS_COLORS.pending} />
-              <Bar dataKey="rejected" name={t('rejected')} stackId="review" fill={STATUS_COLORS.rejected} radius={[0, 4, 4, 0]} />
+              <Bar dataKey="pending" name={t('pending')} stackId="review" fill={STATUS_COLORS.pending} barSize={12} />
+              <Bar dataKey="rejected" name={t('rejected')} stackId="review" fill={STATUS_COLORS.rejected} radius={[0, 4, 4, 0]} barSize={12} />
             </BarChart>
           </ResponsiveContainer>
         </div>

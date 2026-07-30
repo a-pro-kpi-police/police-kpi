@@ -10,6 +10,13 @@ import schemas
 from models import District, KpiCatalog, KpiEntry, KpiTarget, User
 
 
+def _achievement_percent(actual_score: float, target_score: float) -> float:
+    """Goal completion is bounded even when actual work exceeds the target."""
+    if not target_score:
+        return 0.0
+    return round(min(100.0, max(0.0, 100 * actual_score / target_score)), 1)
+
+
 def validate_month(month: str):
     if not isinstance(month, str) or len(month) != 7 or month[4] != "-":
         raise HTTPException(status_code=400, detail="Месяц указан неверно")
@@ -39,6 +46,7 @@ def target_quantities_or_404(
     catalog_ids = {
         catalog_id
         for (catalog_id,) in db.query(KpiCatalog.id).filter(
+            KpiCatalog.is_active.is_(True),
             KpiCatalog.points_per_unit >= 0,
         ).all()
     }
@@ -109,14 +117,16 @@ def build_target_rows(
 
     rows = []
     catalog = db.query(KpiCatalog).filter(
+        KpiCatalog.is_active.is_(True),
         KpiCatalog.points_per_unit >= 0,
-    ).order_by(KpiCatalog.code).all()
+    ).order_by(KpiCatalog.block, KpiCatalog.code).all()
     for item in catalog:
         target_quantity = round(quantities.get(item.id, 0), 2)
         rows.append(schemas.TargetOut(
             catalog_id=item.id,
             code=item.code,
             indicator=item.indicator,
+            block=item.block,
             unit=item.unit,
             points_per_unit=item.points_per_unit,
             target_quantity=target_quantity,
@@ -153,8 +163,9 @@ def build_group_target_rows(
 
     rows = []
     catalog = db.query(KpiCatalog).filter(
+        KpiCatalog.is_active.is_(True),
         KpiCatalog.points_per_unit >= 0,
-    ).order_by(KpiCatalog.code).all()
+    ).order_by(KpiCatalog.block, KpiCatalog.code).all()
     for item in catalog:
         values = [
             quantities.get((officer_id, item.id), 0.0)
@@ -166,6 +177,7 @@ def build_group_target_rows(
             catalog_id=item.id,
             code=item.code,
             indicator=item.indicator,
+            block=item.block,
             unit=item.unit,
             points_per_unit=item.points_per_unit,
             target_quantity=target_quantity,
@@ -206,15 +218,15 @@ def build_target_progress(
             max(row.target_quantity - confirmed_quantity, 0),
             2,
         )
-        achievement_percent = (
-            round(100 * confirmed_score / row.target_score, 1)
-            if row.target_score
-            else 0.0
+        achievement_percent = _achievement_percent(
+            confirmed_score,
+            row.target_score,
         )
         items.append(schemas.TargetProgressItemOut(
             catalog_id=row.catalog_id,
             code=row.code,
             indicator=row.indicator,
+            block=row.block,
             unit=row.unit,
             points_per_unit=row.points_per_unit,
             target_quantity=row.target_quantity,
@@ -234,11 +246,7 @@ def build_target_progress(
         officer_id=officer.id,
         actual_score=actual_total,
         target_score=target_total,
-        achievement_percent=(
-            round(100 * actual_total / target_total, 1)
-            if target_total
-            else 0.0
-        ),
+        achievement_percent=_achievement_percent(actual_total, target_total),
         items=items,
     )
 
@@ -247,24 +255,49 @@ def build_target_overview(
     db: Session,
     month: str,
     officer_id: Optional[int] = None,
+    district_id: Optional[int] = None,
 ) -> schemas.TargetOverviewOut:
     validate_month(month)
+    if district_id:
+        get_district_or_404(db, district_id)
     officers = (
         [get_officer_or_404(db, officer_id)]
         if officer_id
         else db.query(User).filter(
             User.role == "officer",
+            *([User.district_id == district_id] if district_id else []),
         ).order_by(User.full_name).all()
     )
+
+    officer_ids = [officer.id for officer in officers]
+    penalty_entries = (
+        db.query(KpiEntry).filter(
+            KpiEntry.officer_id.in_(officer_ids),
+            KpiEntry.month == month,
+            KpiEntry.status == "confirmed",
+            KpiEntry.points_per_unit < 0,
+        ).all()
+        if officer_ids
+        else []
+    )
+    penalty_by_officer = defaultdict(lambda: {"score": 0.0, "count": 0})
+    for entry in penalty_entries:
+        penalty = penalty_by_officer[entry.officer_id]
+        penalty["score"] += entry.final_score
+        penalty["count"] += 1
 
     rows = []
     items = []
     actual_total = 0.0
     target_total = 0.0
+    penalty_total = 0.0
+    penalty_count = 0
     on_target_count = 0
+    by_block = defaultdict(lambda: {"actual_score": 0.0, "target_score": 0.0})
 
     for officer in officers:
         progress = build_target_progress(db, officer, month)
+        penalty = penalty_by_officer[officer.id]
         gap = round(progress.actual_score - progress.target_score, 2)
         status = (
             "no_target"
@@ -283,11 +316,19 @@ def build_target_overview(
             achievement_percent=progress.achievement_percent,
             gap=gap,
             status=status,
+            penalty_score=round(penalty["score"], 2),
+            penalty_count=penalty["count"],
         ))
         actual_total += progress.actual_score
         target_total += progress.target_score
+        penalty_total += penalty["score"]
+        penalty_count += penalty["count"]
         if officer_id:
             items = progress.items
+        for item in progress.items:
+            block = by_block[item.block]
+            block["actual_score"] += item.confirmed_score
+            block["target_score"] += item.target_score
 
     if not officer_id:
         status_order = {"behind": 0, "no_target": 1, "on_target": 2}
@@ -300,17 +341,29 @@ def build_target_overview(
 
     actual_total = round(actual_total, 2)
     target_total = round(target_total, 2)
+    blocks = [
+        schemas.TargetBlockProgressOut(
+            block=block_name,
+            actual_score=round(values["actual_score"], 2),
+            target_score=round(values["target_score"], 2),
+            achievement_percent=_achievement_percent(
+                values["actual_score"],
+                values["target_score"],
+            ),
+        )
+        for block_name, values in by_block.items()
+        if values["target_score"] > 0
+    ]
     return schemas.TargetOverviewOut(
         month=month,
         actual_score=actual_total,
         target_score=target_total,
-        achievement_percent=(
-            round(100 * actual_total / target_total, 1)
-            if target_total
-            else 0.0
-        ),
+        achievement_percent=_achievement_percent(actual_total, target_total),
         on_target_count=on_target_count,
         officers_count=len(rows),
+        penalty_score=round(penalty_total, 2),
+        penalty_count=penalty_count,
         officers=rows,
+        blocks=blocks,
         items=items,
     )
