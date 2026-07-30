@@ -24,10 +24,20 @@ def build_dashboard(
     if month:
         query = query.filter(KpiEntry.month == month)
     entries = query.all()
+    entries_with_activity = [entry for entry in entries if entry.quantity > 0]
 
-    confirmed = [entry for entry in entries if entry.status == "confirmed"]
-    pending = [entry for entry in entries if entry.status == "pending"]
-    rejected = [entry for entry in entries if entry.status == "rejected"]
+    confirmed = [
+        entry for entry in entries_with_activity
+        if entry.status == "confirmed"
+    ]
+    pending = [
+        entry for entry in entries_with_activity
+        if entry.status == "pending"
+    ]
+    rejected = [
+        entry for entry in entries_with_activity
+        if entry.status == "rejected"
+    ]
 
     total_final = round(sum(entry.final_score for entry in confirmed), 2)
     by_officer = defaultdict(lambda: {
@@ -40,7 +50,20 @@ def build_dashboard(
         "district": "",
         "blocks": defaultdict(float),
     })
-    for entry in entries:
+    officer_query = db.query(User).filter(User.role == "officer")
+    if officer_id:
+        officer_query = officer_query.filter(User.id == officer_id)
+    if district_id:
+        officer_query = officer_query.filter(User.district_id == district_id)
+    for officer_row in officer_query.all():
+        officer = by_officer[officer_row.id]
+        officer["name"] = officer_row.full_name
+        officer["rank"] = officer_row.rank
+        officer["district"] = (
+            officer_row.district.name if officer_row.district else ""
+        )
+
+    for entry in entries_with_activity:
         officer = by_officer[entry.officer_id]
         officer["name"] = entry.officer.full_name if entry.officer else ""
         officer["rank"] = entry.officer.rank if entry.officer else ""
@@ -109,7 +132,7 @@ def build_dashboard(
     by_month_status = defaultdict(
         lambda: {"confirmed": 0, "pending": 0, "rejected": 0},
     )
-    for entry in entries:
+    for entry in entries_with_activity:
         by_month_status[entry.month][entry.status] += 1
     status_trend = [
         {"month": item_month, **counts}
@@ -119,7 +142,7 @@ def build_dashboard(
     by_indicator = defaultdict(
         lambda: {"quantity": 0.0, "code": "", "indicator": ""},
     )
-    for entry in entries:
+    for entry in entries_with_activity:
         code = entry.catalog.code if entry.catalog else "—"
         item = by_indicator[code]
         item["code"] = code

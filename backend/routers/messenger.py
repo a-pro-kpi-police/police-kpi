@@ -51,9 +51,13 @@ def _entry_out(item: KpiEntry) -> schemas.MessengerEntryOut:
         npa=item.catalog.npa if item.catalog else "",
         source_url=item.catalog.source_url if item.catalog else "",
         quantity=item.quantity,
+        counted_quantity=item.counted_quantity,
+        monthly_limit=item.catalog.monthly_limit if item.catalog else 0,
         points_per_unit=item.points_per_unit,
         coeff=item.coeff,
         raw_score=item.raw_score,
+        capped_score=item.capped_score,
+        anti_coeff=item.anti_coeff,
         final_score=item.final_score,
         status=item.status,
         comments=item.comments or "",
@@ -136,6 +140,7 @@ def list_discussion_entries(
     officer = _conversation_officer(user, contact)
     entries = db.query(KpiEntry).filter(
         KpiEntry.officer_id == officer.id,
+        KpiEntry.quantity > 0,
     ).order_by(
         KpiEntry.date.desc(),
         KpiEntry.id.desc(),

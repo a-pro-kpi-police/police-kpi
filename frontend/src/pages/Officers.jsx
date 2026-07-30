@@ -245,7 +245,11 @@ export default function Officers() {
           <tbody>
             {filtered.map((o) => (
               <tr key={o.officer_id}>
-                <td className="rank-cell"><span className={`rank-num rank-${o.rankNum}`}>{o.rankNum}</span></td>
+                <td className="rank-cell">
+                  <span className={`rank-num rank-${o.rankNum}${o.rankNum >= 100 ? ' rank-num-wide' : ''}`}>
+                    {o.rankNum}
+                  </span>
+                </td>
                 <td className="strong officer-name-cell">
                   <ProfileHoverCard profile={{
                     id: o.officer_id,

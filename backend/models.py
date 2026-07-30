@@ -26,6 +26,8 @@ class User(Base):
     rank = Column(String, default="")                     # Звание
     role = Column(String, nullable=False, default="officer")  # officer | head
     district_id = Column(Integer, ForeignKey("districts.id"), nullable=True)
+    source_employee_number = Column(String, unique=True, nullable=True, index=True)
+    monthly_norm = Column(Float, nullable=False, default=100.0)
 
     district = relationship("District")
 
@@ -43,6 +45,9 @@ class KpiCatalog(Base):
     points_per_unit = Column(Float, nullable=False)       # Балл за 1 ед.
     unit = Column(String, default="ед.")                  # Единица измерения
     source_url = Column(String, default="")               # URL источника
+    monthly_limit = Column(Float, nullable=False, default=0)
+    is_mass = Column(Boolean, nullable=False, default=False)
+    is_critical = Column(Boolean, nullable=False, default=False)
     is_active = Column(Boolean, nullable=False, default=True)
 
 
@@ -75,9 +80,12 @@ class KpiEntry(Base):
     catalog_id = Column(Integer, ForeignKey("kpi_catalog.id"), nullable=False)
 
     quantity = Column(Float, nullable=False, default=1)   # Количество единиц
+    counted_quantity = Column(Float, nullable=False, default=0)
     points_per_unit = Column(Float, nullable=False)       # Балл за 1 ед. (снимок)
     coeff = Column(Float, nullable=False, default=1.0)    # Коэфф. участка (снимок)
     raw_score = Column(Float, nullable=False, default=0)  # Сырые баллы
+    capped_score = Column(Float, nullable=False, default=0)
+    anti_coeff = Column(Float, nullable=False, default=1.0)
     final_score = Column(Float, nullable=False, default=0)  # Итоговые баллы
 
     status = Column(String, nullable=False, default="pending")  # pending|confirmed|rejected
@@ -87,9 +95,29 @@ class KpiEntry(Base):
     attachment_storage_name = Column(String, default="")  # Безопасное имя на диске
     attachment_content_type = Column(String, default="")
     attachment_size = Column(Integer, nullable=False, default=0)
+    source_key = Column(String, unique=True, nullable=True, index=True)
+    source_row = Column(Integer, nullable=True)
+    is_monthly_aggregate = Column(Boolean, nullable=False, default=False)
+    import_batch_id = Column(Integer, ForeignKey("import_batches.id"), nullable=True)
 
     officer = relationship("User")
     catalog = relationship("KpiCatalog")
+    import_batch = relationship("ImportBatch")
+
+
+class ImportBatch(Base):
+    """Auditable snapshot imported from a source workbook."""
+    __tablename__ = "import_batches"
+
+    id = Column(Integer, primary_key=True, index=True)
+    source_name = Column(String, nullable=False)
+    source_sheet = Column(String, nullable=False)
+    source_checksum = Column(String, unique=True, nullable=False, index=True)
+    month = Column(String, nullable=False)
+    employee_count = Column(Integer, nullable=False)
+    kpi_count = Column(Integer, nullable=False)
+    entry_count = Column(Integer, nullable=False)
+    imported_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
 
 class AppNotification(Base):

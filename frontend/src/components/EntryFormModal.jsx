@@ -49,8 +49,13 @@ export default function EntryFormModal({ catalog, officers, onClose, onCreated }
     [catalog, catalogId]
   )
   const raw = selected ? selected.points_per_unit * Number(quantity || 0) : 0
-  const final = Math.round(raw * coeff * 100) / 100
   const targetItem = targetProgress?.items?.find((item) => item.catalog_id === Number(catalogId))
+  const remainingLimit = selected?.monthly_limit
+    ? Math.max(selected.monthly_limit - Number(targetItem?.counted_quantity || 0), 0)
+    : Number(quantity || 0)
+  const countedForEntry = Math.min(Number(quantity || 0), remainingLimit)
+  const capped = selected ? selected.points_per_unit * countedForEntry : 0
+  const final = Math.round(capped * coeff * 100) / 100
 
   useEffect(() => {
     if (!date || (isHead && !officerId)) {
@@ -209,12 +214,15 @@ export default function EntryFormModal({ catalog, officers, onClose, onCreated }
                 </b>
               </div>
               <div><span>{t(isHead ? 'employeeCoeff' : 'yourCoeff')}</span><b>{coeff}</b></div>
-              <div><span>{t('monthlyTarget')}</span><b>{targetItem?.target_quantity ? `${targetItem.target_quantity} ${selected?.unit || ''}` : '—'}</b></div>
+              <div><span>{t('monthlyLimit')}</span><b>{selected?.monthly_limit || '—'}</b></div>
+              <div><span>{t('massIndicator')}</span><b>{selected?.is_mass ? t('yes') : t('no')}</b></div>
+              <div><span>{t('criticalIndicator')}</span><b>{selected?.is_critical ? t('yes') : t('no')}</b></div>
               <div><span>{t('confirmedSoFar')}</span><b>{targetItem ? `${targetItem.confirmed_quantity} ${selected?.unit || ''}` : '—'}</b></div>
-              <div><span>{t('remainingQuantity')}</span><b>{targetItem?.target_quantity ? `${targetItem.remaining_quantity} ${selected?.unit || ''}` : '—'}</b></div>
-              <div><span>{t('targetScore')}</span><b>{targetItem?.target_score || '—'}</b></div>
+              <div><span>{t('countedSoFar')}</span><b>{targetItem ? `${targetItem.counted_quantity} ${selected?.unit || ''}` : '—'}</b></div>
+              <div><span>{t('countedForEntry')}</span><b>{countedForEntry}</b></div>
               <div><span>{t('computedRaw')}</span><b>{raw}</b></div>
-              <div className="calc-final"><span>{t('computedFinal')}</span><b>{final}</b></div>
+              <div><span>{t('cappedScore')}</span><b>{capped}</b></div>
+              <div className="calc-final"><span>{t('preliminaryScore')}</span><b>{final}</b></div>
             </aside>
           </div>
 

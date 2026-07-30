@@ -8,8 +8,8 @@ export const EFFECTIVENESS_CATEGORIES = [
 export function effectivenessCategory(achievementPercent) {
   const value = Number(achievementPercent) || 0
   if (value >= 90) return 'very_effective'
-  if (value >= 70) return 'effective'
-  if (value >= 50) return 'middle_effective'
+  if (value >= 75) return 'effective'
+  if (value >= 60) return 'middle_effective'
   return 'little_effective'
 }
 

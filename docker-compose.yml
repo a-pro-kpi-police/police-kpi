@@ -5,7 +5,9 @@ services:
     working_dir: /app
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     environment:
-      KPI_DATABASE_URL: sqlite:////data/kpi.db
+      KPI_DATABASE_URL: sqlite:////data/kpi_july_2026.db
+      KPI_SEED_MODE: monthly_import
+      KPI_MONTHLY_IMPORT_PATH: /app/import_data/monthly_kpi_2026_07.csv
       KPI_UPLOAD_DIR: /data/uploads
       WATCHFILES_FORCE_POLLING: "true"
     ports:

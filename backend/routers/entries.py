@@ -16,6 +16,7 @@ from database import get_db
 from models import KpiCatalog, KpiEntry, User
 from services.activity import add_notification, notify_heads
 from services.entries import entry_to_out
+from services.scoring import recalculate_officer_month
 from services.targets import get_officer_or_404
 
 router = APIRouter(prefix="/api", tags=["entries"])
@@ -61,6 +62,11 @@ def _build_entry(
 
     coeff = officer.district.coeff if officer.district else 1.0
     raw_score = catalog.points_per_unit * payload.quantity
+    counted_quantity = min(
+        payload.quantity,
+        catalog.monthly_limit if catalog.monthly_limit > 0 else payload.quantity,
+    )
+    capped_score = catalog.points_per_unit * counted_quantity
     entry_date = payload.date or date.today()
     return KpiEntry(
         date=entry_date,
@@ -68,10 +74,13 @@ def _build_entry(
         officer_id=officer.id,
         catalog_id=catalog.id,
         quantity=payload.quantity,
+        counted_quantity=counted_quantity,
         points_per_unit=catalog.points_per_unit,
         coeff=coeff,
         raw_score=raw_score,
-        final_score=round(raw_score * coeff, 2),
+        capped_score=capped_score,
+        anti_coeff=1.0,
+        final_score=round(capped_score * coeff, 2),
         status="pending",
         comments=payload.comments,
         head_comment="",
@@ -136,19 +145,69 @@ def list_entries(
     month: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
     officer_id: Optional[int] = Query(None),
+    period_type: Optional[str] = Query(None),
+    period_value: Optional[str] = Query(None),
+    sort_key: str = Query("date"),
+    sort_dir: str = Query("desc"),
+    limit: Optional[int] = Query(None, ge=1, le=100),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     query = db.query(KpiEntry)
+    query = query.filter(KpiEntry.quantity > 0)
     if user.role != "head":
         query = query.filter(KpiEntry.officer_id == user.id)
     elif officer_id:
         query = query.filter(KpiEntry.officer_id == officer_id)
     if month:
         query = query.filter(KpiEntry.month == month)
+    elif period_type and period_value:
+        if period_type == "month":
+            query = query.filter(KpiEntry.month == period_value)
+        elif period_type == "quarter":
+            try:
+                year_text, quarter_text = period_value.split("-Q", 1)
+                year = int(year_text)
+                quarter = int(quarter_text)
+                if quarter not in {1, 2, 3, 4}:
+                    raise ValueError
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=400, detail="Некорректный квартал")
+            first_month = (quarter - 1) * 3 + 1
+            quarter_months = [
+                f"{year:04d}-{month_number:02d}"
+                for month_number in range(first_month, first_month + 3)
+            ]
+            query = query.filter(KpiEntry.month.in_(quarter_months))
+        elif period_type == "year":
+            if len(period_value) != 4 or not period_value.isdigit():
+                raise HTTPException(status_code=400, detail="Некорректный год")
+            query = query.filter(KpiEntry.month.like(f"{period_value}-%"))
+        else:
+            raise HTTPException(status_code=400, detail="Некорректный тип периода")
     if status:
         query = query.filter(KpiEntry.status == status)
-    entries = query.order_by(KpiEntry.date.desc(), KpiEntry.id.desc()).all()
+
+    sort_columns = {
+        "date": KpiEntry.date,
+        "month": KpiEntry.month,
+        "final_score": KpiEntry.final_score,
+        "status": KpiEntry.status,
+        "officer_name": User.full_name,
+        "code": KpiCatalog.code,
+    }
+    sort_column = sort_columns.get(sort_key, KpiEntry.date)
+    if sort_key == "officer_name":
+        query = query.join(User, KpiEntry.officer_id == User.id)
+    elif sort_key == "code":
+        query = query.join(KpiCatalog, KpiEntry.catalog_id == KpiCatalog.id)
+    order = sort_column.asc() if sort_dir == "asc" else sort_column.desc()
+    tie_breaker = KpiEntry.id.asc() if sort_dir == "asc" else KpiEntry.id.desc()
+    query = query.order_by(order, tie_breaker).offset(offset)
+    if limit is not None:
+        query = query.limit(limit)
+    entries = query.all()
     return [entry_to_out(entry) for entry in entries]
 
 
@@ -252,6 +311,8 @@ def update_status(
     previous_status = entry.status
     entry.status = payload.status
     entry.head_comment = payload.head_comment
+    db.flush()
+    recalculate_officer_month(db, entry.officer_id, entry.month)
     if previous_status != payload.status and payload.status in ("confirmed", "rejected"):
         code = entry.catalog.code if entry.catalog else "KPI"
         is_confirmed = payload.status == "confirmed"

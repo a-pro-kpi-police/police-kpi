@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import api from '../api'
 import { useAuth } from '../auth.jsx'
+import NameFilterCombobox from '../components/NameFilterCombobox.jsx'
 import ProfileHoverCard from '../components/ProfileHoverCard.jsx'
 import { useI18n } from '../i18n.jsx'
 import { kpiIndicator } from '../kpiLocale.js'
@@ -149,9 +150,18 @@ export default function Messenger() {
   const [sending, setSending] = useState(false)
   const messagesRef = useRef(null)
   const textareaRef = useRef(null)
+  const contactRefs = useRef(new Map())
   const requestedContactAppliedRef = useRef(false)
   const requestedEntryAppliedRef = useRef(false)
 
+  const contactOptions = useMemo(
+    () => contacts.map((contact) => ({
+      id: contact.id,
+      label: contact.full_name,
+      description: contact.rank,
+    })),
+    [contacts],
+  )
   const activeContact = useMemo(
     () => contacts.find((contact) => String(contact.id) === String(activeId)),
     [activeId, contacts],
@@ -241,6 +251,12 @@ export default function Messenger() {
     if (node) node.scrollTop = node.scrollHeight
   }, [messages])
 
+  useEffect(() => {
+    contactRefs.current.get(String(activeId))?.scrollIntoView({
+      block: 'nearest',
+    })
+  }, [activeId])
+
   const send = async (event) => {
     event.preventDefault()
     const body = draft.trim()
@@ -290,7 +306,17 @@ export default function Messenger() {
       <div className="card messenger-shell">
         <aside className="messenger-contacts" aria-label={t('conversations')}>
           <div className="messenger-contacts-head">
-            {isHead ? t('employees') : t('headContact')}
+            <span>{isHead ? t('employees') : t('headContact')}</span>
+            <NameFilterCombobox
+              items={contactOptions}
+              value={activeId}
+              onChange={(contactId) => {
+                if (contactId) setActiveId(contactId)
+              }}
+              includeAll={false}
+              placeholder={t('searchName')}
+              ariaLabel={t('searchName')}
+            />
           </div>
           <div className="messenger-contact-list">
             {contacts.map((contact) => (
@@ -298,6 +324,13 @@ export default function Messenger() {
                 type="button"
                 className={`messenger-contact${String(contact.id) === String(activeId) ? ' active' : ''}`}
                 key={contact.id}
+                ref={(node) => {
+                  if (node) {
+                    contactRefs.current.set(String(contact.id), node)
+                  } else {
+                    contactRefs.current.delete(String(contact.id))
+                  }
+                }}
                 onClick={() => setActiveId(String(contact.id))}
               >
                 <span className="messenger-contact-avatar" aria-hidden="true">

@@ -1,16 +1,33 @@
 """Начальное наполнение базы: участки, каталог KPI, пользователи и примеры записей."""
 import csv
+import hashlib
+import os
 import random
 from datetime import date, timedelta
 from pathlib import Path
 
 from sqlalchemy import inspect, text
 from database import SessionLocal, engine, Base
-from models import DirectMessage, District, User, KpiCatalog, KpiEntry, KpiTarget
+from models import (
+    DirectMessage,
+    District,
+    ImportBatch,
+    KpiCatalog,
+    KpiEntry,
+    KpiTarget,
+    User,
+)
 from auth import hash_password
+from services.scoring import recalculate_officer_month
 
 TARGET_OFFICERS = 20
 TARGET_KPI_ENTRIES = 1000
+MONTHLY_IMPORT_MODE = "monthly_import"
+DEFAULT_MONTHLY_IMPORT_PATH = (
+    Path(__file__).resolve().parent
+    / "import_data"
+    / "monthly_kpi_2026_07.csv"
+)
 
 DISTRICTS = [
     ("Обычный участок", 1.0),
@@ -118,6 +135,9 @@ def _load_catalog():
             "points_per_unit",
             "source_url",
             "unit",
+            "monthly_limit",
+            "is_mass",
+            "is_critical",
         }
         if set(reader.fieldnames or []) != expected_columns:
             raise RuntimeError("Неверная структура файла kpi_catalog.csv")
@@ -143,6 +163,9 @@ def _load_catalog():
                 float(row["points_per_unit"]),
                 unit,
                 row["source_url"].strip(),
+                float(row["monthly_limit"]),
+                row["is_mass"].strip() == "1",
+                row["is_critical"].strip() == "1",
             ))
 
     codes = [item[0] for item in catalog]
@@ -153,9 +176,10 @@ def _load_catalog():
 
 CATALOG = _load_catalog()
 LEGACY_CATALOG_CODES = {item[0] for item in LEGACY_CATALOG}
+HEAD_FULL_NAME = "Кожыахметов Есим Берикули"
 
 USERS = [
-    ("head", "head123", "Нурланов Бекзат Сериккали", "Полковник полиции", "head", 0),
+    ("head", "head123", HEAD_FULL_NAME, "Полковник полиции", "head", 0),
     ("aibek", "pass123", "Ахметов Айбек Маратұлы", "Лейтенант полиции", "officer", 0),
     ("dana", "pass123", "Сулейменова Дана Қанатқызы", "Капитан полиции", "officer", 1),
     ("ruslan", "pass123", "Жумабеков Руслан Ермекұлы", "Старший лейтенант полиции", "officer", 2),
@@ -259,7 +283,7 @@ def _generate(seed_value=42, include_penalty_codes=False):
     officer_usernames = [u[0] for u in named_officers] + [u[0] for u in extra_users]
     codes = [
         code
-        for code, _, _, _, _, points, _, _ in CATALOG
+        for code, _, _, _, _, points, _, _, _, _, _ in CATALOG
         if include_penalty_codes or points > 0
     ]
     statuses = ["confirmed"] * 6 + ["pending"] * 3 + ["rejected"]
@@ -368,11 +392,49 @@ def _ensure_catalog_columns():
             "ALTER TABLE kpi_catalog "
             "ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT 1"
         ),
+        "monthly_limit": (
+            "ALTER TABLE kpi_catalog "
+            "ADD COLUMN monthly_limit FLOAT NOT NULL DEFAULT 0"
+        ),
+        "is_mass": (
+            "ALTER TABLE kpi_catalog "
+            "ADD COLUMN is_mass BOOLEAN NOT NULL DEFAULT 0"
+        ),
+        "is_critical": (
+            "ALTER TABLE kpi_catalog "
+            "ADD COLUMN is_critical BOOLEAN NOT NULL DEFAULT 0"
+        ),
     }
     with engine.begin() as connection:
         for column_name, statement in statements.items():
             if column_name not in columns:
                 connection.execute(text(statement))
+
+
+def _ensure_user_columns():
+    """Adds imported-workbook identity and monthly norm fields."""
+    columns = {
+        column["name"]
+        for column in inspect(engine).get_columns(User.__tablename__)
+    }
+    statements = {
+        "source_employee_number": (
+            "ALTER TABLE users ADD COLUMN source_employee_number VARCHAR"
+        ),
+        "monthly_norm": (
+            "ALTER TABLE users "
+            "ADD COLUMN monthly_norm FLOAT NOT NULL DEFAULT 100"
+        ),
+    }
+    with engine.begin() as connection:
+        for column_name, statement in statements.items():
+            if column_name not in columns:
+                connection.execute(text(statement))
+        connection.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS "
+            "ix_users_source_employee_number "
+            "ON users (source_employee_number)"
+        ))
 
 
 def _ensure_entry_columns():
@@ -398,11 +460,41 @@ def _ensure_entry_columns():
             "ALTER TABLE kpi_entries "
             "ADD COLUMN attachment_size INTEGER NOT NULL DEFAULT 0"
         ),
+        "counted_quantity": (
+            "ALTER TABLE kpi_entries "
+            "ADD COLUMN counted_quantity FLOAT NOT NULL DEFAULT 0"
+        ),
+        "capped_score": (
+            "ALTER TABLE kpi_entries "
+            "ADD COLUMN capped_score FLOAT NOT NULL DEFAULT 0"
+        ),
+        "anti_coeff": (
+            "ALTER TABLE kpi_entries "
+            "ADD COLUMN anti_coeff FLOAT NOT NULL DEFAULT 1"
+        ),
+        "source_key": (
+            "ALTER TABLE kpi_entries ADD COLUMN source_key VARCHAR"
+        ),
+        "source_row": (
+            "ALTER TABLE kpi_entries ADD COLUMN source_row INTEGER"
+        ),
+        "is_monthly_aggregate": (
+            "ALTER TABLE kpi_entries "
+            "ADD COLUMN is_monthly_aggregate BOOLEAN NOT NULL DEFAULT 0"
+        ),
+        "import_batch_id": (
+            "ALTER TABLE kpi_entries "
+            "ADD COLUMN import_batch_id INTEGER REFERENCES import_batches(id)"
+        ),
     }
     with engine.begin() as connection:
         for column_name, statement in statements.items():
             if column_name not in columns:
                 connection.execute(text(statement))
+        connection.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS "
+            "ix_kpi_entries_source_key ON kpi_entries (source_key)"
+        ))
 
 
 def _ensure_message_columns():
@@ -442,6 +534,9 @@ def _sync_catalog(db):
         points,
         unit,
         source_url,
+        monthly_limit,
+        is_mass,
+        is_critical,
     ) in CATALOG:
         item = existing.get(code)
         if item:
@@ -452,6 +547,9 @@ def _sync_catalog(db):
             item.points_per_unit = points
             item.unit = unit
             item.source_url = source_url
+            item.monthly_limit = monthly_limit
+            item.is_mass = is_mass
+            item.is_critical = is_critical
             item.is_active = True
         else:
             db.add(KpiCatalog(
@@ -463,9 +561,209 @@ def _sync_catalog(db):
                 points_per_unit=points,
                 unit=unit,
                 source_url=source_url,
+                monthly_limit=monthly_limit,
+                is_mass=is_mass,
+                is_critical=is_critical,
                 is_active=True,
             ))
     db.commit()
+
+
+def _monthly_import_path() -> Path:
+    return Path(os.environ.get(
+        "KPI_MONTHLY_IMPORT_PATH",
+        DEFAULT_MONTHLY_IMPORT_PATH,
+    ))
+
+
+def _load_monthly_import():
+    path = _monthly_import_path()
+    if not path.is_file():
+        raise RuntimeError(f"Файл месячного импорта не найден: {path}")
+
+    checksum = hashlib.sha256(path.read_bytes()).hexdigest()
+    with path.open(encoding="utf-8", newline="") as import_file:
+        reader = csv.DictReader(import_file)
+        identity_columns = [
+            "source_row",
+            "month",
+            "employee_number",
+            "full_name",
+            "position",
+            "coefficient",
+        ]
+        fieldnames = reader.fieldnames or []
+        if fieldnames[:len(identity_columns)] != identity_columns:
+            raise RuntimeError("Неверная структура файла месячного импорта")
+        codes = fieldnames[len(identity_columns):]
+        expected_codes = [item[0] for item in CATALOG]
+        if codes != expected_codes:
+            raise RuntimeError(
+                "Коды KPI месячного импорта не совпадают со справочником",
+            )
+
+        rows = list(reader)
+
+    if not rows:
+        raise RuntimeError("Файл месячного импорта пуст")
+    months = {row["month"].strip() for row in rows}
+    if len(months) != 1:
+        raise RuntimeError("Месячный импорт должен содержать один месяц")
+    names = [row["full_name"].strip() for row in rows]
+    if not all(names) or len(names) != len(set(names)):
+        raise RuntimeError("ФИО сотрудников пусты или повторяются")
+
+    for row_number, row in enumerate(rows, start=2):
+        for code in codes:
+            quantity = float(row[code] or 0)
+            if quantity < 0:
+                raise RuntimeError(
+                    f"Отрицательное количество в строке {row_number}, {code}",
+                )
+    return path, checksum, months.pop(), codes, rows
+
+
+def _seed_monthly_import(db):
+    """Populate a separate database from the audited monthly matrix."""
+    path, checksum, month, codes, rows = _load_monthly_import()
+    existing_batch = db.query(ImportBatch).filter(
+        ImportBatch.source_checksum == checksum,
+    ).first()
+    if existing_batch:
+        return
+
+    _sync_catalog(db)
+    district = db.query(District).filter(
+        District.name == "Батальон патрульной полиции",
+    ).first()
+    if not district:
+        district = District(
+            name="Батальон патрульной полиции",
+            coeff=1.0,
+        )
+        db.add(district)
+        db.flush()
+
+    head = db.query(User).filter(User.username == "head").first()
+    if not head:
+        head = User(
+            username="head",
+            password_hash=hash_password(
+                os.environ.get("KPI_HEAD_PASSWORD", "head123"),
+            ),
+            full_name=HEAD_FULL_NAME,
+            rank="Начальник подразделения",
+            role="head",
+            district_id=district.id,
+            monthly_norm=100.0,
+        )
+        db.add(head)
+
+    default_password_hash = hash_password(
+        os.environ.get("KPI_IMPORT_DEFAULT_PASSWORD", "pass123"),
+    )
+    users_by_number = {
+        user.source_employee_number: user
+        for user in db.query(User).filter(
+            User.source_employee_number.isnot(None),
+        ).all()
+    }
+    imported_users = []
+    for row in rows:
+        employee_number = str(int(float(row["employee_number"])))
+        user = users_by_number.get(employee_number)
+        if not user:
+            user = User(
+                username=f"officer{int(employee_number):03d}",
+                password_hash=default_password_hash,
+                role="officer",
+                source_employee_number=employee_number,
+            )
+            db.add(user)
+            users_by_number[employee_number] = user
+        user.full_name = row["full_name"].strip()
+        user.rank = row["position"].strip()
+        user.district_id = district.id
+        user.monthly_norm = 100.0
+        imported_users.append(user)
+    db.flush()
+
+    batch = ImportBatch(
+        source_name=path.name,
+        source_sheet="Месячная_таблица-1",
+        source_checksum=checksum,
+        month=month,
+        employee_count=len(rows),
+        kpi_count=len(codes),
+        entry_count=len(rows) * len(codes),
+    )
+    db.add(batch)
+    db.flush()
+
+    catalog_by_code = {
+        item.code: item
+        for item in db.query(KpiCatalog).filter(
+            KpiCatalog.code.in_(codes),
+        ).all()
+    }
+    source_prefix = f"numbers:{month}:"
+    existing_entries = {
+        entry.source_key: entry
+        for entry in db.query(KpiEntry).filter(
+            KpiEntry.source_key.like(f"{source_prefix}%"),
+        ).all()
+    }
+
+    for row, user in zip(rows, imported_users):
+        employee_number = int(float(row["employee_number"]))
+        coefficient = float(row["coefficient"] or 1) or 1.0
+        source_row = int(float(row["source_row"]))
+        for code_index, code in enumerate(codes):
+            catalog = catalog_by_code[code]
+            quantity = float(row[code] or 0)
+            source_key = f"{source_prefix}{employee_number:03d}:{code}"
+            entry = existing_entries.get(source_key)
+            if not entry:
+                entry = KpiEntry(source_key=source_key)
+                db.add(entry)
+
+            entry_date = date(
+                int(month[:4]),
+                int(month[5:7]),
+                1 + ((employee_number * 17 + code_index * 7) % 29),
+            )
+            entry.date = entry_date
+            entry.month = month
+            entry.officer_id = user.id
+            entry.catalog_id = catalog.id
+            entry.quantity = quantity
+            entry.counted_quantity = 0.0
+            entry.points_per_unit = catalog.points_per_unit
+            entry.coeff = coefficient
+            entry.raw_score = round(quantity * catalog.points_per_unit, 2)
+            entry.capped_score = 0.0
+            entry.anti_coeff = 1.0
+            entry.final_score = 0.0
+            entry.status = "confirmed"
+            entry.comments = (
+                f"Импорт из Месячная_таблица-1, строка {source_row}; "
+                f"агрегат за {month}"
+            )
+            entry.head_comment = "Подтверждено при импорте месячной таблицы"
+            entry.source_row = source_row
+            entry.is_monthly_aggregate = True
+            entry.import_batch_id = batch.id
+
+    db.flush()
+    for user in imported_users:
+        recalculate_officer_month(db, user.id, month)
+    db.commit()
+    print(
+        "Импортирована месячная KPI-таблица: "
+        f"{len(imported_users)} сотрудников, "
+        f"{len(codes)} показателя, "
+        f"{len(imported_users) * len(codes)} значений.",
+    )
 
 
 def _is_legacy_demo_database(db, entries):
@@ -627,9 +925,21 @@ def _migrate_demo_penalties(db):
 def seed():
     Base.metadata.create_all(bind=engine)
     _ensure_catalog_columns()
+    _ensure_user_columns()
     _ensure_entry_columns()
     _ensure_message_columns()
     db = SessionLocal()
+    existing_head = db.query(User).filter(User.username == "head").first()
+    if existing_head and existing_head.full_name != HEAD_FULL_NAME:
+        existing_head.full_name = HEAD_FULL_NAME
+        db.commit()
+    if os.environ.get("KPI_SEED_MODE") == MONTHLY_IMPORT_MODE:
+        try:
+            _seed_monthly_import(db)
+        finally:
+            db.close()
+        return
+
     if db.query(User).count() > 0:
         districts = db.query(District).order_by(District.id).all()
         if len(districts) == 5 and districts[0].name == "Центральный участок":
@@ -664,6 +974,9 @@ def seed():
             points_per_unit=points,
             unit=unit,
             source_url=source_url,
+            monthly_limit=monthly_limit,
+            is_mass=is_mass,
+            is_critical=is_critical,
             is_active=True,
         )
         for (
@@ -675,6 +988,9 @@ def seed():
             points,
             unit,
             source_url,
+            monthly_limit,
+            is_mass,
+            is_critical,
         ) in CATALOG
     ]
     db.add_all(catalog)

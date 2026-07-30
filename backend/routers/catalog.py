@@ -47,6 +47,7 @@ def list_officers(
             "full_name": officer.full_name,
             "rank": officer.rank,
             "role": officer.role,
+            "monthly_norm": officer.monthly_norm,
             "district": officer.district,
             "efficiency_rank": efficiency[officer.id]["rank"],
             "efficiency_total": efficiency[officer.id]["total"],

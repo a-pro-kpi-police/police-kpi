@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../api'
 import { getApiErrorMessage } from '../apiError.js'
@@ -12,6 +12,7 @@ import { kpiIndicator } from '../kpiLocale.js'
 import { useNotify } from '../notifications.jsx'
 
 const NUMERIC_KEYS = ['quantity', 'points_per_unit', 'coeff', 'raw_score', 'final_score']
+const PAGE_SIZE = 20
 const currentMonth = () => new Date().toISOString().slice(0, 7)
 const formatFileSize = (bytes) => {
   if (!bytes) return '0 KB'
@@ -60,49 +61,53 @@ export default function Entries() {
   const [entries, setEntries] = useState([])
   const [catalog, setCatalog] = useState([])
   const [officers, setOfficers] = useState([])
+  const [months, setMonths] = useState([])
   const [statusFilter, setStatusFilter] = useState('')
   const [periodType, setPeriodType] = useState('') // '' | 'month' | 'quarter' | 'year'
   const [periodValue, setPeriodValue] = useState('')
   const [officerFilter, setOfficerFilter] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
   const [targetProgress, setTargetProgress] = useState(null)
   const [sort, setSort] = useState({ key: 'date', dir: 'desc' })
-
-  const load = async () => {
-    setLoading(true)
-    const params = statusFilter ? { status: statusFilter } : {}
-    const { data } = await api.get('/entries', { params })
-    setEntries(data)
-    setLoading(false)
-  }
+  const loadMoreRef = useRef(null)
+  const requestIdRef = useRef(0)
+  const translationRef = useRef(t)
 
   useEffect(() => {
-    api.get('/catalog').then((r) => setCatalog(r.data))
-    if (isHead) api.get('/officers').then((r) => setOfficers(r.data))
+    translationRef.current = t
+  }, [t])
+
+  useEffect(() => {
+    const requests = [
+      api.get('/catalog'),
+      api.get('/months'),
+    ]
+    if (isHead) requests.push(api.get('/officers'))
+    Promise.all(requests).then(([catalogResponse, monthsResponse, officersResponse]) => {
+      setCatalog(catalogResponse.data)
+      setMonths(monthsResponse.data)
+      if (officersResponse) setOfficers(officersResponse.data)
+    })
   }, [isHead])
 
-  useEffect(() => {
-    load()
-  }, [statusFilter])
-
-  // Доступные периоды, выведенные из самих записей.
+  // Периоды загружаются отдельно, поэтому серверная пагинация не обрезает фильтры.
   const periodOptions = useMemo(() => {
-    const months = new Set()
     const quarters = new Set()
     const years = new Set()
-    for (const e of entries) {
-      if (!e.month || !e.month.includes('-')) continue
-      months.add(e.month)
-      quarters.add(quarterOf(e.month))
-      years.add(e.month.slice(0, 4))
+    for (const month of months) {
+      if (!month || !month.includes('-')) continue
+      quarters.add(quarterOf(month))
+      years.add(month.slice(0, 4))
     }
     return {
       month: [...months].sort().reverse(),
       quarter: [...quarters].sort().reverse(),
       year: [...years].sort().reverse(),
     }
-  }, [entries])
+  }, [months])
   const officerOptions = useMemo(
     () => officers.map((officer) => ({
       id: officer.id,
@@ -125,6 +130,85 @@ export default function Entries() {
     const opts = periodOptions[periodType] || []
     setPeriodValue((prev) => (opts.includes(prev) ? prev : opts[0] || ''))
   }, [periodType, periodOptions])
+
+  const entryQuery = useMemo(() => ({
+    limit: PAGE_SIZE,
+    status: statusFilter || undefined,
+    officer_id: isHead && officerFilter ? Number(officerFilter) : undefined,
+    period_type: periodType && periodValue ? periodType : undefined,
+    period_value: periodType && periodValue ? periodValue : undefined,
+    sort_key: sort.key,
+    sort_dir: sort.dir,
+  }), [
+    isHead,
+    officerFilter,
+    periodType,
+    periodValue,
+    sort.dir,
+    sort.key,
+    statusFilter,
+  ])
+
+  const fetchEntryPage = useCallback(async (offset, append) => {
+    const requestId = ++requestIdRef.current
+    if (append) {
+      setLoadingMore(true)
+    } else {
+      setLoading(true)
+      setLoadingMore(false)
+    }
+    try {
+      const { data } = await api.get('/entries', {
+        params: { ...entryQuery, offset },
+      })
+      if (requestId !== requestIdRef.current) return
+      setEntries((current) => (
+        append
+          ? [...current, ...data.filter(
+            (entry) => !current.some((item) => item.id === entry.id),
+          )]
+          : data
+      ))
+      setHasMore(data.length === PAGE_SIZE)
+    } catch (error) {
+      if (requestId === requestIdRef.current) {
+        setHasMore(false)
+        notify(
+          getApiErrorMessage(error, translationRef.current, 'entriesLoadError'),
+          'error',
+        )
+      }
+    } finally {
+      if (requestId === requestIdRef.current) {
+        setLoading(false)
+        setLoadingMore(false)
+      }
+    }
+  }, [entryQuery, notify])
+
+  useEffect(() => {
+    setEntries([])
+    setHasMore(true)
+    fetchEntryPage(0, false)
+  }, [fetchEntryPage])
+
+  const loadMore = useCallback(() => {
+    if (loading || loadingMore || !hasMore) return
+    fetchEntryPage(entries.length, true)
+  }, [entries.length, fetchEntryPage, hasMore, loading, loadingMore])
+
+  useEffect(() => {
+    const node = loadMoreRef.current
+    if (!node || loading || loadingMore || !hasMore) return undefined
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) loadMore()
+      },
+      { rootMargin: '280px 0px' },
+    )
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [hasMore, loadMore, loading, loadingMore])
 
   const summaryMonth = periodType === 'month' && periodValue ? periodValue : currentMonth()
 
@@ -344,7 +428,7 @@ export default function Entries() {
 
             <dl className="entry-record-metrics">
               <RecordField label={t('colQuantity')}>{e.quantity}</RecordField>
-              <RecordField label={t('colRaw')}>{e.raw_score}</RecordField>
+              <RecordField label={t('colCountedQuantity')}>{e.counted_quantity}</RecordField>
               <RecordField label={t('colFinal')}>
                 <strong>{e.final_score}</strong>
               </RecordField>
@@ -354,6 +438,12 @@ export default function Entries() {
               <RecordField label={t('colBlock')}>{e.block}</RecordField>
               <RecordField label={t('colNpa')}>{e.npa}</RecordField>
               <RecordField label={t('colPointsPerUnit')}>{e.points_per_unit}</RecordField>
+              <RecordField label={t('monthlyLimit')}>{e.monthly_limit}</RecordField>
+              <RecordField label={t('colRaw')}>{e.raw_score}</RecordField>
+              <RecordField label={t('cappedScore')}>{e.capped_score}</RecordField>
+              <RecordField label={t('massIndicator')}>{e.is_mass ? t('yes') : t('no')}</RecordField>
+              <RecordField label={t('criticalIndicator')}>{e.is_critical ? t('yes') : t('no')}</RecordField>
+              <RecordField label={t('antiCoefficient')}>{e.anti_coeff}</RecordField>
               <RecordField label={t('colCoeff')}>{e.coeff}</RecordField>
               <RecordField label={t('colSource')} wide>
                 {e.source_url ? (
@@ -430,6 +520,15 @@ export default function Entries() {
             </footer>
           </article>
         ))}
+      </div>
+
+      <div
+        ref={loadMoreRef}
+        className="entries-load-sentinel"
+        role={loading || loadingMore ? 'status' : undefined}
+        aria-live="polite"
+      >
+        {(loading || loadingMore) && t('loadingEntries')}
       </div>
 
       {!loading && sortedEntries.length === 0 && (

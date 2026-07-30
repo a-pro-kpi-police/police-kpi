@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import api from '../api'
 import { useAuth } from '../auth.jsx'
 import { districtName } from '../districtLocale.js'
 import { useI18n } from '../i18n.jsx'
+import LanguageSwitch from './LanguageSwitch.jsx'
 import NotificationCenter from './NotificationCenter.jsx'
 
 function ThemeIcon({ dark }) {
@@ -21,13 +23,14 @@ function ThemeIcon({ dark }) {
 
 export default function Layout() {
   const { user, logout, isHead } = useAuth()
-  const { t, lang, setLang } = useI18n()
+  const { t, lang } = useI18n()
   const navigate = useNavigate()
   const [messageUnread, setMessageUnread] = useState(0)
   const [theme, setTheme] = useState(() => (
     document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'
   ))
-  const themeTransitionTimer = useRef(null)
+  const themeAnimationTimer = useRef(null)
+  const themeSwitchFrame = useRef(null)
 
   const loadMessageUnread = useCallback(async () => {
     try {
@@ -48,28 +51,39 @@ export default function Layout() {
     }
   }, [loadMessageUnread])
 
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme
-    document.documentElement.style.colorScheme = theme
-    localStorage.setItem('theme', theme)
-  }, [theme])
-
   useEffect(() => () => {
-    if (themeTransitionTimer.current) window.clearTimeout(themeTransitionTimer.current)
-    document.documentElement.classList.remove('theme-transitioning')
+    if (themeAnimationTimer.current) window.clearTimeout(themeAnimationTimer.current)
+    if (themeSwitchFrame.current) window.cancelAnimationFrame(themeSwitchFrame.current)
+    document.documentElement.classList.remove(
+      'theme-switching',
+      'theme-icon-changing',
+      'theme-root-animating',
+    )
   }, [])
 
   const toggleTheme = () => {
     const root = document.documentElement
-    if (themeTransitionTimer.current) window.clearTimeout(themeTransitionTimer.current)
-    root.classList.remove('theme-transitioning')
+    const nextTheme = root.dataset.theme === 'dark' ? 'light' : 'dark'
+
+    if (themeAnimationTimer.current) window.clearTimeout(themeAnimationTimer.current)
+    if (themeSwitchFrame.current) window.cancelAnimationFrame(themeSwitchFrame.current)
+    root.classList.remove('theme-switching', 'theme-icon-changing', 'theme-root-animating')
     void root.offsetWidth
-    root.classList.add('theme-transitioning')
-    setTheme((current) => (current === 'dark' ? 'light' : 'dark'))
-    themeTransitionTimer.current = window.setTimeout(() => {
-      root.classList.remove('theme-transitioning')
-      themeTransitionTimer.current = null
-    }, 280)
+    root.classList.add('theme-switching', 'theme-icon-changing', 'theme-root-animating')
+    root.dataset.theme = nextTheme
+    root.style.colorScheme = nextTheme
+    localStorage.setItem('theme', nextTheme)
+    flushSync(() => setTheme(nextTheme))
+    void root.offsetWidth
+
+    themeSwitchFrame.current = window.requestAnimationFrame(() => {
+      root.classList.remove('theme-switching')
+      themeSwitchFrame.current = null
+    })
+    themeAnimationTimer.current = window.setTimeout(() => {
+      root.classList.remove('theme-icon-changing', 'theme-root-animating')
+      themeAnimationTimer.current = null
+    }, 180)
   }
 
   const doLogout = () => {
@@ -123,10 +137,7 @@ export default function Layout() {
             >
               <ThemeIcon dark={theme === 'dark'} />
             </button>
-            <div className="lang-switch">
-              <button className={lang === 'ru' ? 'active' : ''} onClick={() => setLang('ru')}>RU</button>
-              <button className={lang === 'kk' ? 'active' : ''} onClick={() => setLang('kk')}>KZ</button>
-            </div>
+            <LanguageSwitch />
             <button className="btn btn-ghost" onClick={doLogout}>{t('logout')}</button>
           </div>
         </header>

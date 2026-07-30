@@ -11,10 +11,10 @@ from models import District, KpiCatalog, KpiEntry, KpiTarget, User
 
 
 def _achievement_percent(actual_score: float, target_score: float) -> float:
-    """Goal completion is bounded even when actual work exceeds the target."""
+    """Return monthly norm attainment, allowing results above 100%."""
     if not target_score:
         return 0.0
-    return round(min(100.0, max(0.0, 100 * actual_score / target_score)), 1)
+    return round(max(0.0, 100 * actual_score / target_score), 1)
 
 
 def validate_month(month: str):
@@ -129,6 +129,9 @@ def build_target_rows(
             block=item.block,
             unit=item.unit,
             points_per_unit=item.points_per_unit,
+            monthly_limit=item.monthly_limit,
+            is_mass=item.is_mass,
+            is_critical=item.is_critical,
             target_quantity=target_quantity,
             target_score=round(target_quantity * item.points_per_unit * coeff, 2),
         ))
@@ -180,6 +183,9 @@ def build_group_target_rows(
             block=item.block,
             unit=item.unit,
             points_per_unit=item.points_per_unit,
+            monthly_limit=item.monthly_limit,
+            is_mass=item.is_mass,
+            is_critical=item.is_critical,
             target_quantity=target_quantity,
             target_score=round(
                 target_quantity * item.points_per_unit * district.coeff,
@@ -202,17 +208,22 @@ def build_target_progress(
         KpiEntry.status == "confirmed",
     ).all()
 
-    actual_by_catalog = defaultdict(lambda: {"quantity": 0.0, "score": 0.0})
+    actual_by_catalog = defaultdict(
+        lambda: {"quantity": 0.0, "counted_quantity": 0.0, "score": 0.0},
+    )
     for entry in confirmed_entries:
         actual_by_catalog[entry.catalog_id]["quantity"] += entry.quantity
+        actual_by_catalog[entry.catalog_id]["counted_quantity"] += (
+            entry.counted_quantity
+        )
         actual_by_catalog[entry.catalog_id]["score"] += entry.final_score
 
     items = []
     actual_total = 0.0
-    target_total = 0.0
     for row in rows:
         actual = actual_by_catalog[row.catalog_id]
         confirmed_quantity = round(actual["quantity"], 2)
+        counted_quantity = round(actual["counted_quantity"], 2)
         confirmed_score = round(actual["score"], 2)
         remaining_quantity = round(
             max(row.target_quantity - confirmed_quantity, 0),
@@ -229,18 +240,21 @@ def build_target_progress(
             block=row.block,
             unit=row.unit,
             points_per_unit=row.points_per_unit,
+            monthly_limit=row.monthly_limit,
+            is_mass=row.is_mass,
+            is_critical=row.is_critical,
             target_quantity=row.target_quantity,
             confirmed_quantity=confirmed_quantity,
+            counted_quantity=counted_quantity,
             remaining_quantity=remaining_quantity,
             target_score=row.target_score,
             confirmed_score=confirmed_score,
             achievement_percent=achievement_percent,
         ))
         actual_total += confirmed_score
-        target_total += row.target_score
 
     actual_total = round(actual_total, 2)
-    target_total = round(target_total, 2)
+    target_total = round(officer.monthly_norm or 100.0, 2)
     return schemas.TargetProgressOut(
         month=month,
         officer_id=officer.id,
@@ -276,6 +290,7 @@ def build_target_overview(
             KpiEntry.month == month,
             KpiEntry.status == "confirmed",
             KpiEntry.points_per_unit < 0,
+            KpiEntry.quantity > 0,
         ).all()
         if officer_ids
         else []

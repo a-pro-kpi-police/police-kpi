@@ -11,6 +11,7 @@ const savedTheme = localStorage.getItem('theme')
 const initialTheme = savedTheme === 'dark' ? 'dark' : 'light'
 document.documentElement.dataset.theme = initialTheme
 document.documentElement.style.colorScheme = initialTheme
+document.documentElement.lang = localStorage.getItem('lang') === 'kk' ? 'kk' : 'ru'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

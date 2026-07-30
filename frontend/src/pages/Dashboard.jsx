@@ -111,23 +111,71 @@ function buildComparisons(entries, selectedMonth, officerId, officerDirectory = 
   }
 }
 
-function buildSupplementalCharts(entries) {
+function roundMetric(value) {
+  return Number(value.toFixed(2))
+}
+
+function buildSupplementalCharts(entries, scopedOfficers = []) {
   const months = {}
   const indicators = {}
   const reviews = {}
+  const exceededLimits = {}
+  const activeOfficerIds = new Set()
+  const limitAffectedOfficerIds = new Set()
+  const criticalOfficerIds = new Set()
+  let reportedQuantity = 0
+  let countedQuantity = 0
+  let limitAffectedRecords = 0
+  let criticalRecords = 0
+  let criticalQuantity = 0
 
   for (const entry of entries) {
+    const quantity = Math.max(0, Number(entry.quantity) || 0)
+    const counted = Math.max(0, Number(entry.counted_quantity) || 0)
+    if (quantity > 0) activeOfficerIds.add(String(entry.officer_id))
+
     if (!months[entry.month]) months[entry.month] = { confirmed: 0, pending: 0, rejected: 0 }
     if (entry.status in months[entry.month]) months[entry.month][entry.status] += 1
 
     const district = entry.district_name || '—'
     const code = entry.code || '—'
     if (!indicators[code]) indicators[code] = { code, indicator: entry.indicator || '—', quantity: 0 }
-    indicators[code].quantity += entry.quantity
+    indicators[code].quantity += quantity
 
     if (entry.status === 'pending' || entry.status === 'rejected') {
       if (!reviews[district]) reviews[district] = { pending: 0, rejected: 0 }
       reviews[district][entry.status] += 1
+    }
+
+    if (entry.status !== 'confirmed') continue
+
+    reportedQuantity += quantity
+    countedQuantity += counted
+
+    const excluded = Math.max(0, quantity - counted)
+    if (excluded > 0) {
+      limitAffectedRecords += 1
+      limitAffectedOfficerIds.add(String(entry.officer_id))
+      if (!exceededLimits[code]) {
+        exceededLimits[code] = {
+          code,
+          indicator: entry.indicator || '—',
+          reported: 0,
+          counted: 0,
+          excluded: 0,
+          officerIds: new Set(),
+        }
+      }
+      exceededLimits[code].reported += quantity
+      exceededLimits[code].counted += counted
+      exceededLimits[code].excluded += excluded
+      exceededLimits[code].officerIds.add(String(entry.officer_id))
+    }
+
+    if (entry.is_critical && quantity > 0) {
+      criticalRecords += 1
+      criticalQuantity += quantity
+      criticalOfficerIds.add(String(entry.officer_id))
     }
   }
 
@@ -141,6 +189,33 @@ function buildSupplementalCharts(entries) {
     district_review: Object.entries(reviews)
       .map(([district, counts]) => ({ district, ...counts }))
       .sort((a, b) => (b.pending + b.rejected) - (a.pending + a.rejected)),
+    inactive_officers: {
+      count: scopedOfficers.filter((item) => !activeOfficerIds.has(String(item.officer_id))).length,
+      total: scopedOfficers.length,
+    },
+    monthly_limit_impact: {
+      reported: roundMetric(reportedQuantity),
+      counted: roundMetric(countedQuantity),
+      excluded: roundMetric(Math.max(0, reportedQuantity - countedQuantity)),
+      affected_records: limitAffectedRecords,
+      affected_officers: limitAffectedOfficerIds.size,
+    },
+    exceeded_limits: Object.values(exceededLimits)
+      .map((item) => ({
+        code: item.code,
+        indicator: item.indicator,
+        reported: roundMetric(item.reported),
+        counted: roundMetric(item.counted),
+        excluded: roundMetric(item.excluded),
+        affected_officers: item.officerIds.size,
+      }))
+      .sort((a, b) => b.excluded - a.excluded || b.affected_officers - a.affected_officers)
+      .slice(0, 5),
+    critical_indicator_impact: {
+      records: criticalRecords,
+      officers: criticalOfficerIds.size,
+      quantity: roundMetric(criticalQuantity),
+    },
   }
 }
 
@@ -188,12 +263,45 @@ function StatusDonut({
   label,
   order = ['confirmed', 'rejected', 'pending'],
 }) {
-  let offset = 0
-  const segments = order
+  const baseSegments = order
     .map((key) => items.find((item) => item.key === key))
     .filter(Boolean)
-    .map((item) => {
-      const percent = (item.value / total) * 100
+    .map((item) => ({
+      ...item,
+      rawPercent: (item.value / total) * 100,
+    }))
+  const dominantIndex = baseSegments.reduce(
+    (bestIndex, segment, index, all) => (
+      segment.value > all[bestIndex].value ? index : bestIndex
+    ),
+    0,
+  )
+  const smallestValue = Math.min(...baseSegments.map((segment) => segment.value))
+  const displayPercents = baseSegments.map((segment, index) => {
+    if (index === dominantIndex || segment.rawPercent >= 1) {
+      return segment.rawPercent
+    }
+    return Math.max(
+      segment.rawPercent,
+      Math.min(4, 0.75 * (segment.value / smallestValue)),
+    )
+  })
+  if (baseSegments.length > 1) {
+    displayPercents[dominantIndex] = Math.max(
+      0,
+      100 - displayPercents.reduce(
+        (sum, percent, index) => (
+          index === dominantIndex ? sum : sum + percent
+        ),
+        0,
+      ),
+    )
+  }
+
+  let offset = 0
+  const segments = baseSegments
+    .map((item, index) => {
+      const percent = displayPercents[index]
       const segment = { ...item, offset, percent }
       offset += percent
       return segment
@@ -234,24 +342,12 @@ function StatusDonut({
           strokeWidth={DONUT_STROKE_WIDTH}
           strokeDasharray={`${segment.percent} ${100 - segment.percent}`}
           strokeDashoffset={-segment.offset}
+          strokeLinecap="butt"
           transform="rotate(180 60 60)"
         >
           <title>{segment.label}: {segment.value}</title>
         </circle>
       ))}
-      {segments.map((segment) => {
-        const angle = (180 + segment.offset * 3.6) * (Math.PI / 180)
-        return (
-          <circle
-            key={`${segment.key}-cap`}
-            className="overview-status-segment-cap"
-            cx={60 + DONUT_RADIUS * Math.cos(angle)}
-            cy={60 + DONUT_RADIUS * Math.sin(angle)}
-            r={DONUT_STROKE_WIDTH / 2}
-            fill={segment.color}
-          />
-        )
-      })}
     </svg>
   )
 }
@@ -378,6 +474,7 @@ function OverviewCharts({ data, t }) {
                 pathLength="100"
                 strokeDasharray="100"
                 strokeDashoffset={100 - confirmationRate}
+                strokeLinecap="butt"
                 transform="rotate(-90 60 60)"
               />
             </svg>
@@ -614,6 +711,68 @@ function PenaltyPanel({ score, count, t }) {
   )
 }
 
+function ImpactPanel({ className = '', title, hint, items }) {
+  return (
+    <section className={`dashboard-impact-panel ${className}`.trim()}>
+      <div className="dashboard-impact-copy">
+        <h3>{title}</h3>
+        <p>{hint}</p>
+      </div>
+      <dl>
+        {items.map((item) => (
+          <div key={item.label}>
+            <dt>{item.label}</dt>
+            <dd>{item.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  )
+}
+
+function ExceededLimitsPanel({ items, t, lang }) {
+  return (
+    <section className="card chart-card exceeded-limits-card">
+      <div className="exceeded-limits-head">
+        <div>
+          <h3>{t('mostExceededLimits')}</h3>
+          <p>{t('mostExceededLimitsHint')}</p>
+        </div>
+      </div>
+      {items.length ? (
+        <div className="exceeded-limits-scroll">
+          <table className="data-table exceeded-limits-table">
+            <thead>
+              <tr>
+                <th>{t('colCode')}</th>
+                <th>{t('colIndicator')}</th>
+                <th className="num">{t('reportedIncidents')}</th>
+                <th className="num">{t('countedIncidents')}</th>
+                <th className="num">{t('excludedByLimits')}</th>
+                <th className="num">{t('officersAffected')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr key={item.code}>
+                  <td><span className="code-chip">{item.code}</span></td>
+                  <td>{kpiIndicator(item, lang)}</td>
+                  <td className="num">{item.reported}</td>
+                  <td className="num">{item.counted}</td>
+                  <td className="num limit-excluded-value">{item.excluded}</td>
+                  <td className="num">{item.affected_officers}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="exceeded-limits-empty">{t('noLimitExcess')}</div>
+      )}
+    </section>
+  )
+}
+
 export default function Dashboard() {
   const { t, fmtMonth, lang } = useI18n()
   const { isHead } = useAuth()
@@ -668,7 +827,7 @@ export default function Dashboard() {
       : officerDirectory
     setData({
       ...dashboardResponse.data,
-      ...buildSupplementalCharts(filteredEntries),
+      ...buildSupplementalCharts(filteredEntries, dashboardResponse.data.officers || []),
     })
     setComparisons(buildComparisons(comparisonEntries, m, oid, comparisonDirectory))
     setTargetOverview(targetOverviewResponse.data)
@@ -744,12 +903,16 @@ export default function Dashboard() {
 
   const statusTrend = data.status_trend || []
   const indicatorVolume = data.indicator_volume || []
+  const exceededLimits = data.exceeded_limits || []
+  const monthlyLimitImpact = data.monthly_limit_impact || {}
+  const criticalIndicatorImpact = data.critical_indicator_impact || {}
+  const inactiveOfficers = data.inactive_officers || { count: 0, total: 0 }
   const districtReview = (data.district_review || []).map((item) => ({
     ...item,
     district: districtName(item.district, lang),
   }))
   const targetKpiItems = officer
-    ? (targetOverview?.items || []).filter((item) => Number(item.target_score) > 0)
+    ? (targetOverview?.items || []).filter((item) => Number(item.confirmed_quantity) > 0)
     : []
   const targetOfficerRows = !officer
     ? (targetOverview?.officers || [])
@@ -838,7 +1001,7 @@ export default function Dashboard() {
           </div>
           <div className="stat-grid">
             <StatCard label={t('actualScore')} value={targetOverview.actual_score} accent="#1e4d8c" />
-            <StatCard label={t('targetScore')} value={targetOverview.target_score} accent="#5b4b8a" />
+            <StatCard label={t('monthlyNorm')} value={targetOverview.target_score} accent="#5b4b8a" />
             {!officer && (
               <StatCard
                 label={t('officersOnTarget')}
@@ -846,6 +1009,36 @@ export default function Dashboard() {
                 accent="#b8860b"
               />
             )}
+            {!officer && (
+              <StatCard
+                label={t('employeesWithoutActivity')}
+                value={`${inactiveOfficers.count} / ${inactiveOfficers.total}`}
+                accent="#9c3848"
+              />
+            )}
+          </div>
+          <div className="dashboard-impact-grid">
+            <ImpactPanel
+              className="monthly-limit-impact"
+              title={t('monthlyLimitImpact')}
+              hint={t('monthlyLimitImpactHint')}
+              items={[
+                { label: t('reportedIncidents'), value: monthlyLimitImpact.reported || 0 },
+                { label: t('countedIncidents'), value: monthlyLimitImpact.counted || 0 },
+                { label: t('excludedByLimits'), value: monthlyLimitImpact.excluded || 0 },
+                { label: t('recordsOverLimit'), value: monthlyLimitImpact.affected_records || 0 },
+              ]}
+            />
+            <ImpactPanel
+              className="critical-indicator-impact"
+              title={t('criticalIndicatorImpact')}
+              hint={t('criticalIndicatorImpactHint')}
+              items={[
+                { label: t('criticalRecords'), value: criticalIndicatorImpact.records || 0 },
+                { label: t('criticalOfficers'), value: criticalIndicatorImpact.officers || 0 },
+                { label: t('criticalIncidents'), value: criticalIndicatorImpact.quantity || 0 },
+              ]}
+            />
           </div>
         </>
       )}
@@ -892,16 +1085,17 @@ export default function Dashboard() {
                     <th>{t('colCode')}</th>
                     <th>{t('colIndicator')}</th>
                     <th className="num">{t('colActualQuantity')}</th>
-                    <th className="num">{t('colTargetQuantity')}</th>
+                    <th className="num">{t('colCountedQuantity')}</th>
                     <th className="num">{t('colActualScore')}</th>
-                    <th className="num">{t('colTargetScore')}</th>
-                    <th className="num">{t('colAchievement')}</th>
+                    <th className="num">{t('monthlyLimit')}</th>
+                    <th>{t('massIndicator')}</th>
+                    <th>{t('criticalIndicator')}</th>
                   </tr>
                 ) : (
                   <tr>
                     <th>{t('colOfficer')}</th>
                     <th className="num">{t('actualScore')}</th>
-                    <th className="num">{t('targetScore')}</th>
+                    <th className="num">{t('monthlyNorm')}</th>
                     <th className="num">{t('colAchievement')}</th>
                     <th className="num">{t('colGap')}</th>
                     <th className="num">{t('penaltyPoints')}</th>
@@ -915,10 +1109,11 @@ export default function Dashboard() {
                     <td><span className="code-chip">{item.code}</span></td>
                     <td>{kpiIndicator(item, lang)}</td>
                     <td className="num">{item.confirmed_quantity}</td>
-                    <td className="num">{item.target_quantity}</td>
+                    <td className="num">{item.counted_quantity}</td>
                     <td className="num strong">{item.confirmed_score}</td>
-                    <td className="num">{item.target_score}</td>
-                    <td className="num">{item.target_score ? `${item.achievement_percent}%` : '—'}</td>
+                    <td className="num">{item.monthly_limit}</td>
+                    <td>{item.is_mass ? t('yes') : t('no')}</td>
+                    <td>{item.is_critical ? t('yes') : t('no')}</td>
                   </tr>
                 )) : targetOfficerRows.map((item) => {
                   const directoryOfficer = officers.find((entry) => (
@@ -969,6 +1164,10 @@ export default function Dashboard() {
             </table>
           </div>
         </div>
+      )}
+
+      {targetOverview && (
+        <ExceededLimitsPanel items={exceededLimits} t={t} lang={lang} />
       )}
 
       {officer && !month && comparisons && (

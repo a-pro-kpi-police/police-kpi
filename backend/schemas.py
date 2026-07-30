@@ -24,6 +24,7 @@ class UserOut(BaseModel):
     full_name: str
     rank: str
     role: str
+    monthly_norm: float
     district: Optional[DistrictOut] = None
 
 
@@ -44,6 +45,9 @@ class CatalogOut(BaseModel):
     points_per_unit: float
     unit: str
     source_url: str
+    monthly_limit: float
+    is_mass: bool
+    is_critical: bool
 
 
 class TargetOut(BaseModel):
@@ -53,6 +57,9 @@ class TargetOut(BaseModel):
     block: str
     unit: str
     points_per_unit: float
+    monthly_limit: float
+    is_mass: bool
+    is_critical: bool
     target_quantity: float
     target_score: float
 
@@ -85,8 +92,12 @@ class TargetProgressItemOut(BaseModel):
     block: str
     unit: str
     points_per_unit: float
+    monthly_limit: float
+    is_mass: bool
+    is_critical: bool
     target_quantity: float
     confirmed_quantity: float
+    counted_quantity: float
     remaining_quantity: float
     target_score: float
     confirmed_score: float
@@ -164,9 +175,15 @@ class EntryOut(BaseModel):
     npa: str
     source_url: str
     quantity: float
+    counted_quantity: float
+    monthly_limit: float
+    is_mass: bool
+    is_critical: bool
     points_per_unit: float
     coeff: float
     raw_score: float
+    capped_score: float
+    anti_coeff: float
     final_score: float
     status: str
     comments: str
@@ -221,9 +238,13 @@ class MessengerEntryOut(BaseModel):
     npa: str
     source_url: str
     quantity: float
+    counted_quantity: float
+    monthly_limit: float
     points_per_unit: float
     coeff: float
     raw_score: float
+    capped_score: float
+    anti_coeff: float
     final_score: float
     status: str
     comments: str
