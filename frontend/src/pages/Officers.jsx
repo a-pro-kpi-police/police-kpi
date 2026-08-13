@@ -5,6 +5,7 @@ import NameFilterCombobox from '../components/NameFilterCombobox.jsx'
 import ProfileHoverCard from '../components/ProfileHoverCard.jsx'
 import { districtName } from '../districtLocale.js'
 import {
+  averageEffectivenessScore,
   EFFECTIVENESS_CATEGORIES,
   effectivenessCategory,
 } from '../effectiveness.js'
@@ -96,7 +97,7 @@ export default function Officers() {
         directoryResponse.data.map((officer) => [officer.id, officer]),
       )
       setProfileStats(directoryById)
-      setOfficers(directoryResponse.data
+      const officerRows = directoryResponse.data
         .map((profile) => {
           const dashboard = dashboardById[profile.id] || {}
           const target = targetById[profile.id] || {}
@@ -112,10 +113,11 @@ export default function Officers() {
             pending: Number(dashboard.pending) || 0,
             achievement_percent: achievement,
             target_score: Number(target.target_score) || 0,
-            effectivenessCategory: effectivenessCategory(achievement),
           }
         })
-        .sort((a, b) => (b.final - a.final) || compareNames(a, b)))
+      setOfficers(officerRows.sort(
+        (a, b) => (b.final - a.final) || compareNames(a, b),
+      ))
     })
   }, [month])
 
@@ -139,9 +141,25 @@ export default function Officers() {
     [districtFilter, lang, officers]
   )
 
+  const categorizedOfficers = useMemo(() => {
+    const categoryScope = officers.filter((officer) => (
+      !districtFilter || String(officer.district_id) === String(districtFilter)
+    ))
+    const averageScore = averageEffectivenessScore(
+      categoryScope.map((officer) => officer.achievement_percent),
+    )
+    return officers.map((officer) => ({
+      ...officer,
+      effectivenessCategory: effectivenessCategory(
+        officer.achievement_percent,
+        averageScore,
+      ),
+    }))
+  }, [districtFilter, officers])
+
   // Номер сохраняется по исходному рейтингу, независимо от выбранной сортировки.
   const filtered = useMemo(() => {
-    const rows = officers
+    const rows = categorizedOfficers
       .map((o, i) => ({ ...o, rankNum: i + 1 }))
       .filter((o) => !districtFilter || String(o.district_id) === String(districtFilter))
       .filter((o) => !officerFilter || String(o.officer_id) === String(officerFilter))
@@ -156,7 +174,7 @@ export default function Officers() {
           : compareNames(a, b)
       return comparison ? comparison * factor : compareNames(a, b)
     })
-  }, [officers, districtFilter, officerFilter, categoryFilter, sort])
+  }, [categorizedOfficers, districtFilter, officerFilter, categoryFilter, sort])
 
   const displayedMonths = month && !months.includes(month)
     ? [month, ...months]

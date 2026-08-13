@@ -176,7 +176,7 @@ def _load_catalog():
 
 CATALOG = _load_catalog()
 LEGACY_CATALOG_CODES = {item[0] for item in LEGACY_CATALOG}
-HEAD_FULL_NAME = "Кожыахметов Есим Берикули"
+HEAD_FULL_NAME = "Кожахметов Ерсін Берікұлы"
 
 USERS = [
     ("head", "head123", HEAD_FULL_NAME, "Полковник полиции", "head", 0),

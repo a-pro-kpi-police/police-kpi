@@ -10,6 +10,7 @@ import NameFilterCombobox from '../components/NameFilterCombobox.jsx'
 import ProfileHoverCard from '../components/ProfileHoverCard.jsx'
 import { districtName } from '../districtLocale.js'
 import {
+  averageEffectivenessScore,
   compareEffectiveness,
   EFFECTIVENESS_CATEGORIES,
   effectivenessCategory,
@@ -353,11 +354,14 @@ function StatusDonut({
 }
 
 function EffectivenessOverviewChart({ officers, t }) {
+  const averageScore = averageEffectivenessScore(
+    officers.map((officer) => officer.achievement_percent),
+  )
   const counts = Object.fromEntries(
     EFFECTIVENESS_CATEGORIES.map((category) => [category, 0]),
   )
   for (const officer of officers) {
-    counts[effectivenessCategory(officer.achievement_percent)] += 1
+    counts[effectivenessCategory(officer.achievement_percent, averageScore)] += 1
   }
   const labels = {
     very_effective: t('categoryVeryEffective'),
@@ -914,11 +918,17 @@ export default function Dashboard() {
   const targetKpiItems = officer
     ? (targetOverview?.items || []).filter((item) => Number(item.confirmed_quantity) > 0)
     : []
+  const targetOfficerAverage = averageEffectivenessScore(
+    (targetOverview?.officers || []).map((item) => item.achievement_percent),
+  )
   const targetOfficerRows = !officer
     ? (targetOverview?.officers || [])
       .map((item) => ({
         ...item,
-        effectivenessCategory: effectivenessCategory(item.achievement_percent),
+        effectivenessCategory: effectivenessCategory(
+          item.achievement_percent,
+          targetOfficerAverage,
+        ),
       }))
       .filter((item) => (
         !targetCategory || item.effectivenessCategory === targetCategory
