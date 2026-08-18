@@ -57,7 +57,14 @@ export default function App() {
         />
         <Route path="entries" element={<Entries />} />
         <Route path="messenger" element={<Messenger />} />
-        <Route path="targets" element={<Targets />} />
+        <Route
+          path="targets"
+          element={
+            <HeadOnly>
+              <Targets />
+            </HeadOnly>
+          }
+        />
         <Route
           path="officers"
           element={

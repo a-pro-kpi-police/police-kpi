@@ -10,10 +10,11 @@ import NameFilterCombobox from '../components/NameFilterCombobox.jsx'
 import ProfileHoverCard from '../components/ProfileHoverCard.jsx'
 import { districtName } from '../districtLocale.js'
 import {
-  averageEffectivenessScore,
   compareEffectiveness,
   EFFECTIVENESS_CATEGORIES,
   effectivenessCategory,
+  maxEffectivenessScore,
+  relativeScorePercent,
 } from '../effectiveness.js'
 import { useI18n } from '../i18n.jsx'
 import { kpiIndicator } from '../kpiLocale.js'
@@ -24,7 +25,6 @@ const STATUS_COLORS = { confirmed: '#2f7d4f', pending: '#b8860b', rejected: '#9c
 const EFFECTIVENESS_COLORS = {
   very_effective: '#2f7d4f',
   effective: '#b8860b',
-  middle_effective: '#c66a18',
   little_effective: '#9c3848',
 }
 const CHART_CURSOR = { fill: 'var(--chart-hover)' }
@@ -354,19 +354,16 @@ function StatusDonut({
 }
 
 function EffectivenessOverviewChart({ officers, t }) {
-  const averageScore = averageEffectivenessScore(
-    officers.map((officer) => officer.achievement_percent),
-  )
+  const maxScore = maxEffectivenessScore(officers)
   const counts = Object.fromEntries(
     EFFECTIVENESS_CATEGORIES.map((category) => [category, 0]),
   )
   for (const officer of officers) {
-    counts[effectivenessCategory(officer.achievement_percent, averageScore)] += 1
+    counts[effectivenessCategory(officer, maxScore)] += 1
   }
   const labels = {
     very_effective: t('categoryVeryEffective'),
     effective: t('categoryEffective'),
-    middle_effective: t('categoryMiddleEffective'),
     little_effective: t('categoryLittleEffective'),
   }
   const items = EFFECTIVENESS_CATEGORIES.map((category) => ({
@@ -609,7 +606,6 @@ function EffectivenessBadge({ category, t }) {
   const labels = {
     very_effective: t('categoryVeryEffective'),
     effective: t('categoryEffective'),
-    middle_effective: t('categoryMiddleEffective'),
     little_effective: t('categoryLittleEffective'),
   }
   return (
@@ -683,7 +679,6 @@ function TargetOfficerToolbar({ category, month, district, onCategory, t }) {
             {t({
               very_effective: 'categoryVeryEffective',
               effective: 'categoryEffective',
-              middle_effective: 'categoryMiddleEffective',
               little_effective: 'categoryLittleEffective',
             }[item])}
           </option>
@@ -806,15 +801,18 @@ export default function Dashboard() {
     [district, lang, officers]
   )
 
-  const load = async (m, oid, did, officerDirectory = officers) => {
+  const load = async (m, oid, did, officerDirectory = officers, availableMonths = months) => {
     const params = {}
     if (m) params.month = m
     if (oid) params.officer_id = oid
     if (did) params.district_id = did
+    const targetParams = { ...params }
+    const targetMonth = m || availableMonths[0] || ''
+    if (targetMonth) targetParams.month = targetMonth
     const [dashboardResponse, allEntriesResponse, targetOverviewResponse] = await Promise.all([
       api.get('/dashboard', { params }),
       api.get('/entries'),
-      api.get('/target-overview', { params }),
+      api.get('/target-overview', { params: targetParams }),
     ])
     const districtOfficerIds = new Set(
       officerDirectory
@@ -845,6 +843,8 @@ export default function Dashboard() {
       isHead ? api.get('/officers') : Promise.resolve({ data: [] }),
     ]).then(([monthsResponse, catalogResponse, districtsResponse, officersResponse]) => {
       setMonths(monthsResponse.data)
+      const initialMonth = monthsResponse.data[0] || ''
+      setMonth(initialMonth)
       setDistricts(districtsResponse.data)
       const list = []
       for (const c of catalogResponse.data) if (c.block && !list.includes(c.block)) list.push(c.block)
@@ -860,7 +860,7 @@ export default function Dashboard() {
         totalScore: item.efficiency_score,
       }))
       setOfficers(directory)
-      return load('', officerId, '', directory)
+      return load(initialMonth, officerId, '', directory, monthsResponse.data)
     }).finally(() => setReady(true))
   }, [])
 
@@ -918,17 +918,13 @@ export default function Dashboard() {
   const targetKpiItems = officer
     ? (targetOverview?.items || []).filter((item) => Number(item.confirmed_quantity) > 0)
     : []
-  const targetOfficerAverage = averageEffectivenessScore(
-    (targetOverview?.officers || []).map((item) => item.achievement_percent),
-  )
+  const targetOfficerMaxScore = maxEffectivenessScore(targetOverview?.officers || [])
   const targetOfficerRows = !officer
     ? (targetOverview?.officers || [])
       .map((item) => ({
         ...item,
-        effectivenessCategory: effectivenessCategory(
-          item.achievement_percent,
-          targetOfficerAverage,
-        ),
+        achievement_percent: relativeScorePercent(item.actual_score, targetOfficerMaxScore),
+        effectivenessCategory: effectivenessCategory(item, targetOfficerMaxScore),
       }))
       .filter((item) => (
         !targetCategory || item.effectivenessCategory === targetCategory
@@ -1154,7 +1150,7 @@ export default function Dashboard() {
                       </td>
                       <td className="num strong">{item.actual_score}</td>
                       <td className="num">{item.target_score}</td>
-                      <td className="num">{item.target_score ? `${item.achievement_percent}%` : '—'}</td>
+                      <td className="num">{item.achievement_percent}%</td>
                       <td className={`num ${item.gap < 0 ? 'target-gap-negative' : 'target-gap-positive'}`}>
                         {item.gap > 0 ? `+${item.gap}` : item.gap}
                       </td>

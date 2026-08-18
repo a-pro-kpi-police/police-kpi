@@ -1,0 +1,662 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/s74hbi",
+    "id": "s74hbi",
+    "slide": 5,
+    "layoutId": "2d8068f7-d8cf-4e50-852a-71b7c9fff48a",
+    "layoutName": "Title Slide",
+    "layoutType": "title",
+    "masterLayoutId": "9f526a3a-bf36-48f3-abac-933f43d8bfe5",
+    "masterLayoutName": "Master",
+    "backgroundColor": "#FFFFFF",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "theme": {
+    "colorSchemeName": "ChatGPT",
+    "colors": {
+      "accent1": "#156082",
+      "accent2": "#E97132",
+      "accent3": "#196B24",
+      "accent4": "#0F9ED5",
+      "accent5": "#A02B93",
+      "accent6": "#4EA72E",
+      "bg1": "#FFFFFF",
+      "bg2": "#000000",
+      "tx1": "#1F1F1F",
+      "tx2": "#FFFFFF",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#0E2841",
+      "lt2": "#E8E8E8",
+      "hlink": "#467886",
+      "folHlink": "#96607D"
+    },
+    "typefaces": [
+      "Arial"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "2d8068f7-d8cf-4e50-852a-71b7c9fff48a",
+      "name": "Title Slide",
+      "type": "title",
+      "parentLayoutId": "9f526a3a-bf36-48f3-abac-933f43d8bfe5",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "9f526a3a-bf36-48f3-abac-933f43d8bfe5",
+      "name": "Master",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/zi94nilw",
+      "id": "1",
+      "bbox": [
+        56,
+        44,
+        910,
+        94
+      ],
+      "geometry": "rect",
+      "text": "Обучение привязано к реальным задачам сотрудников",
+      "textPreview": "Обучение привязано к реальным задачам сотрудников",
+      "resolvedFontSize": 39.17,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 42,
+        "typeface": "Arial",
+        "color": "#000000",
+        "bold": true,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 0.93,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Обучение привязано к реальным задачам"
+          },
+          {
+            "index": 2,
+            "text": "сотрудников"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Обучение привязано к реальным задачам сотрудников",
+          "resolvedTextStyle": {
+            "fontSize": 42,
+            "typeface": "Arial",
+            "color": "#000000",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Обучение привязано к реальным задачам сотрудников",
+              "fontSize": 42,
+              "typeface": "Arial",
+              "color": "#000000",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 2,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/0j25wnm1",
+      "id": "2",
+      "bbox": [
+        56,
+        154,
+        1168,
+        0
+      ],
+      "geometry": "line",
+      "lineColor": "#B8BCC4",
+      "lineWidth": 1
+    },
+    {
+      "order": 3,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/lkbmps3m",
+      "id": "3",
+      "bbox": [
+        56,
+        194,
+        430,
+        270
+      ],
+      "geometry": "rect",
+      "text": "Это не общий курс по ChatGPT, а практическая работа с типовыми процессами прокуратуры.",
+      "textPreview": "Это не общий курс по ChatGPT, а практическая работа с типовыми процессами прокуратуры.",
+      "resolvedFontSize": 28,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 28,
+        "typeface": "Arial",
+        "color": "#000000",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 4,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Это не общий курс по ChatGPT,"
+          },
+          {
+            "index": 2,
+            "text": "а практическая работа с"
+          },
+          {
+            "index": 3,
+            "text": "типовыми процессами"
+          },
+          {
+            "index": 4,
+            "text": "прокуратуры."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Это не общий курс по ChatGPT, а практическая работа с типовыми процессами прокуратуры.",
+          "resolvedTextStyle": {
+            "fontSize": 28,
+            "typeface": "Arial",
+            "color": "#000000",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Это не общий курс по ChatGPT, а практическая работа с типовыми процессами прокуратуры.",
+              "fontSize": 28,
+              "typeface": "Arial",
+              "color": "#000000",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/mlknyd47",
+      "id": "4",
+      "bbox": [
+        560,
+        194,
+        610,
+        324
+      ],
+      "geometry": "rect",
+      "text": "современная AI-грамотность\nэффективное взаимодействие с AI\nанализ документов и больших объемов информации\nподготовка аналитических материалов\nавтоматизация рутинных задач\nпроверка достоверности и безопасная работа с данными",
+      "textPreview": "современная AI-грамотность | эффективное взаимодействие с AI | анализ документов и больших объемов информации | подготовка аналитических ...",
+      "resolvedFontSize": 21,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 21,
+        "typeface": "Arial",
+        "color": "#000000",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 6,
+        "lines": [
+          {
+            "index": 1,
+            "text": "• современная AI-грамотность"
+          },
+          {
+            "index": 2,
+            "text": "• эффективное взаимодействие с AI"
+          },
+          {
+            "index": 3,
+            "text": "• анализ документов и больших объемов информации"
+          },
+          {
+            "index": 4,
+            "text": "• подготовка аналитических материалов"
+          },
+          {
+            "index": 5,
+            "text": "• автоматизация рутинных задач"
+          },
+          {
+            "index": 6,
+            "text": "• проверка достоверности и безопасная работа с данными"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "современная AI-грамотность",
+          "bulletCharacter": "•",
+          "marginLeft": 20,
+          "indent": -12,
+          "spaceAfter": 8,
+          "resolvedTextStyle": {
+            "fontSize": 21,
+            "typeface": "Arial",
+            "color": "#000000",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "современная AI-грамотность",
+              "fontSize": 21,
+              "typeface": "Arial",
+              "color": "#000000",
+              "alignment": "left"
+            }
+          ]
+        },
+        {
+          "index": 2,
+          "text": "эффективное взаимодействие с AI",
+          "bulletCharacter": "•",
+          "marginLeft": 20,
+          "indent": -12,
+          "spaceAfter": 8,
+          "resolvedTextStyle": {
+            "fontSize": 21,
+            "typeface": "Arial",
+            "color": "#000000",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "эффективное взаимодействие с AI",
+              "fontSize": 21,
+              "typeface": "Arial",
+              "color": "#000000",
+              "alignment": "left"
+            }
+          ]
+        },
+        {
+          "index": 3,
+          "text": "анализ документов и больших объемов информации",
+          "bulletCharacter": "•",
+          "marginLeft": 20,
+          "indent": -12,
+          "spaceAfter": 8,
+          "resolvedTextStyle": {
+            "fontSize": 21,
+            "typeface": "Arial",
+            "color": "#000000",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "анализ документов и больших объемов информации",
+              "fontSize": 21,
+              "typeface": "Arial",
+              "color": "#000000",
+              "alignment": "left"
+            }
+          ]
+        },
+        {
+          "index": 4,
+          "text": "подготовка аналитических материалов",
+          "bulletCharacter": "•",
+          "marginLeft": 20,
+          "indent": -12,
+          "spaceAfter": 8,
+          "resolvedTextStyle": {
+            "fontSize": 21,
+            "typeface": "Arial",
+            "color": "#000000",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "подготовка аналитических материалов",
+              "fontSize": 21,
+              "typeface": "Arial",
+              "color": "#000000",
+              "alignment": "left"
+            }
+          ]
+        },
+        {
+          "index": 5,
+          "text": "автоматизация рутинных задач",
+          "bulletCharacter": "•",
+          "marginLeft": 20,
+          "indent": -12,
+          "spaceAfter": 8,
+          "resolvedTextStyle": {
+            "fontSize": 21,
+            "typeface": "Arial",
+            "color": "#000000",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "автоматизация рутинных задач",
+              "fontSize": 21,
+              "typeface": "Arial",
+              "color": "#000000",
+              "alignment": "left"
+            }
+          ]
+        },
+        {
+          "index": 6,
+          "text": "проверка достоверности и безопасная работа с данными",
+          "bulletCharacter": "•",
+          "marginLeft": 20,
+          "indent": -12,
+          "spaceAfter": 8,
+          "resolvedTextStyle": {
+            "fontSize": 21,
+            "typeface": "Arial",
+            "color": "#000000",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "проверка достоверности и безопасная работа с данными",
+              "fontSize": 21,
+              "typeface": "Arial",
+              "color": "#000000",
+              "alignment": "left"
+            }
+          ]
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 5,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/76t4rils",
+      "id": "5",
+      "bbox": [
+        56,
+        548,
+        1110,
+        70
+      ],
+      "geometry": "rect",
+      "fillColor": "#EDEDED",
+      "lineWidth": 0
+    },
+    {
+      "order": 6,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/87250nmd",
+      "id": "6",
+      "bbox": [
+        78,
+        566,
+        1055,
+        42
+      ],
+      "geometry": "rect",
+      "text": "Ценность обучения появляется там, где сотрудник сразу видит применение в своей работе.",
+      "textPreview": "Ценность обучения появляется там, где сотрудник сразу видит применение в своей работе.",
+      "resolvedFontSize": 22.91,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 24,
+        "typeface": "Arial",
+        "color": "#000000",
+        "bold": true,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 0.95,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Ценность обучения появляется там, где сотрудник сразу видит применение в своей работе."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Ценность обучения появляется там, где сотрудник сразу видит применение в своей работе.",
+          "resolvedTextStyle": {
+            "fontSize": 24,
+            "typeface": "Arial",
+            "color": "#000000",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Ценность обучения появляется там, где сотрудник сразу видит применение в своей работе.",
+              "fontSize": 24,
+              "typeface": "Arial",
+              "color": "#000000",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 7,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/98b6ts3y",
+      "id": "7",
+      "bbox": [
+        56,
+        666,
+        240,
+        24
+      ],
+      "geometry": "rect",
+      "text": "QAP Solutions",
+      "textPreview": "QAP Solutions",
+      "resolvedFontSize": 14,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 14,
+        "typeface": "Arial",
+        "color": "#545B64",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "QAP Solutions"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "QAP Solutions",
+          "resolvedTextStyle": {
+            "fontSize": 14,
+            "typeface": "Arial",
+            "color": "#545B64",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "QAP Solutions",
+              "fontSize": 14,
+              "typeface": "Arial",
+              "color": "#545B64",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 8,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/u9kn2x4j",
+      "id": "8",
+      "bbox": [
+        1180,
+        666,
+        44,
+        24
+      ],
+      "geometry": "rect",
+      "text": "04",
+      "textPreview": "04",
+      "resolvedFontSize": 14,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 14,
+        "typeface": "Arial",
+        "color": "#545B64",
+        "alignment": "right",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "04"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "04",
+          "resolvedTextStyle": {
+            "fontSize": 14,
+            "typeface": "Arial",
+            "color": "#545B64",
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "04",
+              "fontSize": 14,
+              "typeface": "Arial",
+              "color": "#545B64",
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}

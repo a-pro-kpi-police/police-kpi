@@ -5,9 +5,10 @@ import NameFilterCombobox from '../components/NameFilterCombobox.jsx'
 import ProfileHoverCard from '../components/ProfileHoverCard.jsx'
 import { districtName } from '../districtLocale.js'
 import {
-  averageEffectivenessScore,
   EFFECTIVENESS_CATEGORIES,
   effectivenessCategory,
+  maxEffectivenessScore,
+  relativeScorePercent,
 } from '../effectiveness.js'
 import { useI18n } from '../i18n.jsx'
 
@@ -47,7 +48,6 @@ function EffectivenessBadge({ category, t }) {
   const labelKey = {
     very_effective: 'categoryVeryEffective',
     effective: 'categoryEffective',
-    middle_effective: 'categoryMiddleEffective',
     little_effective: 'categoryLittleEffective',
   }[category]
   return (
@@ -84,14 +84,10 @@ export default function Officers() {
     const params = month ? { month } : {}
     Promise.all([
       api.get('/dashboard', { params }),
-      api.get('/target-overview', { params }),
       api.get('/officers'),
-    ]).then(([dashboardResponse, targetResponse, directoryResponse]) => {
+    ]).then(([dashboardResponse, directoryResponse]) => {
       const dashboardById = Object.fromEntries(
         dashboardResponse.data.officers.map((officer) => [officer.officer_id, officer]),
-      )
-      const targetById = Object.fromEntries(
-        targetResponse.data.officers.map((officer) => [officer.officer_id, officer]),
       )
       const directoryById = Object.fromEntries(
         directoryResponse.data.map((officer) => [officer.id, officer]),
@@ -100,19 +96,17 @@ export default function Officers() {
       const officerRows = directoryResponse.data
         .map((profile) => {
           const dashboard = dashboardById[profile.id] || {}
-          const target = targetById[profile.id] || {}
-          const achievement = Number(target.achievement_percent) || 0
+          const finalScore = Number(dashboard.final) || 0
           return {
             officer_id: profile.id,
             name: profile.full_name,
             rank: profile.rank,
             district: profile.district?.name || '',
             district_id: profile.district?.id || '',
-            final: Number(dashboard.final) || 0,
+            final: finalScore,
             confirmed: Number(dashboard.confirmed) || 0,
             pending: Number(dashboard.pending) || 0,
-            achievement_percent: achievement,
-            target_score: Number(target.target_score) || 0,
+            category_score: finalScore,
           }
         })
       setOfficers(officerRows.sort(
@@ -142,18 +136,14 @@ export default function Officers() {
   )
 
   const categorizedOfficers = useMemo(() => {
-    const categoryScope = officers.filter((officer) => (
+    const ratingScope = officers.filter((officer) => (
       !districtFilter || String(officer.district_id) === String(districtFilter)
     ))
-    const averageScore = averageEffectivenessScore(
-      categoryScope.map((officer) => officer.achievement_percent),
-    )
+    const maxScore = maxEffectivenessScore(ratingScope)
     return officers.map((officer) => ({
       ...officer,
-      effectivenessCategory: effectivenessCategory(
-        officer.achievement_percent,
-        averageScore,
-      ),
+      achievement_percent: relativeScorePercent(officer.final, maxScore),
+      effectivenessCategory: effectivenessCategory(officer, maxScore),
     }))
   }, [districtFilter, officers])
 
@@ -220,10 +210,15 @@ export default function Officers() {
             aria-label={t('effectivenessCategory')}
           >
             <option value="">{t('allEffectivenessCategories')}</option>
-            <option value="very_effective">{t('categoryVeryEffective')}</option>
-            <option value="effective">{t('categoryEffective')}</option>
-            <option value="middle_effective">{t('categoryMiddleEffective')}</option>
-            <option value="little_effective">{t('categoryLittleEffective')}</option>
+            {EFFECTIVENESS_CATEGORIES.map((item) => (
+              <option key={item} value={item}>
+                {t({
+                  very_effective: 'categoryVeryEffective',
+                  effective: 'categoryEffective',
+                  little_effective: 'categoryLittleEffective',
+                }[item])}
+              </option>
+            ))}
           </select>
           <select
             className="select officers-score-sort"
@@ -293,7 +288,7 @@ export default function Officers() {
                 <td className="muted">{districtName(o.district, lang)}</td>
                 <td className="num strong">{o.final}</td>
                 <td className="num">
-                  {o.target_score ? `${o.achievement_percent}%` : '0%'}
+                  {o.achievement_percent}%
                 </td>
                 <td>
                   <EffectivenessBadge category={o.effectivenessCategory} t={t} />

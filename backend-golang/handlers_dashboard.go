@@ -1,0 +1,123 @@
+package main
+
+import (
+	"net/http"
+
+	domaindashboard "kpi-police/backend-golang/internal/domain/dashboard"
+)
+
+func (a *App) handleDashboard(w http.ResponseWriter, r *http.Request) {
+	if _, ok := requireHead(a, w, r); !ok {
+		return
+	}
+	officerID, err := parseOptionalInt(r.URL.Query().Get("officer_id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "Сотрудник указан неверно")
+		return
+	}
+	districtID, err := parseOptionalInt(r.URL.Query().Get("district_id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "Группа указана неверно")
+		return
+	}
+	report, err := a.dashboardService().BuildDashboard(r.Context(), domaindashboard.Filter{
+		Month:      r.URL.Query().Get("month"),
+		OfficerID:  officerID,
+		DistrictID: districtID,
+	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, dashboardOut(report))
+}
+
+func dashboardOut(report domaindashboard.Report) map[string]any {
+	return map[string]any{
+		"total_final":                  report.TotalFinal,
+		"confirmed_count":              report.ConfirmedCount,
+		"pending_count":                report.PendingCount,
+		"rejected_count":               report.RejectedCount,
+		"officers_count":               report.OfficersCount,
+		"confirm_rate":                 report.ConfirmRate,
+		"confirm_rate_confirmed_count": report.ConfirmRateConfirmedCount,
+		"confirm_rate_decided_count":   report.ConfirmRateDecidedCount,
+		"officers":                     dashboardOfficersOut(report.Officers),
+		"blocks":                       dashboardBlocksOut(report.Blocks),
+		"trend":                        dashboardTrendOut(report.Trend),
+		"status_trend":                 dashboardStatusTrendOut(report.StatusTrend),
+		"indicator_volume":             dashboardIndicatorVolumeOut(report.IndicatorVolume),
+		"district_review":              dashboardDistrictReviewOut(report.DistrictReview),
+	}
+}
+
+func dashboardOfficersOut(officers []domaindashboard.OfficerRow) []map[string]any {
+	result := make([]map[string]any, 0, len(officers))
+	for _, officer := range officers {
+		result = append(result, map[string]any{
+			"officer_id": officer.OfficerID,
+			"name":       officer.Name,
+			"rank":       officer.Rank,
+			"district":   officer.District,
+			"final":      officer.Final,
+			"raw":        officer.Raw,
+			"confirmed":  officer.Confirmed,
+			"pending":    officer.Pending,
+			"blocks":     officer.Blocks,
+		})
+	}
+	return result
+}
+
+func dashboardBlocksOut(blocks []domaindashboard.BlockRow) []map[string]any {
+	result := make([]map[string]any, 0, len(blocks))
+	for _, block := range blocks {
+		result = append(result, map[string]any{"block": block.Block, "final": block.Final})
+	}
+	return result
+}
+
+func dashboardTrendOut(trend []domaindashboard.TrendRow) []map[string]any {
+	result := make([]map[string]any, 0, len(trend))
+	for _, row := range trend {
+		result = append(result, map[string]any{"month": row.Month, "final": row.Final})
+	}
+	return result
+}
+
+func dashboardStatusTrendOut(trend []domaindashboard.StatusTrendRow) []map[string]any {
+	result := make([]map[string]any, 0, len(trend))
+	for _, row := range trend {
+		result = append(result, map[string]any{
+			"month":     row.Month,
+			"confirmed": row.Confirmed,
+			"pending":   row.Pending,
+			"rejected":  row.Rejected,
+		})
+	}
+	return result
+}
+
+func dashboardIndicatorVolumeOut(rows []domaindashboard.IndicatorVolumeRow) []map[string]any {
+	result := make([]map[string]any, 0, len(rows))
+	for _, row := range rows {
+		result = append(result, map[string]any{
+			"code":      row.Code,
+			"indicator": row.Indicator,
+			"quantity":  row.Quantity,
+		})
+	}
+	return result
+}
+
+func dashboardDistrictReviewOut(rows []domaindashboard.DistrictReviewRow) []map[string]any {
+	result := make([]map[string]any, 0, len(rows))
+	for _, row := range rows {
+		result = append(result, map[string]any{
+			"district": row.District,
+			"pending":  row.Pending,
+			"rejected": row.Rejected,
+		})
+	}
+	return result
+}

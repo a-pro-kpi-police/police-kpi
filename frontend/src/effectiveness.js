@@ -1,47 +1,54 @@
 export const EFFECTIVENESS_CATEGORIES = [
   'very_effective',
   'effective',
-  'middle_effective',
   'little_effective',
 ]
 
-export const EFFECTIVENESS_WEIGHTS = {
-  very_effective: 1.7,
-  effective: 1.3,
-  middle_effective: 1,
-}
+const HIGH_EFFECTIVENESS_THRESHOLD = 75
+const EFFECTIVE_THRESHOLD = 50
 
 function numericScore(value) {
-  const score = Number(value)
+  const score = Number(typeof value === 'string' ? value.replace(',', '.') : value)
   return Number.isFinite(score) ? score : 0
 }
 
-export function averageEffectivenessScore(scores) {
-  if (!scores.length) return 0
-  return scores.reduce((sum, score) => sum + numericScore(score), 0) / scores.length
+function rawRelativePercent(score, maxScore) {
+  const max = numericScore(maxScore)
+  if (max <= 0) return 0
+  const percent = (numericScore(score) / max) * 100
+  return Math.min(100, Math.max(0, percent))
 }
 
-export function effectivenessCategory(achievementPercent, averageScore = 60) {
-  const value = numericScore(achievementPercent)
-  const average = numericScore(averageScore)
+export function relativeScorePercent(score, maxScore) {
+  const percent = rawRelativePercent(score, maxScore)
+  return Math.round(Math.min(100, Math.max(0, percent)) * 10) / 10
+}
 
-  // When the average is negative, use its magnitude for the category spacing
-  // so the thresholds still rise from the exact employee average.
-  const averageMagnitude = Math.abs(average)
-  if (averageMagnitude === 0) {
-    if (value > average) return 'very_effective'
-    if (value === average) return 'middle_effective'
-    return 'little_effective'
-  }
+export function maxEffectivenessScore(scores) {
+  if (!scores.length) return 0
+  return Math.max(...scores.map((score) => effectivenessScore(score)), 0)
+}
 
-  const weightedThreshold = (weight) => (
-    average + averageMagnitude * (weight - EFFECTIVENESS_WEIGHTS.middle_effective)
+export function effectivenessScore(value) {
+  if (!value || typeof value !== 'object') return numericScore(value)
+  return numericScore(
+    value.category_score
+      ?? value.categoryScore
+      ?? value.actual_score
+      ?? value.actualScore
+      ?? value.final
+      ?? value.score
+      ?? value.achievement_percent
+      ?? value.achievementPercent
+      ?? 0,
   )
-  if (value >= weightedThreshold(EFFECTIVENESS_WEIGHTS.very_effective)) {
-    return 'very_effective'
-  }
-  if (value >= weightedThreshold(EFFECTIVENESS_WEIGHTS.effective)) return 'effective'
-  if (value >= average) return 'middle_effective'
+}
+
+export function effectivenessCategory(score, maxScore = 100) {
+  const relativePercent = rawRelativePercent(effectivenessScore(score), maxScore)
+
+  if (relativePercent >= HIGH_EFFECTIVENESS_THRESHOLD) return 'very_effective'
+  if (relativePercent >= EFFECTIVE_THRESHOLD) return 'effective'
   return 'little_effective'
 }
 
@@ -51,8 +58,8 @@ export function compareEffectiveness(a, b) {
     - EFFECTIVENESS_CATEGORIES.indexOf(b.effectivenessCategory)
   )
   if (categoryDifference) return categoryDifference
-  const achievementDifference = (
-    Number(b.achievement_percent || 0) - Number(a.achievement_percent || 0)
+  const scoreDifference = (
+    effectivenessScore(b) - effectivenessScore(a)
   )
-  return achievementDifference || (a.name || '').localeCompare(b.name || '', 'ru')
+  return scoreDifference || (a.name || '').localeCompare(b.name || '', 'ru')
 }

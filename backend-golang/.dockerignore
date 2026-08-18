@@ -1,0 +1,6 @@
+.gocache/
+.gomodcache/
+kpi.db
+kpi_*.db
+uploads/
+*.test

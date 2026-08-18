@@ -1,0 +1,840 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/s5m7hi",
+    "id": "s5m7hi",
+    "slide": 11,
+    "layoutId": "2d8068f7-d8cf-4e50-852a-71b7c9fff48a",
+    "layoutName": "Title Slide",
+    "layoutType": "title",
+    "masterLayoutId": "9f526a3a-bf36-48f3-abac-933f43d8bfe5",
+    "masterLayoutName": "Master",
+    "backgroundColor": "#FFFFFF",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "theme": {
+    "colorSchemeName": "ChatGPT",
+    "colors": {
+      "accent1": "#156082",
+      "accent2": "#E97132",
+      "accent3": "#196B24",
+      "accent4": "#0F9ED5",
+      "accent5": "#A02B93",
+      "accent6": "#4EA72E",
+      "bg1": "#FFFFFF",
+      "bg2": "#000000",
+      "tx1": "#1F1F1F",
+      "tx2": "#FFFFFF",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#0E2841",
+      "lt2": "#E8E8E8",
+      "hlink": "#467886",
+      "folHlink": "#96607D"
+    },
+    "typefaces": [
+      "Arial"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "2d8068f7-d8cf-4e50-852a-71b7c9fff48a",
+      "name": "Title Slide",
+      "type": "title",
+      "parentLayoutId": "9f526a3a-bf36-48f3-abac-933f43d8bfe5",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "9f526a3a-bf36-48f3-abac-933f43d8bfe5",
+      "name": "Master",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/net8napo",
+      "id": "1",
+      "bbox": [
+        56,
+        44,
+        1050,
+        88
+      ],
+      "geometry": "rect",
+      "text": "Безопасность должна быть встроена в контур внедрения",
+      "textPreview": "Безопасность должна быть встроена в контур внедрения",
+      "resolvedFontSize": 36.67,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 42,
+        "typeface": "Arial",
+        "color": "#000000",
+        "bold": true,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 0.87,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Безопасность должна быть встроена в контур"
+          },
+          {
+            "index": 2,
+            "text": "внедрения"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Безопасность должна быть встроена в контур внедрения",
+          "resolvedTextStyle": {
+            "fontSize": 42,
+            "typeface": "Arial",
+            "color": "#000000",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Безопасность должна быть встроена в контур внедрения",
+              "fontSize": 42,
+              "typeface": "Arial",
+              "color": "#000000",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 2,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/of2pwfq9",
+      "id": "2",
+      "bbox": [
+        56,
+        150,
+        1168,
+        0
+      ],
+      "geometry": "line",
+      "lineColor": "#B8BCC4",
+      "lineWidth": 1
+    },
+    {
+      "order": 3,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/90bqpk7e",
+      "id": "3",
+      "bbox": [
+        56,
+        198,
+        500,
+        38
+      ],
+      "geometry": "rect",
+      "text": "Ограничение",
+      "textPreview": "Ограничение",
+      "resolvedFontSize": 26,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 26,
+        "typeface": "Arial",
+        "color": "#000000",
+        "bold": true,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Ограничение"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Ограничение",
+          "resolvedTextStyle": {
+            "fontSize": 26,
+            "typeface": "Arial",
+            "color": "#000000",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Ограничение",
+              "fontSize": 26,
+              "typeface": "Arial",
+              "color": "#000000",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/a1k7ypoz",
+      "id": "4",
+      "bbox": [
+        56,
+        256,
+        500,
+        270
+      ],
+      "geometry": "rect",
+      "text": "Для государственных органов нельзя просто передавать рабочие документы в публичные AI-сервисы.",
+      "textPreview": "Для государственных органов нельзя просто передавать рабочие документы в публичные AI-сервисы.",
+      "resolvedFontSize": 22,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 22,
+        "typeface": "Arial",
+        "color": "#000000",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 3,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Для государственных органов нельзя просто"
+          },
+          {
+            "index": 2,
+            "text": "передавать рабочие документы в публичные"
+          },
+          {
+            "index": 3,
+            "text": "AI-сервисы."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Для государственных органов нельзя просто передавать рабочие документы в публичные AI-сервисы.",
+          "resolvedTextStyle": {
+            "fontSize": 22,
+            "typeface": "Arial",
+            "color": "#000000",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Для государственных органов нельзя просто передавать рабочие документы в публичные AI-сервисы.",
+              "fontSize": 22,
+              "typeface": "Arial",
+              "color": "#000000",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 5,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/b2d8rupk",
+      "id": "5",
+      "bbox": [
+        612,
+        198,
+        0,
+        326
+      ],
+      "geometry": "line",
+      "lineColor": "#B8BCC4",
+      "lineWidth": 1
+    },
+    {
+      "order": 6,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/w3mp0z65",
+      "id": "6",
+      "bbox": [
+        680,
+        198,
+        500,
+        38
+      ],
+      "geometry": "rect",
+      "text": "Что нужно предусмотреть",
+      "textPreview": "Что нужно предусмотреть",
+      "resolvedFontSize": 26,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 26,
+        "typeface": "Arial",
+        "color": "#000000",
+        "bold": true,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Что нужно предусмотреть"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Что нужно предусмотреть",
+          "resolvedTextStyle": {
+            "fontSize": 26,
+            "typeface": "Arial",
+            "color": "#000000",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Что нужно предусмотреть",
+              "fontSize": 26,
+              "typeface": "Arial",
+              "color": "#000000",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 7,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/x4vqtk7q",
+      "id": "7",
+      "bbox": [
+        680,
+        256,
+        500,
+        270
+      ],
+      "geometry": "rect",
+      "text": "разграничение доступа\nавторизацию пользователей\nжурналирование действий\nзащиту данных\nсогласованную инфраструктуру\nкорпоративный AI-контур\nпроверку результатов человеком",
+      "textPreview": "разграничение доступа | авторизацию пользователей | журналирование действий | защиту данных | согласованную инфраструктуру | корпоративны...",
+      "resolvedFontSize": 22,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 22,
+        "typeface": "Arial",
+        "color": "#000000",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 7,
+        "lines": [
+          {
+            "index": 1,
+            "text": "• разграничение доступа"
+          },
+          {
+            "index": 2,
+            "text": "• авторизацию пользователей"
+          },
+          {
+            "index": 3,
+            "text": "• журналирование действий"
+          },
+          {
+            "index": 4,
+            "text": "• защиту данных"
+          },
+          {
+            "index": 5,
+            "text": "• согласованную инфраструктуру"
+          },
+          {
+            "index": 6,
+            "text": "• корпоративный AI-контур"
+          },
+          {
+            "index": 7,
+            "text": "• проверку результатов человеком"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "разграничение доступа",
+          "bulletCharacter": "•",
+          "marginLeft": 20,
+          "indent": -12,
+          "spaceAfter": 8,
+          "resolvedTextStyle": {
+            "fontSize": 22,
+            "typeface": "Arial",
+            "color": "#000000",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "разграничение доступа",
+              "fontSize": 22,
+              "typeface": "Arial",
+              "color": "#000000",
+              "alignment": "left"
+            }
+          ]
+        },
+        {
+          "index": 2,
+          "text": "авторизацию пользователей",
+          "bulletCharacter": "•",
+          "marginLeft": 20,
+          "indent": -12,
+          "spaceAfter": 8,
+          "resolvedTextStyle": {
+            "fontSize": 22,
+            "typeface": "Arial",
+            "color": "#000000",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "авторизацию пользователей",
+              "fontSize": 22,
+              "typeface": "Arial",
+              "color": "#000000",
+              "alignment": "left"
+            }
+          ]
+        },
+        {
+          "index": 3,
+          "text": "журналирование действий",
+          "bulletCharacter": "•",
+          "marginLeft": 20,
+          "indent": -12,
+          "spaceAfter": 8,
+          "resolvedTextStyle": {
+            "fontSize": 22,
+            "typeface": "Arial",
+            "color": "#000000",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "журналирование действий",
+              "fontSize": 22,
+              "typeface": "Arial",
+              "color": "#000000",
+              "alignment": "left"
+            }
+          ]
+        },
+        {
+          "index": 4,
+          "text": "защиту данных",
+          "bulletCharacter": "•",
+          "marginLeft": 20,
+          "indent": -12,
+          "spaceAfter": 8,
+          "resolvedTextStyle": {
+            "fontSize": 22,
+            "typeface": "Arial",
+            "color": "#000000",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "защиту данных",
+              "fontSize": 22,
+              "typeface": "Arial",
+              "color": "#000000",
+              "alignment": "left"
+            }
+          ]
+        },
+        {
+          "index": 5,
+          "text": "согласованную инфраструктуру",
+          "bulletCharacter": "•",
+          "marginLeft": 20,
+          "indent": -12,
+          "spaceAfter": 8,
+          "resolvedTextStyle": {
+            "fontSize": 22,
+            "typeface": "Arial",
+            "color": "#000000",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "согласованную инфраструктуру",
+              "fontSize": 22,
+              "typeface": "Arial",
+              "color": "#000000",
+              "alignment": "left"
+            }
+          ]
+        },
+        {
+          "index": 6,
+          "text": "корпоративный AI-контур",
+          "bulletCharacter": "•",
+          "marginLeft": 20,
+          "indent": -12,
+          "spaceAfter": 8,
+          "resolvedTextStyle": {
+            "fontSize": 22,
+            "typeface": "Arial",
+            "color": "#000000",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "корпоративный AI-контур",
+              "fontSize": 22,
+              "typeface": "Arial",
+              "color": "#000000",
+              "alignment": "left"
+            }
+          ]
+        },
+        {
+          "index": 7,
+          "text": "проверку результатов человеком",
+          "bulletCharacter": "•",
+          "marginLeft": 20,
+          "indent": -12,
+          "spaceAfter": 8,
+          "resolvedTextStyle": {
+            "fontSize": 22,
+            "typeface": "Arial",
+            "color": "#000000",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "проверку результатов человеком",
+              "fontSize": 22,
+              "typeface": "Arial",
+              "color": "#000000",
+              "alignment": "left"
+            }
+          ]
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 8,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/i5472pob",
+      "id": "8",
+      "bbox": [
+        56,
+        562,
+        1110,
+        58
+      ],
+      "geometry": "rect",
+      "fillColor": "#EDEDED",
+      "lineWidth": 0
+    },
+    {
+      "order": 9,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/j6d8vupw",
+      "id": "9",
+      "bbox": [
+        78,
+        578,
+        1058,
+        32
+      ],
+      "geometry": "rect",
+      "text": "AI помогает сотруднику, но не принимает юридически значимое решение самостоятельно.",
+      "textPreview": "AI помогает сотруднику, но не принимает юридически значимое решение самостоятельно.",
+      "resolvedFontSize": 23,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 23,
+        "typeface": "Arial",
+        "color": "#000000",
+        "bold": true,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "AI помогает сотруднику, но не принимает юридически значимое решение самостоятельно."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "AI помогает сотруднику, но не принимает юридически значимое решение самостоятельно.",
+          "resolvedTextStyle": {
+            "fontSize": 23,
+            "typeface": "Arial",
+            "color": "#000000",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "AI помогает сотруднику, но не принимает юридически значимое решение самостоятельно.",
+              "fontSize": 23,
+              "typeface": "Arial",
+              "color": "#000000",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 10,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/v2x8na9o",
+      "id": "10",
+      "bbox": [
+        56,
+        666,
+        240,
+        24
+      ],
+      "geometry": "rect",
+      "text": "QAP Solutions",
+      "textPreview": "QAP Solutions",
+      "resolvedFontSize": 14,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 14,
+        "typeface": "Arial",
+        "color": "#545B64",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "QAP Solutions"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "QAP Solutions",
+          "resolvedTextStyle": {
+            "fontSize": 14,
+            "typeface": "Arial",
+            "color": "#545B64",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "QAP Solutions",
+              "fontSize": 14,
+              "typeface": "Arial",
+              "color": "#545B64",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 11,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/a147u5s3",
+      "id": "11",
+      "bbox": [
+        1180,
+        666,
+        44,
+        24
+      ],
+      "geometry": "rect",
+      "text": "10",
+      "textPreview": "10",
+      "resolvedFontSize": 14,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 14,
+        "typeface": "Arial",
+        "color": "#545B64",
+        "alignment": "right",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "10"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "10",
+          "resolvedTextStyle": {
+            "fontSize": 14,
+            "typeface": "Arial",
+            "color": "#545B64",
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "10",
+              "fontSize": 14,
+              "typeface": "Arial",
+              "color": "#545B64",
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}

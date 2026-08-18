@@ -1,0 +1,429 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/di10be",
+    "id": "di10be",
+    "slide": 12,
+    "layoutId": "3121c094-af18-4e5d-bd3e-9c90de95c8ab",
+    "layoutName": "Title Slide",
+    "layoutType": "title",
+    "masterLayoutId": "c241f6a6-8c21-4d4d-b277-c4af0f3680a6",
+    "masterLayoutName": "Master",
+    "backgroundColor": "#FFFFFF",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "theme": {
+    "colorSchemeName": "ChatGPT",
+    "colors": {
+      "accent1": "#156082",
+      "accent2": "#E97132",
+      "accent3": "#196B24",
+      "accent4": "#0F9ED5",
+      "accent5": "#A02B93",
+      "accent6": "#4EA72E",
+      "bg1": "#FFFFFF",
+      "bg2": "#000000",
+      "tx1": "#1F1F1F",
+      "tx2": "#FFFFFF",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#0E2841",
+      "lt2": "#E8E8E8",
+      "hlink": "#467886",
+      "folHlink": "#96607D"
+    },
+    "typefaces": [
+      "Arial"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "3121c094-af18-4e5d-bd3e-9c90de95c8ab",
+      "name": "Title Slide",
+      "type": "title",
+      "parentLayoutId": "c241f6a6-8c21-4d4d-b277-c4af0f3680a6",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "c241f6a6-8c21-4d4d-b277-c4af0f3680a6",
+      "name": "Master",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/v250f6dg",
+      "id": "1",
+      "bbox": [
+        56,
+        44,
+        1040,
+        72
+      ],
+      "geometry": "rect",
+      "text": "Как выбирается первый пилот",
+      "textPreview": "Как выбирается первый пилот",
+      "resolvedFontSize": 42,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 42,
+        "typeface": "Arial",
+        "color": "#000000",
+        "bold": true,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Как выбирается первый пилот"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Как выбирается первый пилот",
+          "resolvedTextStyle": {
+            "fontSize": 42,
+            "typeface": "Arial",
+            "color": "#000000",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Как выбирается первый пилот",
+              "fontSize": 42,
+              "typeface": "Arial",
+              "color": "#000000",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 2,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/w3e18bu1",
+      "id": "2",
+      "bbox": [
+        56,
+        126,
+        1060,
+        48
+      ],
+      "geometry": "rect",
+      "text": "Смотрим на реальные документы и процессы, находим самые трудоемкие места и выбираем 2–3 сценария для проверки.",
+      "textPreview": "Смотрим на реальные документы и процессы, находим самые трудоемкие места и выбираем 2–3 сценария для проверки.",
+      "resolvedFontSize": 20,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 24,
+        "typeface": "Arial",
+        "color": "#545B64",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 0.83,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Смотрим на реальные документы и процессы, находим самые трудоемкие места и выбираем 2–3 сценария для"
+          },
+          {
+            "index": 2,
+            "text": "проверки."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Смотрим на реальные документы и процессы, находим самые трудоемкие места и выбираем 2–3 сценария для проверки.",
+          "resolvedTextStyle": {
+            "fontSize": 24,
+            "typeface": "Arial",
+            "color": "#545B64",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Смотрим на реальные документы и процессы, находим самые трудоемкие места и выбираем 2–3 сценария для проверки.",
+              "fontSize": 24,
+              "typeface": "Arial",
+              "color": "#545B64",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 3,
+      "kind": "image",
+      "scope": "slide",
+      "aid": "im/wv2l8f61",
+      "id": "3",
+      "bbox": [
+        92,
+        198,
+        1096,
+        372
+      ],
+      "alt": "Визуальное объяснение выбора AI-пилота в закрытом on-premise контуре",
+      "contentType": "image/png",
+      "imageFit": "contain",
+      "asset": {
+        "assetId": "33ffc304-e322-47a2-ad3c-b1ffe3411ef3",
+        "contentType": "image/png",
+        "byteLength": 1578502
+      }
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/mxcz21wz",
+      "id": "4",
+      "bbox": [
+        56,
+        604,
+        1090,
+        42
+      ],
+      "geometry": "rect",
+      "text": "Итог аудита — не большой проект сразу, а понятный пилот с измеримым эффектом и закрытым контуром данных.",
+      "textPreview": "Итог аудита — не большой проект сразу, а понятный пилот с измеримым эффектом и закрытым контуром данных.",
+      "resolvedFontSize": 18.88,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 24,
+        "typeface": "Arial",
+        "color": "#000000",
+        "bold": true,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 0.79,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Итог аудита — не большой проект сразу, а понятный пилот с измеримым эффектом и закрытым контуром данных."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Итог аудита — не большой проект сразу, а понятный пилот с измеримым эффектом и закрытым контуром данных.",
+          "resolvedTextStyle": {
+            "fontSize": 24,
+            "typeface": "Arial",
+            "color": "#000000",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Итог аудита — не большой проект сразу, а понятный пилот с измеримым эффектом и закрытым контуром данных.",
+              "fontSize": 24,
+              "typeface": "Arial",
+              "color": "#000000",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 5,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/nyl0b6dk",
+      "id": "5",
+      "bbox": [
+        56,
+        666,
+        240,
+        24
+      ],
+      "geometry": "rect",
+      "text": "QAP Solutions",
+      "textPreview": "QAP Solutions",
+      "resolvedFontSize": 14,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 14,
+        "typeface": "Arial",
+        "color": "#545B64",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "QAP Solutions"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "QAP Solutions",
+          "resolvedTextStyle": {
+            "fontSize": 14,
+            "typeface": "Arial",
+            "color": "#545B64",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "QAP Solutions",
+              "fontSize": 14,
+              "typeface": "Arial",
+              "color": "#545B64",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 6,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/8zuh4be5",
+      "id": "6",
+      "bbox": [
+        1180,
+        666,
+        44,
+        24
+      ],
+      "geometry": "rect",
+      "text": "11",
+      "textPreview": "11",
+      "resolvedFontSize": 14,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 14,
+        "typeface": "Arial",
+        "color": "#545B64",
+        "alignment": "right",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "11"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "11",
+          "resolvedTextStyle": {
+            "fontSize": 14,
+            "typeface": "Arial",
+            "color": "#545B64",
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "11",
+              "fontSize": 14,
+              "typeface": "Arial",
+              "color": "#545B64",
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}

@@ -1,0 +1,3 @@
+[Sources]
+- User-provided pasted text: C:\Users\amanjohn\.codex\attachments\385e71e9-8c7d-47ac-9073-4797e66188b3\pasted-text.txt
+- User follow-up: adapt for non-technical audience; emphasize training, application development, and on-premise deployment.

@@ -103,16 +103,14 @@ export default function Layout() {
         </div>
         <nav>
           {isHead && <NavLink to="/dashboard" className="nav-link">{t('dashboard')}</NavLink>}
+          <NavLink to="/entries" className="nav-link">
+            {isHead ? t('entries') : t('myEntries')}
+          </NavLink>
           <NavLink to="/messenger" className="nav-link nav-link-with-count">
             <span>{t('messenger')}</span>
             {messageUnread > 0 && <span className="nav-unread-count">{messageUnread}</span>}
           </NavLink>
-          <NavLink to="/entries" className="nav-link">
-            {isHead ? t('entries') : t('myEntries')}
-          </NavLink>
-          <NavLink to="/targets" className="nav-link">
-            {isHead ? t('targets') : t('myTargets')}
-          </NavLink>
+          {isHead && <NavLink to="/targets" className="nav-link">{t('targets')}</NavLink>}
           {isHead && <NavLink to="/officers" className="nav-link">{t('officers')}</NavLink>}
         </nav>
       </aside>

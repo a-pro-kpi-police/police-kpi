@@ -1,0 +1,65 @@
+package dashboard
+
+import "testing"
+
+func TestBuildReportAggregatesDashboardMetrics(t *testing.T) {
+	report := NewPolicy().BuildReport([]Entry{
+		{
+			Month:            "2026-07",
+			OfficerID:        1,
+			Quantity:         2,
+			PointsPerUnit:    5,
+			RawScore:         10,
+			FinalScore:       12.345,
+			Status:           StatusConfirmed,
+			OfficerName:      "Officer One",
+			OfficerRank:      "Rank",
+			OfficerDistrict:  "Central",
+			CatalogCode:      "A1",
+			CatalogIndicator: "Patrol",
+			CatalogBlock:     "Block A",
+		},
+		{
+			Month:           "2026-07",
+			OfficerID:       1,
+			Quantity:        1,
+			PointsPerUnit:   3,
+			FinalScore:      3,
+			Status:          StatusPending,
+			OfficerDistrict: "Central",
+		},
+		{
+			Month:         "2026-07",
+			OfficerID:     2,
+			Quantity:      1,
+			PointsPerUnit: 4,
+			Status:        StatusRejected,
+		},
+	}, []Officer{
+		{ID: 1, FullName: "Officer One", Rank: "Rank", DistrictName: "Central"},
+		{ID: 2, FullName: "Officer Two"},
+	}, []string{"Block A"}, Filter{})
+
+	if report.TotalFinal != 12.35 {
+		t.Fatalf("total final = %v, want 12.35", report.TotalFinal)
+	}
+	if report.ConfirmedCount != 1 || report.PendingCount != 1 || report.RejectedCount != 1 {
+		t.Fatalf("counts = confirmed %d pending %d rejected %d", report.ConfirmedCount, report.PendingCount, report.RejectedCount)
+	}
+	if report.ConfirmRate != 50 {
+		t.Fatalf("confirm rate = %v, want 50", report.ConfirmRate)
+	}
+	if len(report.Officers) != 2 || report.Officers[0].OfficerID != 1 || report.Officers[0].Final != 12.35 {
+		t.Fatalf("officers = %#v", report.Officers)
+	}
+	if len(report.Blocks) != 1 || report.Blocks[0].Final != 12.35 {
+		t.Fatalf("blocks = %#v", report.Blocks)
+	}
+	volumeByCode := map[string]float64{}
+	for _, row := range report.IndicatorVolume {
+		volumeByCode[row.Code] = row.Quantity
+	}
+	if volumeByCode["A1"] != 2 {
+		t.Fatalf("indicator volume = %#v", report.IndicatorVolume)
+	}
+}

@@ -1,20 +1,36 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: kpi
+      POSTGRES_USER: kpi
+      POSTGRES_PASSWORD: kpi
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kpi -d kpi"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   backend:
     build:
-      context: ./backend
-    working_dir: /app
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+      context: ./backend-golang
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
-      KPI_DATABASE_URL: sqlite:////data/kpi_july_2026.db
+      KPI_DATABASE_URL: postgres://kpi:kpi@postgres:5432/kpi?sslmode=disable
+      KPI_DEBUG: "1"
       KPI_SEED_MODE: monthly_import
       KPI_MONTHLY_IMPORT_PATH: /app/import_data/monthly_kpi_2026_07.csv
       KPI_UPLOAD_DIR: /data/uploads
-      WATCHFILES_FORCE_POLLING: "true"
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/app
-      - backend_data:/data
+      - backend_uploads:/data/uploads
 
   frontend:
     build:
@@ -33,5 +49,6 @@ services:
       - frontend_node_modules:/app/node_modules
 
 volumes:
-  backend_data:
+  postgres_data:
+  backend_uploads:
   frontend_node_modules:

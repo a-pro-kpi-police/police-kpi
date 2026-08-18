@@ -16,6 +16,10 @@ npm-debug.log*
 *.sqlite3
 backend/uploads/
 
+# Generated credential exports
+backend-golang/import_data/*accounts*.csv
+backend-golang/import_data/*credentials*.csv
+
 # IDE / OS
 .idea/
 .vscode/

@@ -18,7 +18,7 @@
 
 ## Стек
 
-- **Backend:** Python 3.12, FastAPI, SQLAlchemy, SQLite
+- **Backend:** Go 1.24, net/http, PostgreSQL
 - **Frontend:** React 18, Vite, React Router, Axios, Recharts
 - **Запуск:** Docker Compose или локальная среда разработки
 
@@ -34,11 +34,10 @@ docker compose up --build
 
 - приложение — <http://localhost:5173>;
 - API — <http://localhost:8000>;
-- Swagger UI — <http://localhost:8000/docs>.
 
-Frontend проксирует запросы `/api` на backend-контейнер. SQLite и загруженные
-файлы сохраняются в Docker volume `backend_data`, а зависимости frontend — в
-`frontend_node_modules`.
+Frontend проксирует запросы `/api` на backend-контейнер. PostgreSQL хранит
+данные в Docker volume `postgres_data`, загруженные файлы сохраняются в
+`backend_uploads`, а зависимости frontend — в `frontend_node_modules`.
 
 Полезные команды:
 
@@ -51,12 +50,24 @@ docker compose down -v  # удалить volumes и создать БД зано
 > `docker compose down -v` безвозвратно удаляет данные контейнерной БД и
 > загруженные в неё вложения.
 
+## Деплой
+
+Для VPS/Cloud Server на PS.kz подготовлен отдельный production compose:
+
+```bash
+cp .env.ps.kz.example .env
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+Подробная инструкция находится в [`docs/deploy-ps-kz.md`](docs/deploy-ps-kz.md).
+
 ## Тестовые учётные записи
 
 Docker-конфигурация импортирует снимок данных за июль 2026 года.
 
 | Логин | Пароль | Роль |
 |---|---|---|
+| `KPI_DEBUG` | Enable debug logs (`1`, `true`, `yes`, `on`) | off |
 | `head` | `head123` | Начальник отдела |
 | `officer001` … `officer152` | `pass123` | Импортированные сотрудники |
 
@@ -76,14 +87,12 @@ Docker-конфигурация импортирует снимок данных
 ### Backend
 
 ```bash
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
+cd backend-golang
+go mod tidy
+go run .
 ```
 
-Если `KPI_DATABASE_URL` не задан, используется файл `backend/kpi.db`.
+Если `KPI_DATABASE_URL` не задан, используется PostgreSQL `postgres://kpi:kpi@localhost:5432/kpi?sslmode=disable`.
 При первом запуске пустая БД автоматически заполняется демонстрационными
 данными.
 
@@ -105,28 +114,28 @@ Vite по умолчанию отправляет запросы `/api` на
 
 | Переменная | Назначение | Значение по умолчанию |
 |---|---|---|
-| `KPI_DATABASE_URL` | URL подключения SQLAlchemy | `sqlite:///./kpi.db` |
+| `KPI_DATABASE_URL` | URL подключения PostgreSQL | `postgres://kpi:kpi@localhost:5432/kpi?sslmode=disable` |
 | `KPI_SECRET` | Секрет подписи JWT | тестовое значение в исходном коде |
-| `KPI_UPLOAD_DIR` | Каталог для вложений | `backend/uploads` |
+| `KPI_UPLOAD_DIR` | Каталог для вложений | `backend-golang/uploads` |
 | `KPI_SEED_MODE` | Режим начального заполнения | демонстрационные данные |
-| `KPI_MONTHLY_IMPORT_PATH` | Путь к CSV месячного импорта | `backend/import_data/monthly_kpi_2026_07.csv` |
+| `KPI_MONTHLY_IMPORT_PATH` | Путь к CSV месячного импорта | `backend-golang/import_data/monthly_kpi_2026_07.csv` |
 | `KPI_HEAD_PASSWORD` | Пароль начальника при месячном импорте | `head123` |
 | `KPI_IMPORT_DEFAULT_PASSWORD` | Пароль импортированных сотрудников | `pass123` |
 
 Чтобы локально запустить импорт июльского снимка в отдельную БД:
 
 ```bash
-cd backend
-KPI_DATABASE_URL=sqlite:///./kpi_july_2026.db \
+cd backend-golang
+KPI_DATABASE_URL=postgres://kpi:kpi@localhost:5432/kpi?sslmode=disable \
 KPI_SEED_MODE=monthly_import \
-uvicorn main:app --reload --port 8000
+go run .
 ```
 
 ## Месячный импорт
 
 Docker использует отдельную базу `/data/kpi_july_2026.db`; существующий файл
 `/data/kpi.db` не удаляется и не перезаписывается. При первом запуске
-импортируется `backend/import_data/monthly_kpi_2026_07.csv`:
+импортируется `backend-golang/import_data/monthly_kpi_2026_07.csv`:
 
 - 152 сотрудника;
 - 134 показателя KPI;
@@ -141,12 +150,45 @@ SHA-256 и не создаёт дубликаты.
 ```bash
 osascript -l JavaScript scripts/export_monthly_numbers.js \
   ./KPI_*.numbers \
-  backend/import_data/monthly_kpi_2026_07.csv \
-  backend/kpi_catalog.csv
+  backend-golang/import_data/monthly_kpi_2026_07.csv \
+  backend-golang/kpi_catalog.csv
 ```
 
 Подробности формата снимка находятся в
-[`backend/import_data/README.md`](backend/import_data/README.md).
+[`backend-golang/import_data/README.md`](backend-golang/import_data/README.md).
+
+## Массовое создание кабинетов сотрудников
+
+Когда передадут список сотрудников, подготовьте CSV по шаблону
+`backend-golang/import_data/users_template.csv`:
+
+```csv
+employee_number,full_name,rank,district,monthly_norm
+1001,Иванов Иван Иванович,Лейтенант полиции,Батальон патрульной полиции,100
+```
+
+Для ФИО в формате `Фамилия Имя Отчество` запуск:
+
+```bash
+cd backend-golang
+go run ./cmd/import-users \
+  -input import_data/users.csv \
+  -output import_data/users_accounts.csv
+```
+
+Логин генерируется латиницей по правилу `имя.первая_буква_фамилии`, например
+`ivan.i`. Если логин совпадает с существующим, добавляется индекс: `ivan.i2`,
+`ivan.i3`. Пароль создаётся как логин плюс случайные цифры. В базе хранится
+только хэш пароля, а открытые пароли записываются в output CSV.
+
+Полезные флаги:
+
+- `-dry-run` — проверить импорт без сохранения в БД.
+- `-reset-existing-passwords` — пересоздать пароли уже найденным сотрудникам.
+- `-name-order ifo` — если ФИО в файле идёт как `Имя Фамилия Отчество`.
+
+Пароли из `-dry-run` не выдавайте сотрудникам: это только превью, изменения в
+БД откатываются.
 
 ## Расчёт KPI
 
@@ -166,8 +208,8 @@ osascript -l JavaScript scripts/export_monthly_numbers.js \
 
 ## API
 
-Все рабочие маршруты, кроме входа, требуют Bearer JWT. Актуальные схемы
-запросов и ответов доступны в Swagger UI по адресу `/docs`.
+Все рабочие маршруты, кроме входа, требуют Bearer JWT. JSON-контракты Go API
+сохранены совместимыми с фронтендом.
 
 | Метод и маршрут | Назначение |
 |---|---|
@@ -193,8 +235,8 @@ osascript -l JavaScript scripts/export_monthly_numbers.js \
 ## Тесты и сборка
 
 ```bash
-cd backend
-python -m unittest discover -s tests
+cd backend-golang
+go test ./...
 ```
 
 ```bash
@@ -206,16 +248,14 @@ npm run build
 
 ```text
 .
-├── backend/
+├── backend-golang/
 │   ├── import_data/      # CSV-снимок месячного импорта
-│   ├── routers/          # HTTP API по функциональным областям
-│   ├── services/         # расчёты, агрегаты и бизнес-логика
-│   ├── tests/            # тесты расчёта KPI
 │   ├── kpi_catalog.csv   # активный справочник показателей
-│   ├── main.py           # FastAPI-приложение
-│   ├── models.py         # SQLAlchemy-модели
-│   ├── schemas.py        # Pydantic-схемы
-│   └── seed.py           # создание, миграция и заполнение БД
+│   ├── main.go           # Go HTTP API
+│   ├── models.go         # Go-модели и JSON-контракты
+│   ├── handlers_*.go     # REST API
+│   ├── scoring.go        # расчёт KPI
+│   └── seed.go           # создание, миграция и заполнение БД
 ├── frontend/
 │   └── src/              # React-приложение
 ├── scripts/

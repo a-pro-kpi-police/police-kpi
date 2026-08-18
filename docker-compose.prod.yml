@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-kpi}
+      POSTGRES_USER: ${POSTGRES_USER:-kpi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kpi} -d ${POSTGRES_DB:-kpi}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend-golang
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      KPI_DATABASE_URL: postgres://${POSTGRES_USER:-kpi}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-kpi}?sslmode=disable
+      KPI_SECRET: ${KPI_SECRET:?Set KPI_SECRET in .env}
+      KPI_DEBUG: ${KPI_DEBUG:-0}
+      KPI_SEED_MODE: ${KPI_SEED_MODE:-monthly_import}
+      KPI_MONTHLY_IMPORT_PATH: /app/import_data/monthly_kpi_2026_07.csv
+      KPI_UPLOAD_DIR: /data/uploads
+      KPI_HEAD_PASSWORD: ${KPI_HEAD_PASSWORD:?Set KPI_HEAD_PASSWORD in .env}
+      KPI_IMPORT_DEFAULT_PASSWORD: ${KPI_IMPORT_DEFAULT_PASSWORD:?Set KPI_IMPORT_DEFAULT_PASSWORD in .env}
+    volumes:
+      - backend_uploads:/data/uploads
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${APP_BIND:-127.0.0.1:8080}:80"
+
+volumes:
+  postgres_data:
+  backend_uploads:
