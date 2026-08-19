@@ -22,10 +22,15 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      KPI_DATABASE_URL: postgres://${POSTGRES_USER:-kpi}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-kpi}?sslmode=disable
+      POSTGRES_DB: ${POSTGRES_DB:-kpi}
+      POSTGRES_USER: ${POSTGRES_USER:-kpi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      KPI_DATABASE_URL: ${KPI_DATABASE_URL:-}
       KPI_SECRET: ${KPI_SECRET:?Set KPI_SECRET in .env}
       KPI_DEBUG: ${KPI_DEBUG:-0}
-      KPI_SEED_MODE: ${KPI_SEED_MODE:-monthly_import}
+      KPI_SEED_MODE: ${KPI_SEED_MODE:-catalog_only}
       KPI_MONTHLY_IMPORT_PATH: /app/import_data/monthly_kpi_2026_07.csv
       KPI_UPLOAD_DIR: /data/uploads
       KPI_HEAD_PASSWORD: ${KPI_HEAD_PASSWORD:?Set KPI_HEAD_PASSWORD in .env}

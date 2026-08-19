@@ -36,6 +36,21 @@ func TestUniqueUsernameIndexesCollisions(t *testing.T) {
 	}
 }
 
+func TestDefaultDatabaseURLEncodesPostgresPassword(t *testing.T) {
+	t.Setenv("KPI_DATABASE_URL", "")
+	t.Setenv("POSTGRES_USER", "kpi")
+	t.Setenv("POSTGRES_PASSWORD", "pa@ss#word:2026")
+	t.Setenv("POSTGRES_DB", "kpi")
+	t.Setenv("POSTGRES_HOST", "postgres")
+	t.Setenv("POSTGRES_PORT", "5432")
+
+	got := defaultDatabaseURL()
+	want := "postgres://kpi:pa%40ss%23word%3A2026@postgres:5432/kpi?sslmode=disable"
+	if got != want {
+		t.Fatalf("defaultDatabaseURL() = %q, want %q", got, want)
+	}
+}
+
 func TestReadEmployeesSupportsRussianSemicolonCSV(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "employees.csv")
 	data := "табельный номер;фио;звание;участок;норма;роль\n" +

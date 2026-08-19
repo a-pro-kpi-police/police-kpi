@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -165,6 +167,9 @@ func envDefault(key string, fallback string) string {
 
 func databaseConfig(raw string) (driver string, dsn string, dialect string) {
 	if raw == "" {
+		raw = databaseURLFromPostgresEnv()
+	}
+	if raw == "" {
 		raw = "postgres://kpi:kpi@localhost:5432/kpi?sslmode=disable"
 	}
 	if strings.HasPrefix(raw, "postgres://") || strings.HasPrefix(raw, "postgresql://") || strings.HasPrefix(raw, "host=") {
@@ -182,6 +187,25 @@ func databaseConfig(raw string) (driver string, dsn string, dialect string) {
 		return "sqlite", path, dialectSQLite
 	}
 	return "postgres", raw, dialectPostgres
+}
+
+func databaseURLFromPostgresEnv() string {
+	password := os.Getenv("POSTGRES_PASSWORD")
+	if password == "" {
+		return ""
+	}
+	user := envDefault("POSTGRES_USER", "kpi")
+	dbName := envDefault("POSTGRES_DB", "kpi")
+	host := envDefault("POSTGRES_HOST", "postgres")
+	port := envDefault("POSTGRES_PORT", "5432")
+	value := url.URL{
+		Scheme:   "postgres",
+		User:     url.UserPassword(user, password),
+		Host:     net.JoinHostPort(host, port),
+		Path:     dbName,
+		RawQuery: "sslmode=disable",
+	}
+	return value.String()
 }
 
 func parseIDPathValue(r *http.Request, name string) (int, bool) {

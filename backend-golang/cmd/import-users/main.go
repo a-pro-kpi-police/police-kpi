@@ -14,6 +14,8 @@ import (
 	"hash"
 	"io"
 	"math/big"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -84,7 +86,7 @@ func main() {
 	var opts options
 	flag.StringVar(&opts.input, "input", "", "CSV file with employees")
 	flag.StringVar(&opts.output, "output", "", "CSV file for generated credentials")
-	flag.StringVar(&opts.databaseURL, "database-url", envDefault("KPI_DATABASE_URL", "postgres://kpi:kpi@localhost:5432/kpi?sslmode=disable"), "database URL")
+	flag.StringVar(&opts.databaseURL, "database-url", defaultDatabaseURL(), "database URL")
 	flag.StringVar(&opts.nameOrder, "name-order", "fio", "full_name order: fio means Фамилия Имя Отчество, ifo means Имя Фамилия Отчество")
 	flag.IntVar(&opts.passwordDigits, "password-digits", 4, "number of random digits appended to the login")
 	flag.Float64Var(&opts.defaultMonthlyNorm, "default-monthly-norm", 100, "monthly_norm for rows without this column")
@@ -894,6 +896,35 @@ func defaultOutputPath(input string) string {
 		base = "generated_user"
 	}
 	return base + "_accounts.csv"
+}
+
+func defaultDatabaseURL() string {
+	if value := os.Getenv("KPI_DATABASE_URL"); value != "" {
+		return value
+	}
+	if value := databaseURLFromPostgresEnv(); value != "" {
+		return value
+	}
+	return "postgres://kpi:kpi@localhost:5432/kpi?sslmode=disable"
+}
+
+func databaseURLFromPostgresEnv() string {
+	password := os.Getenv("POSTGRES_PASSWORD")
+	if password == "" {
+		return ""
+	}
+	user := envDefault("POSTGRES_USER", "kpi")
+	dbName := envDefault("POSTGRES_DB", "kpi")
+	host := envDefault("POSTGRES_HOST", "postgres")
+	port := envDefault("POSTGRES_PORT", "5432")
+	value := url.URL{
+		Scheme:   "postgres",
+		User:     url.UserPassword(user, password),
+		Host:     net.JoinHostPort(host, port),
+		Path:     dbName,
+		RawQuery: "sslmode=disable",
+	}
+	return value.String()
 }
 
 func envDefault(name, fallback string) string {
