@@ -44,6 +44,14 @@ type Contact struct {
 	LastMessageDeleted bool
 }
 
+type ConversationSummary struct {
+	ContactID          int
+	UnreadCount        int
+	LastMessage        string
+	LastMessageAt      *time.Time
+	LastMessageDeleted bool
+}
+
 type Message struct {
 	ID          int
 	SenderID    int

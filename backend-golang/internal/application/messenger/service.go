@@ -16,11 +16,12 @@ type UserRepository interface {
 }
 
 type Repository interface {
-	LastMessage(ctx context.Context, userID int, contactID int) (domainmessenger.Message, error)
-	CountUnread(ctx context.Context, userID int, contactID int) (int, error)
+	ConversationSummaries(ctx context.Context, userID int, contactIDs []int) (map[int]domainmessenger.ConversationSummary, error)
+	UnreadCount(ctx context.Context, userID int) (int, error)
 	ListEntries(ctx context.Context, officerID int, limit int) ([]domainmessenger.Entry, error)
 	EntryOfficerID(ctx context.Context, entryID int) (int, error)
 	ConversationMessages(ctx context.Context, userID int, contactID int) ([]domainmessenger.Message, error)
+	ConversationMessagesAfter(ctx context.Context, userID int, contactID int, afterID int) ([]domainmessenger.Message, error)
 	MarkMessagesRead(ctx context.Context, ids []int, readAt time.Time) error
 	CreateMessage(ctx context.Context, message domainmessenger.CreateMessage) (domainmessenger.Message, error)
 	GetMessageByID(ctx context.Context, id int) (domainmessenger.Message, error)
@@ -49,33 +50,33 @@ func (s Service) ListContacts(ctx context.Context, user domainusers.User) ([]dom
 		return nil, err
 	}
 
+	contactIDs := make([]int, 0, len(users))
 	contacts := make([]domainmessenger.Contact, 0, len(users))
 	for _, candidate := range users {
 		contactUser := messengerUser(candidate)
 		if _, err := s.policy.Conversation(actor, contactUser); err != nil {
 			continue
 		}
-		contact := domainmessenger.Contact{User: contactUser}
-		lastMessage, err := s.repo.LastMessage(ctx, user.ID, candidate.ID)
-		if err != nil && !errors.Is(err, domainmessenger.ErrMessageNotFound) {
-			return nil, err
-		}
-		if err == nil {
-			contact.LastMessageAt = &lastMessage.CreatedAt
-			contact.LastMessageDeleted = lastMessage.DeletedAt != nil
-			if lastMessage.DeletedAt == nil {
-				contact.LastMessage = lastMessage.Body
-			}
-		}
-		unread, err := s.repo.CountUnread(ctx, user.ID, candidate.ID)
-		if err != nil {
-			return nil, err
-		}
-		contact.UnreadCount = unread
-		contacts = append(contacts, contact)
+		contactIDs = append(contactIDs, candidate.ID)
+		contacts = append(contacts, domainmessenger.Contact{User: contactUser})
+	}
+	summaries, err := s.repo.ConversationSummaries(ctx, user.ID, contactIDs)
+	if err != nil {
+		return nil, err
+	}
+	for i := range contacts {
+		summary := summaries[contacts[i].User.ID]
+		contacts[i].UnreadCount = summary.UnreadCount
+		contacts[i].LastMessageAt = summary.LastMessageAt
+		contacts[i].LastMessageDeleted = summary.LastMessageDeleted
+		contacts[i].LastMessage = summary.LastMessage
 	}
 	sortContacts(contacts)
 	return contacts, nil
+}
+
+func (s Service) UnreadCount(ctx context.Context, user domainusers.User) (int, error) {
+	return s.repo.UnreadCount(ctx, user.ID)
 }
 
 func (s Service) ListEntries(ctx context.Context, user domainusers.User, contactID int) ([]domainmessenger.Entry, error) {
@@ -91,6 +92,25 @@ func (s Service) ConversationMessages(ctx context.Context, user domainusers.User
 		return nil, err
 	}
 	messages, err := s.repo.ConversationMessages(ctx, user.ID, contactID)
+	if err != nil {
+		return nil, err
+	}
+	unreadIDs := s.policy.UnreadMessageIDs(messages, user.ID)
+	if len(unreadIDs) == 0 {
+		return messages, nil
+	}
+	readAt := s.now().UTC()
+	if err := s.repo.MarkMessagesRead(ctx, unreadIDs, readAt); err != nil {
+		return nil, err
+	}
+	return s.policy.ApplyReadAt(messages, user.ID, readAt), nil
+}
+
+func (s Service) ConversationMessagesAfter(ctx context.Context, user domainusers.User, contactID int, afterID int) ([]domainmessenger.Message, error) {
+	if _, err := s.conversation(ctx, user, contactID); err != nil {
+		return nil, err
+	}
+	messages, err := s.repo.ConversationMessagesAfter(ctx, user.ID, contactID, afterID)
 	if err != nil {
 		return nil, err
 	}

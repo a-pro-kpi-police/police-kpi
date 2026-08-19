@@ -34,8 +34,8 @@ export default function Layout() {
 
   const loadMessageUnread = useCallback(async () => {
     try {
-      const { data } = await api.get('/messenger/contacts')
-      setMessageUnread(data.reduce((sum, contact) => sum + contact.unread_count, 0))
+      const { data } = await api.get('/messenger/unread-count')
+      setMessageUnread(Number(data.unread_count) || 0)
     } catch {
       setMessageUnread(0)
     }

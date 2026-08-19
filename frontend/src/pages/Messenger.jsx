@@ -151,6 +151,9 @@ export default function Messenger() {
   const messagesRef = useRef(null)
   const textareaRef = useRef(null)
   const contactRefs = useRef(new Map())
+  const activeIdRef = useRef('')
+  const lastMessageIdRef = useRef(0)
+  const contactsHaveEfficiencyRef = useRef(false)
   const requestedContactAppliedRef = useRef(false)
   const requestedEntryAppliedRef = useRef(false)
 
@@ -171,9 +174,37 @@ export default function Messenger() {
     [discussionEntries, selectedEntryId],
   )
 
+  useEffect(() => {
+    activeIdRef.current = activeId
+  }, [activeId])
+
+  const rememberLastMessageId = useCallback((items) => {
+    lastMessageIdRef.current = items.reduce(
+      (maxId, message) => Math.max(maxId, Number(message.id) || 0),
+      0,
+    )
+  }, [])
+
   const loadContacts = useCallback(async () => {
-    const { data } = await api.get('/messenger/contacts')
-    setContacts(data)
+    const { data } = await api.get('/messenger/contacts', {
+      params: { include_efficiency: contactsHaveEfficiencyRef.current ? '0' : '1' },
+    })
+    setContacts((current) => {
+      const currentById = Object.fromEntries(current.map((contact) => [contact.id, contact]))
+      const merged = data.map((contact) => {
+        const existing = currentById[contact.id] || {}
+        return {
+          ...contact,
+          efficiency_rank: contact.efficiency_rank ?? existing.efficiency_rank,
+          efficiency_total: contact.efficiency_total ?? existing.efficiency_total,
+          efficiency_score: contact.efficiency_score ?? existing.efficiency_score,
+        }
+      })
+      if (merged.some((contact) => contact.efficiency_rank != null)) {
+        contactsHaveEfficiencyRef.current = true
+      }
+      return merged
+    })
     setActiveId((current) => {
       if (
         !requestedContactAppliedRef.current
@@ -192,12 +223,37 @@ export default function Messenger() {
   const loadMessages = useCallback(async (contactId) => {
     if (!contactId) {
       setMessages([])
+      lastMessageIdRef.current = 0
       return
     }
     const { data } = await api.get(`/messenger/messages/${contactId}`)
+    if (String(activeIdRef.current) !== String(contactId)) return
     setMessages(data)
+    rememberLastMessageId(data)
     window.dispatchEvent(new CustomEvent('messenger-updated'))
-  }, [])
+  }, [rememberLastMessageId])
+
+  const loadNewMessages = useCallback(async (contactId) => {
+    if (!contactId) return
+    const afterId = lastMessageIdRef.current
+    if (!afterId) {
+      await loadMessages(contactId)
+      return
+    }
+    const { data } = await api.get(`/messenger/messages/${contactId}`, {
+      params: { after_id: afterId },
+    })
+    if (String(activeIdRef.current) !== String(contactId) || !data.length) return
+    setMessages((current) => {
+      const seen = new Set(current.map((message) => message.id))
+      const additions = data.filter((message) => !seen.has(message.id))
+      if (!additions.length) return current
+      const next = [...current, ...additions]
+      rememberLastMessageId(next)
+      return next
+    })
+    window.dispatchEvent(new CustomEvent('messenger-updated'))
+  }, [loadMessages, rememberLastMessageId])
 
   const loadDiscussionEntries = useCallback(async (contactId) => {
     if (!contactId) {
@@ -219,6 +275,7 @@ export default function Messenger() {
     if (!activeId) return undefined
     let cancelled = false
     setSelectedEntryId('')
+    lastMessageIdRef.current = 0
     loadDiscussionEntries(activeId).then((entries) => {
       if (
         !cancelled
@@ -233,7 +290,7 @@ export default function Messenger() {
       }
     })
     loadMessages(activeId)
-    const interval = window.setInterval(() => loadMessages(activeId), 5000)
+    const interval = window.setInterval(() => loadNewMessages(activeId), 5000)
     return () => {
       cancelled = true
       window.clearInterval(interval)
@@ -242,6 +299,7 @@ export default function Messenger() {
     activeId,
     loadDiscussionEntries,
     loadMessages,
+    loadNewMessages,
     requestedContactId,
     requestedEntryId,
   ])
@@ -269,6 +327,7 @@ export default function Messenger() {
         entry_id: selectedEntryId ? Number(selectedEntryId) : null,
       })
       setMessages((current) => [...current, data])
+      lastMessageIdRef.current = Math.max(lastMessageIdRef.current, Number(data.id) || 0)
       setDraft('')
       setSelectedEntryId('')
       await loadContacts()

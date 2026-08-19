@@ -18,12 +18,29 @@ func (a *App) handleMessengerContacts(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	efficiency, err := a.userQueryService().EfficiencyMap(r.Context())
+	efficiency := map[int]domainusers.Efficiency{}
+	includeEfficiency := r.URL.Query().Get("include_efficiency")
+	if includeEfficiency != "0" && includeEfficiency != "false" {
+		efficiency, err = a.userQueryService().EfficiencyMap(r.Context())
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+	writeJSON(w, http.StatusOK, messengerContactsOut(contacts, efficiency))
+}
+
+func (a *App) handleMessengerUnreadCount(w http.ResponseWriter, r *http.Request) {
+	user, ok := requireUser(a, w, r)
+	if !ok {
+		return
+	}
+	count, err := a.messengerService().UnreadCount(r.Context(), domainUser(user))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, messengerContactsOut(contacts, efficiency))
+	writeJSON(w, http.StatusOK, MessengerUnreadOut{UnreadCount: count})
 }
 
 func (a *App) handleMessengerEntries(w http.ResponseWriter, r *http.Request) {
@@ -54,7 +71,17 @@ func (a *App) handleMessengerMessages(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "Пользователь не найден")
 		return
 	}
-	messages, err := a.messengerService().ConversationMessages(r.Context(), domainUser(user), contactID)
+	afterID, err := parseOptionalInt(r.URL.Query().Get("after_id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "Сообщение указано неверно")
+		return
+	}
+	var messages []domainmessenger.Message
+	if afterID != nil {
+		messages, err = a.messengerService().ConversationMessagesAfter(r.Context(), domainUser(user), contactID, *afterID)
+	} else {
+		messages, err = a.messengerService().ConversationMessages(r.Context(), domainUser(user), contactID)
+	}
 	if err != nil {
 		writeHTTPError(w, messengerContactHTTPError(err))
 		return

@@ -42,6 +42,77 @@ func (r Repository) CountUnread(ctx context.Context, userID int, contactID int) 
 	return count, err
 }
 
+func (r Repository) UnreadCount(ctx context.Context, userID int) (int, error) {
+	var count int
+	err := r.q.QueryRowContext(ctx, `SELECT COUNT(*) FROM direct_messages
+		WHERE recipient_id = ? AND read_at IS NULL AND deleted_at IS NULL`,
+		userID,
+	).Scan(&count)
+	return count, err
+}
+
+func (r Repository) ConversationSummaries(ctx context.Context, userID int, contactIDs []int) (map[int]domainmessenger.ConversationSummary, error) {
+	summaries := map[int]domainmessenger.ConversationSummary{}
+	if len(contactIDs) == 0 {
+		return summaries, nil
+	}
+	args := []any{userID, userID}
+	for _, id := range contactIDs {
+		args = append(args, id)
+	}
+	args = append(args, userID)
+	for _, id := range contactIDs {
+		args = append(args, id)
+	}
+	args = append(args, userID)
+	rows, err := r.q.QueryContext(ctx, `WITH scoped AS (
+			SELECT
+				CASE WHEN m.sender_id = ? THEN m.recipient_id ELSE m.sender_id END AS contact_id,
+				m.id, m.sender_id, m.recipient_id, m.entry_id, m.body, m.created_at, m.read_at, m.deleted_at,
+				u.full_name
+			FROM direct_messages m
+			LEFT JOIN users u ON u.id = m.sender_id
+			WHERE (m.sender_id = ? AND m.recipient_id IN (`+placeholders(len(contactIDs))+`))
+				OR (m.recipient_id = ? AND m.sender_id IN (`+placeholders(len(contactIDs))+`))
+		),
+		ranked AS (
+			SELECT
+				scoped.*,
+				ROW_NUMBER() OVER (PARTITION BY contact_id ORDER BY created_at DESC, id DESC) AS row_number,
+				SUM(CASE WHEN recipient_id = ? AND read_at IS NULL AND deleted_at IS NULL THEN 1 ELSE 0 END)
+					OVER (PARTITION BY contact_id) AS unread_count
+			FROM scoped
+		)
+		SELECT contact_id, unread_count,
+			id, sender_id, recipient_id, entry_id, body, created_at, read_at, deleted_at, full_name
+		FROM ranked
+		WHERE row_number = 1`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var contactID int
+		var unreadCount int
+		message, err := scanSummaryMessage(rows, &contactID, &unreadCount)
+		if err != nil {
+			return nil, err
+		}
+		summary := domainmessenger.ConversationSummary{
+			ContactID:          contactID,
+			UnreadCount:        unreadCount,
+			LastMessageAt:      &message.CreatedAt,
+			LastMessageDeleted: message.DeletedAt != nil,
+		}
+		if message.DeletedAt == nil {
+			summary.LastMessage = message.Body
+		}
+		summaries[contactID] = summary
+	}
+	return summaries, rows.Err()
+}
+
 func (r Repository) ListEntries(ctx context.Context, officerID int, limit int) ([]domainmessenger.Entry, error) {
 	rows, err := r.q.QueryContext(ctx, messengerEntrySelect+` WHERE e.officer_id = ? AND e.quantity > 0 ORDER BY e.date DESC, e.id DESC LIMIT ?`,
 		officerID, limit,
@@ -93,6 +164,32 @@ func (r Repository) ConversationMessages(ctx context.Context, userID int, contac
 	}
 	for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
 		messages[i], messages[j] = messages[j], messages[i]
+	}
+	if err := r.attachEntries(ctx, messages); err != nil {
+		return nil, err
+	}
+	return messages, nil
+}
+
+func (r Repository) ConversationMessagesAfter(ctx context.Context, userID int, contactID int, afterID int) ([]domainmessenger.Message, error) {
+	rows, err := r.q.QueryContext(ctx, messageSelect+conversationWhereSQL()+` AND m.id > ? ORDER BY m.id ASC LIMIT 200`,
+		userID, contactID, contactID, userID, afterID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var messages []domainmessenger.Message
+	for rows.Next() {
+		message, err := scanMessage(rows)
+		if err != nil {
+			return nil, err
+		}
+		messages = append(messages, message)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	if err := r.attachEntries(ctx, messages); err != nil {
 		return nil, err
@@ -161,15 +258,49 @@ func (r Repository) DeleteMessage(ctx context.Context, id int, deletedAt time.Ti
 }
 
 func (r Repository) attachEntries(ctx context.Context, messages []domainmessenger.Message) error {
+	entryIDs := map[int]bool{}
 	for i := range messages {
 		if messages[i].EntryID == nil {
 			continue
 		}
-		entry, err := r.entryByIDNoError(ctx, *messages[i].EntryID)
+		entryIDs[*messages[i].EntryID] = true
+	}
+	if len(entryIDs) == 0 {
+		return nil
+	}
+	ids := make([]int, 0, len(entryIDs))
+	args := make([]any, 0, len(entryIDs))
+	for id := range entryIDs {
+		ids = append(ids, id)
+		args = append(args, id)
+	}
+	rows, err := r.q.QueryContext(ctx, messengerEntrySelect+` WHERE e.id IN (`+placeholders(len(ids))+`)`, args...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	entries := map[int]domainmessenger.Entry{}
+	for rows.Next() {
+		entry, err := scanEntry(rows)
 		if err != nil {
 			return err
 		}
-		messages[i].Entry = entry
+		entries[entry.ID] = entry
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for i := range messages {
+		if messages[i].EntryID == nil {
+			continue
+		}
+		entry, ok := entries[*messages[i].EntryID]
+		if !ok {
+			continue
+		}
+		entryCopy := entry
+		messages[i].Entry = &entryCopy
 	}
 	return nil
 }
@@ -188,12 +319,46 @@ func (r Repository) entryByIDNoError(ctx context.Context, id int) (*domainmessen
 func scanMessage(scanner interface {
 	Scan(dest ...any) error
 }) (domainmessenger.Message, error) {
+	return scanMessageFields(scanner)
+}
+
+func scanSummaryMessage(scanner interface {
+	Scan(dest ...any) error
+}, contactID *int, unreadCount *int) (domainmessenger.Message, error) {
+	var message domainmessenger.Message
+	var entryID sql.NullInt64
+	var createdAt, readAt, deletedAt sql.NullString
+	if err := scanner.Scan(
+		contactID,
+		unreadCount,
+		&message.ID,
+		&message.SenderID,
+		&message.RecipientID,
+		&entryID,
+		&message.Body,
+		&createdAt,
+		&readAt,
+		&deletedAt,
+		&message.SenderName,
+	); err != nil {
+		return domainmessenger.Message{}, err
+	}
+	return completeMessage(message, entryID, createdAt, readAt, deletedAt), nil
+}
+
+func scanMessageFields(scanner interface {
+	Scan(dest ...any) error
+}) (domainmessenger.Message, error) {
 	var message domainmessenger.Message
 	var entryID sql.NullInt64
 	var createdAt, readAt, deletedAt sql.NullString
 	if err := scanner.Scan(&message.ID, &message.SenderID, &message.RecipientID, &entryID, &message.Body, &createdAt, &readAt, &deletedAt, &message.SenderName); err != nil {
 		return domainmessenger.Message{}, err
 	}
+	return completeMessage(message, entryID, createdAt, readAt, deletedAt), nil
+}
+
+func completeMessage(message domainmessenger.Message, entryID sql.NullInt64, createdAt sql.NullString, readAt sql.NullString, deletedAt sql.NullString) domainmessenger.Message {
 	if entryID.Valid {
 		id := int(entryID.Int64)
 		message.EntryID = &id
@@ -205,7 +370,7 @@ func scanMessage(scanner interface {
 	}
 	message.ReadAt = parseDBTime(readAt)
 	message.DeletedAt = parseDBTime(deletedAt)
-	return message, nil
+	return message
 }
 
 func scanEntry(scanner interface {

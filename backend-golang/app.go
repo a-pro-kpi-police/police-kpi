@@ -95,6 +95,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("POST /api/notifications/read-all", a.handleMarkAllNotificationsRead)
 
 	mux.HandleFunc("GET /api/messenger/contacts", a.handleMessengerContacts)
+	mux.HandleFunc("GET /api/messenger/unread-count", a.handleMessengerUnreadCount)
 	mux.HandleFunc("GET /api/messenger/entries/{contact_id}", a.handleMessengerEntries)
 	mux.HandleFunc("GET /api/messenger/messages/{contact_id}", a.handleMessengerMessages)
 	mux.HandleFunc("POST /api/messenger/messages", a.handleSendMessage)

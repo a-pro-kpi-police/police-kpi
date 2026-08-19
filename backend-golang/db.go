@@ -224,6 +224,8 @@ func createSchema(db *Store) error {
 		)`, idType),
 		`CREATE INDEX IF NOT EXISTS ix_direct_messages_sender_recipient ON direct_messages(sender_id, recipient_id, created_at)`,
 		`CREATE INDEX IF NOT EXISTS ix_direct_messages_recipient_read ON direct_messages(recipient_id, read_at, deleted_at)`,
+		`CREATE INDEX IF NOT EXISTS ix_direct_messages_recipient_unread ON direct_messages(recipient_id, read_at, deleted_at, id)`,
+		`CREATE INDEX IF NOT EXISTS ix_direct_messages_conversation_id ON direct_messages(sender_id, recipient_id, id)`,
 	}
 	for _, stmt := range statements {
 		if _, err := db.ExecContext(context.Background(), stmt); err != nil {

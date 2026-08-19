@@ -265,6 +265,10 @@ type MessengerContactOut struct {
 	EfficiencyScore    *float64   `json:"efficiency_score"`
 }
 
+type MessengerUnreadOut struct {
+	UnreadCount int `json:"unread_count"`
+}
+
 type MessageCreate struct {
 	RecipientID int    `json:"recipient_id"`
 	Body        string `json:"body"`
