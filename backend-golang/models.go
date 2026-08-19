@@ -56,6 +56,21 @@ type OfficerOut struct {
 	EfficiencyScore float64   `json:"efficiency_score"`
 }
 
+type RatingOfficerOut struct {
+	OfficerID       int     `json:"officer_id"`
+	Name            string  `json:"name"`
+	Rank            string  `json:"rank"`
+	District        string  `json:"district"`
+	DistrictID      int     `json:"district_id"`
+	Final           float64 `json:"final"`
+	Confirmed       int     `json:"confirmed"`
+	Pending         int     `json:"pending"`
+	CategoryScore   float64 `json:"category_score"`
+	EfficiencyRank  int     `json:"efficiency_rank"`
+	EfficiencyTotal int     `json:"efficiency_total"`
+	EfficiencyScore float64 `json:"efficiency_score"`
+}
+
 type CatalogItem struct {
 	ID            int     `json:"id"`
 	Code          string  `json:"code"`

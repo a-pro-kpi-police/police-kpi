@@ -82,30 +82,27 @@ export default function Officers() {
 
   useEffect(() => {
     const params = month ? { month } : {}
-    Promise.all([
-      api.get('/dashboard', { params }),
-      api.get('/officers'),
-    ]).then(([dashboardResponse, directoryResponse]) => {
-      const dashboardById = Object.fromEntries(
-        dashboardResponse.data.officers.map((officer) => [officer.officer_id, officer]),
-      )
+    api.get('/rating', { params }).then(({ data }) => {
       const directoryById = Object.fromEntries(
-        directoryResponse.data.map((officer) => [officer.id, officer]),
+        data.map((officer) => [officer.officer_id, {
+          efficiency_rank: officer.efficiency_rank,
+          efficiency_total: officer.efficiency_total,
+          efficiency_score: officer.efficiency_score,
+        }]),
       )
       setProfileStats(directoryById)
-      const officerRows = directoryResponse.data
-        .map((profile) => {
-          const dashboard = dashboardById[profile.id] || {}
-          const finalScore = Number(dashboard.final) || 0
+      const officerRows = data
+        .map((officer) => {
+          const finalScore = Number(officer.final) || 0
           return {
-            officer_id: profile.id,
-            name: profile.full_name,
-            rank: profile.rank,
-            district: profile.district?.name || '',
-            district_id: profile.district?.id || '',
+            officer_id: officer.officer_id,
+            name: officer.name,
+            rank: officer.rank,
+            district: officer.district || '',
+            district_id: officer.district_id || '',
             final: finalScore,
-            confirmed: Number(dashboard.confirmed) || 0,
-            pending: Number(dashboard.pending) || 0,
+            confirmed: Number(officer.confirmed) || 0,
+            pending: Number(officer.pending) || 0,
             category_score: finalScore,
           }
         })

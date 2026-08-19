@@ -72,6 +72,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /api/catalog", a.handleCatalog)
 	mux.HandleFunc("GET /api/districts", a.handleDistricts)
 	mux.HandleFunc("GET /api/officers", a.handleOfficers)
+	mux.HandleFunc("GET /api/rating", a.handleRating)
 	mux.HandleFunc("GET /api/months", a.handleMonths)
 
 	mux.HandleFunc("GET /api/entries", a.handleListEntries)
