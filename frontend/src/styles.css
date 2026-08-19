@@ -15,7 +15,17 @@
   --chart-hover: rgba(30, 77, 140, .07);
 }
 
-html { color-scheme: light; }
+html {
+  color-scheme: light;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+html,
+body,
+#root {
+  width: 100%;
+  min-width: 0;
+}
 html[data-theme='dark'] {
   color-scheme: dark;
   --navy: #dce8f4;
@@ -2271,6 +2281,29 @@ html.theme-root-animating #root {
   .toast {
     min-width: 0;
     max-width: none;
+  }
+
+  .login-page {
+    min-height: 100dvh;
+    background-attachment: scroll;
+    padding: 16px;
+  }
+
+  .login-card {
+    max-width: min(400px, 100%);
+    padding: 32px 22px;
+  }
+
+  .login-card input,
+  .select,
+  .name-combobox-input,
+  .kpi-combobox-input,
+  .modal select,
+  .modal input,
+  .modal textarea,
+  .messenger-compose textarea,
+  .messenger-compose-reference-picker select {
+    font-size: 16px;
   }
 
   .page { padding: 16px; }
