@@ -48,6 +48,71 @@ func dashboardOut(report domaindashboard.Report) map[string]any {
 		"status_trend":                 dashboardStatusTrendOut(report.StatusTrend),
 		"indicator_volume":             dashboardIndicatorVolumeOut(report.IndicatorVolume),
 		"district_review":              dashboardDistrictReviewOut(report.DistrictReview),
+		"comparisons":                  dashboardComparisonOut(report.Comparisons),
+		"inactive_officers":            dashboardInactiveOfficersOut(report.InactiveOfficers),
+		"monthly_limit_impact":         dashboardMonthlyLimitImpactOut(report.MonthlyLimitImpact),
+		"exceeded_limits":              dashboardExceededLimitsOut(report.ExceededLimits),
+		"critical_indicator_impact":    dashboardCriticalIndicatorImpactOut(report.CriticalIndicatorImpact),
+	}
+}
+
+func dashboardComparisonOut(comparison domaindashboard.Comparison) map[string]any {
+	return map[string]any{
+		"focusScore":         comparison.FocusScore,
+		"currentScore":       comparison.CurrentScore,
+		"baseline":           comparison.Baseline,
+		"previousMonthCount": comparison.PreviousMonthCount,
+		"currentMonth":       comparison.CurrentMonth,
+		"rank":               comparison.Rank,
+		"officerCount":       comparison.OfficerCount,
+		"peerAverage":        comparison.PeerAverage,
+		"relativePercent":    comparison.RelativePercent,
+		"history":            dashboardComparisonHistoryOut(comparison.History),
+	}
+}
+
+func dashboardComparisonHistoryOut(rows []domaindashboard.ComparisonHistoryRow) []map[string]any {
+	result := make([]map[string]any, 0, len(rows))
+	for _, row := range rows {
+		result = append(result, map[string]any{"month": row.Month, "score": row.Score})
+	}
+	return result
+}
+
+func dashboardInactiveOfficersOut(inactive domaindashboard.InactiveOfficers) map[string]any {
+	return map[string]any{"count": inactive.Count, "total": inactive.Total}
+}
+
+func dashboardMonthlyLimitImpactOut(impact domaindashboard.MonthlyLimitImpact) map[string]any {
+	return map[string]any{
+		"reported":          impact.Reported,
+		"counted":           impact.Counted,
+		"excluded":          impact.Excluded,
+		"affected_records":  impact.AffectedRecords,
+		"affected_officers": impact.AffectedOfficers,
+	}
+}
+
+func dashboardExceededLimitsOut(rows []domaindashboard.ExceededLimitRow) []map[string]any {
+	result := make([]map[string]any, 0, len(rows))
+	for _, row := range rows {
+		result = append(result, map[string]any{
+			"code":              row.Code,
+			"indicator":         row.Indicator,
+			"reported":          row.Reported,
+			"counted":           row.Counted,
+			"excluded":          row.Excluded,
+			"affected_officers": row.AffectedOfficers,
+		})
+	}
+	return result
+}
+
+func dashboardCriticalIndicatorImpactOut(impact domaindashboard.CriticalIndicatorImpact) map[string]any {
+	return map[string]any{
+		"records":  impact.Records,
+		"officers": impact.Officers,
+		"quantity": impact.Quantity,
 	}
 }
 

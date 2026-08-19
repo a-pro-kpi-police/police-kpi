@@ -248,6 +248,42 @@ func (r Repository) ActualsByCatalog(ctx context.Context, officerID int, month s
 	return actuals, rows.Err()
 }
 
+func (r Repository) ActualsByOfficerCatalog(ctx context.Context, officerIDs []int, month string) (map[int]map[int]domaintargets.Actual, error) {
+	actuals := map[int]map[int]domaintargets.Actual{}
+	if len(officerIDs) == 0 {
+		return actuals, nil
+	}
+	args := []any{month, "confirmed"}
+	for _, id := range officerIDs {
+		args = append(args, id)
+	}
+	rows, err := r.q.QueryContext(ctx, `SELECT officer_id, catalog_id, SUM(quantity), SUM(counted_quantity), SUM(final_score)
+		FROM kpi_entries
+		WHERE month = ? AND status = ? AND officer_id IN (`+placeholders(len(officerIDs))+`)
+		GROUP BY officer_id, catalog_id`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var officerID, catalogID int
+		var quantity, counted, score sql.NullFloat64
+		if err := rows.Scan(&officerID, &catalogID, &quantity, &counted, &score); err != nil {
+			return nil, err
+		}
+		if actuals[officerID] == nil {
+			actuals[officerID] = map[int]domaintargets.Actual{}
+		}
+		actuals[officerID][catalogID] = domaintargets.Actual{
+			Quantity:        quantity.Float64,
+			CountedQuantity: counted.Float64,
+			Score:           score.Float64,
+		}
+	}
+	return actuals, rows.Err()
+}
+
 func (r Repository) PenaltiesByOfficer(ctx context.Context, month string, officerIDs []int) (map[int]domaintargets.Penalty, error) {
 	penalties := map[int]domaintargets.Penalty{}
 	if len(officerIDs) == 0 {

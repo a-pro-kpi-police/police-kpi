@@ -31,195 +31,6 @@ const CHART_CURSOR = { fill: 'var(--chart-hover)' }
 const DONUT_RADIUS = 40
 const DONUT_STROKE_WIDTH = 17
 
-function buildComparisons(entries, selectedMonth, officerId, officerDirectory = []) {
-  const periodEntries = selectedMonth ? entries.filter((entry) => entry.month === selectedMonth) : entries
-  const byOfficer = {}
-
-  for (const officer of officerDirectory) {
-    byOfficer[officer.officer_id] = {
-      officer_id: officer.officer_id,
-      name: officer.name,
-      score: 0,
-    }
-  }
-
-  for (const entry of periodEntries) {
-    if (!byOfficer[entry.officer_id]) {
-      byOfficer[entry.officer_id] = {
-        officer_id: entry.officer_id,
-        name: entry.officer_name,
-        score: 0,
-      }
-    }
-    const item = byOfficer[entry.officer_id]
-    if (entry.status === 'confirmed') {
-      item.score += entry.final_score
-    }
-  }
-
-  const officers = Object.values(byOfficer)
-  const selected = officers.find((item) => String(item.officer_id) === String(officerId))
-  const selectedScore = selected?.score || 0
-  const selectedRank = officerId && selected
-    ? 1 + officers.filter((item) => item.score > selectedScore).length
-    : null
-  const peerScores = officerId
-    ? officers
-      .filter((item) => String(item.officer_id) !== String(officerId))
-      .map((item) => item.score)
-    : []
-  const peerAverage = peerScores.length
-    ? peerScores.reduce((sum, score) => sum + score, 0) / peerScores.length
-    : 0
-  const relativePercent = peerScores.length && peerAverage !== 0
-    ? ((selectedScore - peerAverage) / Math.abs(peerAverage)) * 100
-    : (peerScores.length && selectedScore === 0 ? 0 : null)
-  const focusScore = officerId
-    ? selectedScore
-    : (officers.length ? officers.reduce((sum, item) => sum + item.score, 0) / officers.length : 0)
-
-  const focusHistory = officerId
-    ? entries.filter((entry) => String(entry.officer_id) === String(officerId))
-    : entries
-  const currentMonth = selectedMonth || [...new Set(focusHistory.map((entry) => entry.month))].sort().at(-1) || ''
-  const scoresByMonth = {}
-  for (const entry of focusHistory) {
-    if (!(entry.month in scoresByMonth)) scoresByMonth[entry.month] = 0
-    if (entry.status !== 'confirmed') continue
-    scoresByMonth[entry.month] = (scoresByMonth[entry.month] || 0) + entry.final_score
-  }
-  const baselineValues = Object.entries(scoresByMonth)
-    .filter(([month]) => month < currentMonth)
-    .map(([, score]) => score)
-  const currentScore = scoresByMonth[currentMonth] || 0
-  const baseline = baselineValues.length
-    ? baselineValues.reduce((sum, score) => sum + score, 0) / baselineValues.length
-    : 0
-
-  return {
-    focusScore: Number(focusScore.toFixed(2)),
-    currentScore: Number(currentScore.toFixed(2)),
-    baseline: Number(baseline.toFixed(2)),
-    previousMonthCount: baselineValues.length,
-    currentMonth,
-    rank: selectedRank,
-    officerCount: officers.length,
-    peerAverage: Number(peerAverage.toFixed(2)),
-    relativePercent: relativePercent === null ? null : Number(relativePercent.toFixed(1)),
-    history: Object.entries(scoresByMonth)
-      .map(([month, score]) => ({ month, score: Number(score.toFixed(2)) }))
-      .sort((a, b) => a.month.localeCompare(b.month)),
-  }
-}
-
-function roundMetric(value) {
-  return Number(value.toFixed(2))
-}
-
-function buildSupplementalCharts(entries, scopedOfficers = []) {
-  const months = {}
-  const indicators = {}
-  const reviews = {}
-  const exceededLimits = {}
-  const activeOfficerIds = new Set()
-  const limitAffectedOfficerIds = new Set()
-  const criticalOfficerIds = new Set()
-  let reportedQuantity = 0
-  let countedQuantity = 0
-  let limitAffectedRecords = 0
-  let criticalRecords = 0
-  let criticalQuantity = 0
-
-  for (const entry of entries) {
-    const quantity = Math.max(0, Number(entry.quantity) || 0)
-    const counted = Math.max(0, Number(entry.counted_quantity) || 0)
-    if (quantity > 0) activeOfficerIds.add(String(entry.officer_id))
-
-    if (!months[entry.month]) months[entry.month] = { confirmed: 0, pending: 0, rejected: 0 }
-    if (entry.status in months[entry.month]) months[entry.month][entry.status] += 1
-
-    const district = entry.district_name || '—'
-    const code = entry.code || '—'
-    if (!indicators[code]) indicators[code] = { code, indicator: entry.indicator || '—', quantity: 0 }
-    indicators[code].quantity += quantity
-
-    if (entry.status === 'pending' || entry.status === 'rejected') {
-      if (!reviews[district]) reviews[district] = { pending: 0, rejected: 0 }
-      reviews[district][entry.status] += 1
-    }
-
-    if (entry.status !== 'confirmed') continue
-
-    reportedQuantity += quantity
-    countedQuantity += counted
-
-    const excluded = Math.max(0, quantity - counted)
-    if (excluded > 0) {
-      limitAffectedRecords += 1
-      limitAffectedOfficerIds.add(String(entry.officer_id))
-      if (!exceededLimits[code]) {
-        exceededLimits[code] = {
-          code,
-          indicator: entry.indicator || '—',
-          reported: 0,
-          counted: 0,
-          excluded: 0,
-          officerIds: new Set(),
-        }
-      }
-      exceededLimits[code].reported += quantity
-      exceededLimits[code].counted += counted
-      exceededLimits[code].excluded += excluded
-      exceededLimits[code].officerIds.add(String(entry.officer_id))
-    }
-
-    if (entry.is_critical && quantity > 0) {
-      criticalRecords += 1
-      criticalQuantity += quantity
-      criticalOfficerIds.add(String(entry.officer_id))
-    }
-  }
-
-  return {
-    status_trend: Object.entries(months)
-      .map(([month, counts]) => ({ month, ...counts }))
-      .sort((a, b) => a.month.localeCompare(b.month)),
-    indicator_volume: Object.values(indicators)
-      .map((item) => ({ ...item, quantity: Number(item.quantity.toFixed(2)) }))
-      .sort((a, b) => b.quantity - a.quantity),
-    district_review: Object.entries(reviews)
-      .map(([district, counts]) => ({ district, ...counts }))
-      .sort((a, b) => (b.pending + b.rejected) - (a.pending + a.rejected)),
-    inactive_officers: {
-      count: scopedOfficers.filter((item) => !activeOfficerIds.has(String(item.officer_id))).length,
-      total: scopedOfficers.length,
-    },
-    monthly_limit_impact: {
-      reported: roundMetric(reportedQuantity),
-      counted: roundMetric(countedQuantity),
-      excluded: roundMetric(Math.max(0, reportedQuantity - countedQuantity)),
-      affected_records: limitAffectedRecords,
-      affected_officers: limitAffectedOfficerIds.size,
-    },
-    exceeded_limits: Object.values(exceededLimits)
-      .map((item) => ({
-        code: item.code,
-        indicator: item.indicator,
-        reported: roundMetric(item.reported),
-        counted: roundMetric(item.counted),
-        excluded: roundMetric(item.excluded),
-        affected_officers: item.officerIds.size,
-      }))
-      .sort((a, b) => b.excluded - a.excluded || b.affected_officers - a.affected_officers)
-      .slice(0, 5),
-    critical_indicator_impact: {
-      records: criticalRecords,
-      officers: criticalOfficerIds.size,
-      quantity: roundMetric(criticalQuantity),
-    },
-  }
-}
-
 function StatCard({ label, value, accent }) {
   return (
     <div className="stat-card" style={{ borderTopColor: accent }}>
@@ -801,7 +612,7 @@ export default function Dashboard() {
     [district, lang, officers]
   )
 
-  const load = async (m, oid, did, officerDirectory = officers, availableMonths = months) => {
+  const load = async (m, oid, did, availableMonths = months) => {
     const params = {}
     if (m) params.month = m
     if (oid) params.officer_id = oid
@@ -809,29 +620,12 @@ export default function Dashboard() {
     const targetParams = { ...params }
     const targetMonth = m || availableMonths[0] || ''
     if (targetMonth) targetParams.month = targetMonth
-    const [dashboardResponse, allEntriesResponse, targetOverviewResponse] = await Promise.all([
+    const [dashboardResponse, targetOverviewResponse] = await Promise.all([
       api.get('/dashboard', { params }),
-      api.get('/entries'),
       api.get('/target-overview', { params: targetParams }),
     ])
-    const districtOfficerIds = new Set(
-      officerDirectory
-        .filter((item) => !did || String(item.districtId) === String(did))
-        .map((item) => String(item.officer_id))
-    )
-    const comparisonEntries = allEntriesResponse.data.filter((entry) => (
-      !did || districtOfficerIds.has(String(entry.officer_id))
-    ))
-    const filteredEntries = comparisonEntries.filter((entry) =>
-      (!m || entry.month === m) && (!oid || String(entry.officer_id) === String(oid)))
-    const comparisonDirectory = did
-      ? officerDirectory.filter((item) => String(item.districtId) === String(did))
-      : officerDirectory
-    setData({
-      ...dashboardResponse.data,
-      ...buildSupplementalCharts(filteredEntries, dashboardResponse.data.officers || []),
-    })
-    setComparisons(buildComparisons(comparisonEntries, m, oid, comparisonDirectory))
+    setData(dashboardResponse.data)
+    setComparisons(dashboardResponse.data.comparisons)
     setTargetOverview(targetOverviewResponse.data)
   }
 
@@ -860,7 +654,7 @@ export default function Dashboard() {
         totalScore: item.efficiency_score,
       }))
       setOfficers(directory)
-      return load(initialMonth, officerId, '', directory, monthsResponse.data)
+      return load(initialMonth, officerId, '', monthsResponse.data)
     }).finally(() => setReady(true))
   }, [])
 

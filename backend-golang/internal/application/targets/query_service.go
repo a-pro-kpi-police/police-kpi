@@ -14,6 +14,7 @@ type TargetQueryRepository interface {
 	OfficerTargetQuantities(ctx context.Context, officerID int, month string) (map[int]float64, error)
 	GroupTargetQuantities(ctx context.Context, officerIDs []int, month string) (map[int]map[int]float64, error)
 	ActualsByCatalog(ctx context.Context, officerID int, month string) (map[int]domaintargets.Actual, error)
+	ActualsByOfficerCatalog(ctx context.Context, officerIDs []int, month string) (map[int]map[int]domaintargets.Actual, error)
 	PenaltiesByOfficer(ctx context.Context, month string, officerIDs []int) (map[int]domaintargets.Penalty, error)
 }
 
@@ -101,16 +102,26 @@ func (s QueryService) Overview(ctx context.Context, filter domaintargets.Overvie
 		}
 	}
 
-	penalties, err := s.repo.PenaltiesByOfficer(ctx, filter.Month, officerIDs(officers))
+	ids := officerIDs(officers)
+	penalties, err := s.repo.PenaltiesByOfficer(ctx, filter.Month, ids)
+	if err != nil {
+		return domaintargets.Overview{}, err
+	}
+	catalog, err := s.repo.ListActivePositiveCatalog(ctx)
+	if err != nil {
+		return domaintargets.Overview{}, err
+	}
+	quantities, err := s.repo.GroupTargetQuantities(ctx, ids, filter.Month)
+	if err != nil {
+		return domaintargets.Overview{}, err
+	}
+	actuals, err := s.repo.ActualsByOfficerCatalog(ctx, ids, filter.Month)
 	if err != nil {
 		return domaintargets.Overview{}, err
 	}
 	inputs := make([]domaintargets.OverviewInput, 0, len(officers))
 	for _, officer := range officers {
-		progress, err := s.progressForOfficer(ctx, officer, filter.Month)
-		if err != nil {
-			return domaintargets.Overview{}, err
-		}
+		progress := s.progressForOfficerData(officer, filter.Month, catalog, quantities[officer.ID], actuals[officer.ID])
 		inputs = append(inputs, domaintargets.OverviewInput{
 			OfficerID: officer.ID,
 			Name:      officer.FullName,
@@ -147,6 +158,21 @@ func (s QueryService) progressForOfficer(ctx context.Context, officer domaintarg
 		return domaintargets.Progress{}, err
 	}
 	return s.policy.BuildProgress(month, officer.ID, officer.MonthlyNorm, targets, actuals), nil
+}
+
+func (s QueryService) progressForOfficerData(
+	officer domaintargets.Officer,
+	month string,
+	catalog []domaintargets.CatalogItem,
+	quantities map[int]float64,
+	actuals map[int]domaintargets.Actual,
+) domaintargets.Progress {
+	coeff := 1.0
+	if officer.District != nil {
+		coeff = officer.District.Coeff
+	}
+	targets := s.policy.BuildTargets(catalog, quantities, coeff)
+	return s.policy.BuildProgress(month, officer.ID, officer.MonthlyNorm, targets, actuals)
 }
 
 func officerIDs(officers []domaintargets.Officer) []int {

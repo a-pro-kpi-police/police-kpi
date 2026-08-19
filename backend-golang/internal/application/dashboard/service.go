@@ -39,7 +39,24 @@ func (s Service) BuildDashboard(ctx context.Context, filter domaindashboard.Filt
 	if err != nil {
 		return domaindashboard.Report{}, err
 	}
-	return s.policy.BuildReport(entries, dashboardOfficers(officers), blocks, filter), nil
+	reportOfficers := dashboardOfficers(officers)
+	report := s.policy.BuildReport(entries, reportOfficers, blocks, filter)
+
+	comparisonEntries := entries
+	if filter.Month != "" || filter.OfficerID != nil {
+		comparisonFilter := domaindashboard.Filter{DistrictID: filter.DistrictID}
+		comparisonEntries, err = s.repo.ListEntries(ctx, comparisonFilter)
+		if err != nil {
+			return domaindashboard.Report{}, err
+		}
+	}
+	report.Comparisons = s.policy.BuildComparison(
+		comparisonEntries,
+		filter.Month,
+		filter.OfficerID,
+		reportOfficers,
+	)
+	return report, nil
 }
 
 func dashboardOfficers(users []domainusers.User) []domaindashboard.Officer {

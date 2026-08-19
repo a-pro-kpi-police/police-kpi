@@ -85,10 +85,12 @@ func scanEntry(scanner interface {
 	var entry domaindashboard.Entry
 	var officerName, officerRank, officerDistrict sql.NullString
 	var catalogCode, catalogIndicator, catalogBlock sql.NullString
+	var isCritical int
 	err := scanner.Scan(
 		&entry.Month,
 		&entry.OfficerID,
 		&entry.Quantity,
+		&entry.CountedQuantity,
 		&entry.PointsPerUnit,
 		&entry.RawScore,
 		&entry.FinalScore,
@@ -99,6 +101,7 @@ func scanEntry(scanner interface {
 		&catalogCode,
 		&catalogIndicator,
 		&catalogBlock,
+		&isCritical,
 	)
 	entry.OfficerName = officerName.String
 	entry.OfficerRank = officerRank.String
@@ -106,13 +109,14 @@ func scanEntry(scanner interface {
 	entry.CatalogCode = catalogCode.String
 	entry.CatalogIndicator = catalogIndicator.String
 	entry.CatalogBlock = catalogBlock.String
+	entry.IsCritical = isCritical != 0
 	return entry, err
 }
 
 const dashboardEntrySelect = `SELECT
-	e.month, e.officer_id, e.quantity, e.points_per_unit, e.raw_score, e.final_score, e.status,
+	e.month, e.officer_id, e.quantity, e.counted_quantity, e.points_per_unit, e.raw_score, e.final_score, e.status,
 	u.full_name, u.rank, d.name,
-	c.code, c.indicator, c.block
+	c.code, c.indicator, c.block, c.is_critical
 FROM kpi_entries e
 LEFT JOIN users u ON u.id = e.officer_id
 LEFT JOIN districts d ON d.id = u.district_id

@@ -23,6 +23,7 @@ type Entry struct {
 	Month            string
 	OfficerID        int
 	Quantity         float64
+	CountedQuantity  float64
 	PointsPerUnit    float64
 	RawScore         float64
 	FinalScore       float64
@@ -33,6 +34,7 @@ type Entry struct {
 	CatalogCode      string
 	CatalogIndicator string
 	CatalogBlock     string
+	IsCritical       bool
 }
 
 type Officer struct {
@@ -57,6 +59,11 @@ type Report struct {
 	StatusTrend               []StatusTrendRow
 	IndicatorVolume           []IndicatorVolumeRow
 	DistrictReview            []DistrictReviewRow
+	Comparisons               Comparison
+	InactiveOfficers          InactiveOfficers
+	MonthlyLimitImpact        MonthlyLimitImpact
+	ExceededLimits            []ExceededLimitRow
+	CriticalIndicatorImpact   CriticalIndicatorImpact
 }
 
 type OfficerRow struct {
@@ -100,6 +107,52 @@ type DistrictReviewRow struct {
 	Rejected int
 }
 
+type Comparison struct {
+	FocusScore         float64
+	CurrentScore       float64
+	Baseline           float64
+	PreviousMonthCount int
+	CurrentMonth       string
+	Rank               *int
+	OfficerCount       int
+	PeerAverage        float64
+	RelativePercent    *float64
+	History            []ComparisonHistoryRow
+}
+
+type ComparisonHistoryRow struct {
+	Month string
+	Score float64
+}
+
+type InactiveOfficers struct {
+	Count int
+	Total int
+}
+
+type MonthlyLimitImpact struct {
+	Reported         float64
+	Counted          float64
+	Excluded         float64
+	AffectedRecords  int
+	AffectedOfficers int
+}
+
+type ExceededLimitRow struct {
+	Code             string
+	Indicator        string
+	Reported         float64
+	Counted          float64
+	Excluded         float64
+	AffectedOfficers int
+}
+
+type CriticalIndicatorImpact struct {
+	Records  int
+	Officers int
+	Quantity float64
+}
+
 type Policy struct{}
 
 func NewPolicy() Policy {
@@ -132,6 +185,7 @@ func (Policy) BuildReport(entries []Entry, officers []Officer, catalogBlocks []s
 	}
 
 	officerRows := buildOfficerRows(activeEntries, officers, filter)
+	supplemental := buildSupplementalRows(activeEntries, confirmed, officerRows)
 	blockRows := buildBlockRows(confirmed, catalogBlocks)
 	trendRows := buildTrendRows(confirmed)
 	statusTrendRows := buildStatusTrendRows(activeEntries)
@@ -171,6 +225,289 @@ func (Policy) BuildReport(entries []Entry, officers []Officer, catalogBlocks []s
 		StatusTrend:               statusTrendRows,
 		IndicatorVolume:           indicatorRows,
 		DistrictReview:            districtReviewRows,
+		InactiveOfficers:          supplemental.InactiveOfficers,
+		MonthlyLimitImpact:        supplemental.MonthlyLimitImpact,
+		ExceededLimits:            supplemental.ExceededLimits,
+		CriticalIndicatorImpact:   supplemental.CriticalIndicatorImpact,
+	}
+}
+
+func (Policy) BuildComparison(entries []Entry, selectedMonth string, officerID *int, officers []Officer) Comparison {
+	activeEntries := make([]Entry, 0, len(entries))
+	for _, entry := range entries {
+		if entry.Quantity > 0 {
+			activeEntries = append(activeEntries, entry)
+		}
+	}
+	entries = activeEntries
+
+	periodEntries := entries
+	if selectedMonth != "" {
+		periodEntries = make([]Entry, 0, len(entries))
+		for _, entry := range entries {
+			if entry.Month == selectedMonth {
+				periodEntries = append(periodEntries, entry)
+			}
+		}
+	}
+
+	type comparisonOfficer struct {
+		ID    int
+		Name  string
+		Score float64
+	}
+	byOfficer := map[int]*comparisonOfficer{}
+	for _, officer := range officers {
+		byOfficer[officer.ID] = &comparisonOfficer{
+			ID:   officer.ID,
+			Name: officer.FullName,
+		}
+	}
+	for _, entry := range periodEntries {
+		officer := byOfficer[entry.OfficerID]
+		if officer == nil {
+			officer = &comparisonOfficer{ID: entry.OfficerID}
+			byOfficer[entry.OfficerID] = officer
+		}
+		if entry.OfficerName != "" {
+			officer.Name = entry.OfficerName
+		}
+		if entry.Status == StatusConfirmed {
+			officer.Score += entry.FinalScore
+		}
+	}
+
+	officerScores := make([]comparisonOfficer, 0, len(byOfficer))
+	for _, officer := range byOfficer {
+		officerScores = append(officerScores, *officer)
+	}
+
+	selectedScore := 0.0
+	selectedFound := false
+	if officerID != nil {
+		if selected := byOfficer[*officerID]; selected != nil {
+			selectedScore = selected.Score
+			selectedFound = true
+		}
+	}
+
+	var rank *int
+	if officerID != nil && selectedFound {
+		value := 1
+		for _, officer := range officerScores {
+			if officer.Score > selectedScore {
+				value++
+			}
+		}
+		rank = &value
+	}
+
+	peerScores := []float64{}
+	if officerID != nil {
+		for _, officer := range officerScores {
+			if officer.ID != *officerID {
+				peerScores = append(peerScores, officer.Score)
+			}
+		}
+	}
+	peerAverage := 0.0
+	if len(peerScores) > 0 {
+		for _, score := range peerScores {
+			peerAverage += score
+		}
+		peerAverage /= float64(len(peerScores))
+	}
+
+	var relativePercent *float64
+	if len(peerScores) > 0 && peerAverage != 0 {
+		value := round1(((selectedScore - peerAverage) / math.Abs(peerAverage)) * 100)
+		relativePercent = &value
+	} else if len(peerScores) > 0 && selectedScore == 0 {
+		value := 0.0
+		relativePercent = &value
+	}
+
+	focusScore := 0.0
+	if officerID != nil {
+		focusScore = selectedScore
+	} else if len(officerScores) > 0 {
+		for _, officer := range officerScores {
+			focusScore += officer.Score
+		}
+		focusScore /= float64(len(officerScores))
+	}
+
+	focusEntries := entries
+	if officerID != nil {
+		focusEntries = make([]Entry, 0, len(entries))
+		for _, entry := range entries {
+			if entry.OfficerID == *officerID {
+				focusEntries = append(focusEntries, entry)
+			}
+		}
+	}
+
+	currentMonth := selectedMonth
+	if currentMonth == "" {
+		for _, entry := range focusEntries {
+			if entry.Month > currentMonth {
+				currentMonth = entry.Month
+			}
+		}
+	}
+
+	scoresByMonth := map[string]float64{}
+	for _, entry := range focusEntries {
+		if _, ok := scoresByMonth[entry.Month]; !ok {
+			scoresByMonth[entry.Month] = 0
+		}
+		if entry.Status == StatusConfirmed {
+			scoresByMonth[entry.Month] += entry.FinalScore
+		}
+	}
+
+	baseline := 0.0
+	previousMonthCount := 0
+	for month, score := range scoresByMonth {
+		if currentMonth != "" && month < currentMonth {
+			baseline += score
+			previousMonthCount++
+		}
+	}
+	if previousMonthCount > 0 {
+		baseline /= float64(previousMonthCount)
+	}
+
+	months := make([]string, 0, len(scoresByMonth))
+	for month := range scoresByMonth {
+		months = append(months, month)
+	}
+	sort.Strings(months)
+	history := make([]ComparisonHistoryRow, 0, len(months))
+	for _, month := range months {
+		history = append(history, ComparisonHistoryRow{
+			Month: month,
+			Score: round2(scoresByMonth[month]),
+		})
+	}
+
+	return Comparison{
+		FocusScore:         round2(focusScore),
+		CurrentScore:       round2(scoresByMonth[currentMonth]),
+		Baseline:           round2(baseline),
+		PreviousMonthCount: previousMonthCount,
+		CurrentMonth:       currentMonth,
+		Rank:               rank,
+		OfficerCount:       len(officerScores),
+		PeerAverage:        round2(peerAverage),
+		RelativePercent:    relativePercent,
+		History:            history,
+	}
+}
+
+type supplementalRows struct {
+	InactiveOfficers        InactiveOfficers
+	MonthlyLimitImpact      MonthlyLimitImpact
+	ExceededLimits          []ExceededLimitRow
+	CriticalIndicatorImpact CriticalIndicatorImpact
+}
+
+func buildSupplementalRows(activeEntries []Entry, confirmed []Entry, officers []OfficerRow) supplementalRows {
+	activeOfficerIDs := map[int]bool{}
+	for _, entry := range activeEntries {
+		activeOfficerIDs[entry.OfficerID] = true
+	}
+
+	inactiveCount := 0
+	for _, officer := range officers {
+		if !activeOfficerIDs[officer.OfficerID] {
+			inactiveCount++
+		}
+	}
+
+	type limitAggregate struct {
+		Code       string
+		Indicator  string
+		Reported   float64
+		Counted    float64
+		Excluded   float64
+		OfficerIDs map[int]bool
+	}
+	exceededByCode := map[string]*limitAggregate{}
+	limitAffectedOfficerIDs := map[int]bool{}
+	criticalOfficerIDs := map[int]bool{}
+	monthly := MonthlyLimitImpact{}
+	critical := CriticalIndicatorImpact{}
+
+	for _, entry := range confirmed {
+		quantity := math.Max(0, entry.Quantity)
+		counted := math.Max(0, entry.CountedQuantity)
+		monthly.Reported += quantity
+		monthly.Counted += counted
+
+		excluded := math.Max(0, quantity-counted)
+		if excluded > 0 {
+			monthly.AffectedRecords++
+			limitAffectedOfficerIDs[entry.OfficerID] = true
+			code := label(entry.CatalogCode)
+			item := exceededByCode[code]
+			if item == nil {
+				item = &limitAggregate{
+					Code:       code,
+					Indicator:  label(entry.CatalogIndicator),
+					OfficerIDs: map[int]bool{},
+				}
+				exceededByCode[code] = item
+			}
+			item.Reported += quantity
+			item.Counted += counted
+			item.Excluded += excluded
+			item.OfficerIDs[entry.OfficerID] = true
+		}
+
+		if entry.IsCritical && quantity > 0 {
+			critical.Records++
+			critical.Quantity += quantity
+			criticalOfficerIDs[entry.OfficerID] = true
+		}
+	}
+
+	exceeded := make([]ExceededLimitRow, 0, len(exceededByCode))
+	for _, item := range exceededByCode {
+		exceeded = append(exceeded, ExceededLimitRow{
+			Code:             item.Code,
+			Indicator:        item.Indicator,
+			Reported:         round2(item.Reported),
+			Counted:          round2(item.Counted),
+			Excluded:         round2(item.Excluded),
+			AffectedOfficers: len(item.OfficerIDs),
+		})
+	}
+	sort.SliceStable(exceeded, func(i, j int) bool {
+		if exceeded[i].Excluded != exceeded[j].Excluded {
+			return exceeded[i].Excluded > exceeded[j].Excluded
+		}
+		return exceeded[i].AffectedOfficers > exceeded[j].AffectedOfficers
+	})
+	if len(exceeded) > 5 {
+		exceeded = exceeded[:5]
+	}
+
+	monthly.Excluded = round2(math.Max(0, monthly.Reported-monthly.Counted))
+	monthly.Reported = round2(monthly.Reported)
+	monthly.Counted = round2(monthly.Counted)
+	monthly.AffectedOfficers = len(limitAffectedOfficerIDs)
+	critical.Quantity = round2(critical.Quantity)
+	critical.Officers = len(criticalOfficerIDs)
+
+	return supplementalRows{
+		InactiveOfficers: InactiveOfficers{
+			Count: inactiveCount,
+			Total: len(officers),
+		},
+		MonthlyLimitImpact:      monthly,
+		ExceededLimits:          exceeded,
+		CriticalIndicatorImpact: critical,
 	}
 }
 

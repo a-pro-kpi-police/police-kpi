@@ -130,6 +130,7 @@ func createSchema(db *Store) error {
 			monthly_norm REAL NOT NULL DEFAULT 100.0
 		)`, idType),
 		`CREATE INDEX IF NOT EXISTS ix_users_username ON users(username)`,
+		`CREATE INDEX IF NOT EXISTS ix_users_role_district ON users(role, district_id)`,
 		`CREATE INDEX IF NOT EXISTS ix_users_source_employee_number ON users(source_employee_number)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS ux_users_source_employee_number ON users(source_employee_number)`,
 		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS kpi_catalog (
@@ -147,6 +148,7 @@ func createSchema(db *Store) error {
 			is_critical INTEGER NOT NULL DEFAULT 0,
 			is_active INTEGER NOT NULL DEFAULT 1
 		)`, idType),
+		`CREATE INDEX IF NOT EXISTS ix_kpi_catalog_active_positive ON kpi_catalog(is_active, points_per_unit, block, code)`,
 		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS import_batches (
 			id %s,
 			source_name TEXT NOT NULL,
@@ -186,6 +188,8 @@ func createSchema(db *Store) error {
 			import_batch_id INTEGER REFERENCES import_batches(id)
 		)`, idType),
 		`CREATE INDEX IF NOT EXISTS ix_kpi_entries_officer_month ON kpi_entries(officer_id, month)`,
+		`CREATE INDEX IF NOT EXISTS ix_kpi_entries_month_status ON kpi_entries(month, status)`,
+		`CREATE INDEX IF NOT EXISTS ix_kpi_entries_month_officer_status ON kpi_entries(month, officer_id, status)`,
 		`CREATE INDEX IF NOT EXISTS ix_kpi_entries_source_key ON kpi_entries(source_key)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS ux_kpi_entries_source_key ON kpi_entries(source_key)`,
 		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS kpi_targets (
@@ -196,6 +200,7 @@ func createSchema(db *Store) error {
 			target_quantity REAL NOT NULL DEFAULT 0,
 			UNIQUE(month, officer_id, catalog_id)
 		)`, idType),
+		`CREATE INDEX IF NOT EXISTS ix_kpi_targets_month_officer ON kpi_targets(month, officer_id)`,
 		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS app_notifications (
 			id %s,
 			user_id INTEGER NOT NULL REFERENCES users(id),
