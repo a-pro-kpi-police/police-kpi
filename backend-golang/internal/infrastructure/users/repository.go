@@ -140,7 +140,7 @@ func (r Repository) ListMonths(ctx context.Context, officerID *int, districtID *
 	}
 	defer rows.Close()
 
-	var months []string
+	months := []string{}
 	for rows.Next() {
 		var month string
 		if err := rows.Scan(&month); err != nil {

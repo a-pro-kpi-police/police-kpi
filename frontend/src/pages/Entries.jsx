@@ -87,9 +87,11 @@ export default function Entries() {
     ]
     if (isHead) requests.push(api.get('/officers'))
     Promise.all(requests).then(([catalogResponse, monthsResponse, officersResponse]) => {
-      setCatalog(catalogResponse.data)
-      setMonths(monthsResponse.data)
-      if (officersResponse) setOfficers(officersResponse.data)
+      setCatalog(Array.isArray(catalogResponse.data) ? catalogResponse.data : [])
+      setMonths(Array.isArray(monthsResponse.data) ? monthsResponse.data : [])
+      if (officersResponse) {
+        setOfficers(Array.isArray(officersResponse.data) ? officersResponse.data : [])
+      }
     })
   }, [isHead])
 

@@ -75,23 +75,24 @@ export default function Officers() {
 
   useEffect(() => {
     Promise.all([api.get('/months'), api.get('/districts')]).then((responses) => {
-      setMonths(responses[0].data)
-      setDistricts(responses[1].data)
+      setMonths(Array.isArray(responses[0].data) ? responses[0].data : [])
+      setDistricts(Array.isArray(responses[1].data) ? responses[1].data : [])
     })
   }, [])
 
   useEffect(() => {
     const params = month ? { month } : {}
     api.get('/rating', { params }).then(({ data }) => {
+      const ratingRows = Array.isArray(data) ? data : []
       const directoryById = Object.fromEntries(
-        data.map((officer) => [officer.officer_id, {
+        ratingRows.map((officer) => [officer.officer_id, {
           efficiency_rank: officer.efficiency_rank,
           efficiency_total: officer.efficiency_total,
           efficiency_score: officer.efficiency_score,
         }]),
       )
       setProfileStats(directoryById)
-      const officerRows = data
+      const officerRows = ratingRows
         .map((officer) => {
           const finalScore = Number(officer.final) || 0
           return {

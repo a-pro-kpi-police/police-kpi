@@ -637,11 +637,13 @@ export default function Dashboard() {
       api.get('/districts'),
       isHead ? api.get('/officers') : Promise.resolve({ data: [] }),
     ]).then(([monthsResponse, districtsResponse, officersResponse]) => {
-      setMonths(monthsResponse.data)
-      const initialMonth = monthsResponse.data[0] || ''
+      const monthItems = Array.isArray(monthsResponse.data) ? monthsResponse.data : []
+      setMonths(monthItems)
+      const initialMonth = monthItems[0] || ''
       setMonth(initialMonth)
-      setDistricts(districtsResponse.data)
-      const directory = officersResponse.data.map((item) => ({
+      setDistricts(Array.isArray(districtsResponse.data) ? districtsResponse.data : [])
+      const officerItems = Array.isArray(officersResponse.data) ? officersResponse.data : []
+      const directory = officerItems.map((item) => ({
         officer_id: item.id,
         name: item.full_name,
         rank: item.rank,
@@ -652,7 +654,7 @@ export default function Dashboard() {
         totalScore: item.efficiency_score,
       }))
       setOfficers(directory)
-      return load(initialMonth, officerId, '', monthsResponse.data)
+      return load(initialMonth, officerId, '', monthItems)
     }).finally(() => setReady(true))
   }, [])
 
