@@ -29,6 +29,18 @@ func TestConversationRejectsSameRole(t *testing.T) {
 	}
 }
 
+func TestConversationRejectsDifferentDistricts(t *testing.T) {
+	leftDistrict := 1
+	rightDistrict := 2
+	_, err := NewPolicy().Conversation(
+		User{ID: 1, Role: RoleHead, DistrictID: &leftDistrict},
+		User{ID: 2, Role: RoleOfficer, DistrictID: &rightDistrict},
+	)
+	if !errors.Is(err, ErrForbidden) {
+		t.Fatalf("error = %v, want %v", err, ErrForbidden)
+	}
+}
+
 func TestBuildMessageTrimsBodyAndRejectsEmpty(t *testing.T) {
 	policy := NewPolicy()
 	now := time.Date(2026, 8, 14, 12, 0, 0, 0, time.UTC)

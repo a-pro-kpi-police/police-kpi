@@ -28,7 +28,12 @@ func (a *App) handleCatalog(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleDistricts(w http.ResponseWriter, r *http.Request) {
-	if _, ok := requireUser(a, w, r); !ok {
+	user, ok := requireUser(a, w, r)
+	if !ok {
+		return
+	}
+	if _, scoped := headScopeDistrictValue(user); scoped && user.District != nil {
+		writeJSON(w, http.StatusOK, []District{*user.District})
 		return
 	}
 	districts, err := a.userQueryService().ListDistricts(r.Context())
@@ -40,10 +45,12 @@ func (a *App) handleDistricts(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleOfficers(w http.ResponseWriter, r *http.Request) {
-	if _, ok := requireHead(a, w, r); !ok {
+	user, ok := requireHead(a, w, r)
+	if !ok {
 		return
 	}
-	officers, err := a.userQueryService().ListOfficersWithEfficiency(r.Context())
+	scope, _ := headScopeDistrictValue(user)
+	officers, err := a.userQueryService().ListOfficersWithEfficiency(r.Context(), scope)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return

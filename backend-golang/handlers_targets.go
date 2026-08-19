@@ -14,7 +14,7 @@ func (a *App) handleGetTargets(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	officerID, ok := resolveTargetOfficerID(w, r, user, true)
+	officerID, ok := a.resolveTargetOfficerID(w, r, user, true)
 	if !ok {
 		return
 	}
@@ -27,12 +27,17 @@ func (a *App) handleGetTargets(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleSaveTargets(w http.ResponseWriter, r *http.Request) {
-	if _, ok := requireHead(a, w, r); !ok {
+	user, ok := requireHead(a, w, r)
+	if !ok {
 		return
 	}
 	var payload TargetSavePayload
 	if err := readJSON(r, &payload); err != nil {
 		writeError(w, http.StatusBadRequest, "Некорректные данные целей")
+		return
+	}
+	if err := a.ensureOfficerInHeadScope(r.Context(), user, payload.OfficerID); err != nil {
+		writeHTTPError(w, err)
 		return
 	}
 	if err := a.saveOfficerTargets(r.Context(), payload); err != nil {
@@ -48,13 +53,22 @@ func (a *App) handleSaveTargets(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleGetGroupTargets(w http.ResponseWriter, r *http.Request) {
-	if _, ok := requireHead(a, w, r); !ok {
+	user, ok := requireHead(a, w, r)
+	if !ok {
 		return
 	}
 	districtID, err := parseInt(r.URL.Query().Get("district_id"))
 	if err != nil {
 		writeError(w, http.StatusNotFound, "Группа не найдена")
 		return
+	}
+	scopedDistrictID, err := scopedHeadDistrictID(user, &districtID)
+	if err != nil {
+		writeHTTPError(w, err)
+		return
+	}
+	if scopedDistrictID != nil {
+		districtID = *scopedDistrictID
 	}
 	rows, err := a.targetQueryService().GroupTargetRows(r.Context(), districtID, r.URL.Query().Get("month"))
 	if err != nil {
@@ -65,13 +79,22 @@ func (a *App) handleGetGroupTargets(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleSaveGroupTargets(w http.ResponseWriter, r *http.Request) {
-	if _, ok := requireHead(a, w, r); !ok {
+	user, ok := requireHead(a, w, r)
+	if !ok {
 		return
 	}
 	var payload GroupTargetSavePayload
 	if err := readJSON(r, &payload); err != nil {
 		writeError(w, http.StatusBadRequest, "Некорректные данные групповых целей")
 		return
+	}
+	scopedDistrictID, err := scopedHeadDistrictID(user, &payload.DistrictID)
+	if err != nil {
+		writeHTTPError(w, err)
+		return
+	}
+	if scopedDistrictID != nil {
+		payload.DistrictID = *scopedDistrictID
 	}
 	if err := a.saveGroupTargets(r.Context(), payload); err != nil {
 		writeHTTPError(w, err)
@@ -94,7 +117,7 @@ func (a *App) handleTargetProgress(w http.ResponseWriter, r *http.Request) {
 	if selectedMonth == "" {
 		selectedMonth = currentMonth()
 	}
-	officerID, ok := resolveTargetOfficerID(w, r, user, true)
+	officerID, ok := a.resolveTargetOfficerID(w, r, user, true)
 	if !ok {
 		return
 	}
@@ -107,7 +130,8 @@ func (a *App) handleTargetProgress(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleTargetOverview(w http.ResponseWriter, r *http.Request) {
-	if _, ok := requireHead(a, w, r); !ok {
+	user, ok := requireHead(a, w, r)
+	if !ok {
 		return
 	}
 	selectedMonth := r.URL.Query().Get("month")
@@ -124,6 +148,17 @@ func (a *App) handleTargetOverview(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "Группа указана неверно")
 		return
 	}
+	districtID, err = scopedHeadDistrictID(user, districtID)
+	if err != nil {
+		writeHTTPError(w, err)
+		return
+	}
+	if officerID != nil {
+		if err := a.ensureOfficerInHeadScope(r.Context(), user, *officerID); err != nil {
+			writeHTTPError(w, err)
+			return
+		}
+	}
 	overview, err := a.targetQueryService().Overview(r.Context(), domaintargets.OverviewFilter{
 		Month:      selectedMonth,
 		OfficerID:  officerID,
@@ -136,11 +171,15 @@ func (a *App) handleTargetOverview(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, targetOverviewOut(overview))
 }
 
-func resolveTargetOfficerID(w http.ResponseWriter, r *http.Request, user *User, requireHeadParam bool) (int, bool) {
+func (a *App) resolveTargetOfficerID(w http.ResponseWriter, r *http.Request, user *User, requireHeadParam bool) (int, bool) {
 	if user.Role == roleHead {
 		officerID, err := parseInt(r.URL.Query().Get("officer_id"))
 		if err != nil || officerID <= 0 {
 			writeError(w, http.StatusBadRequest, "Сотрудник не указан")
+			return 0, false
+		}
+		if err := a.ensureOfficerInHeadScope(r.Context(), user, officerID); err != nil {
+			writeHTTPError(w, err)
 			return 0, false
 		}
 		return officerID, true

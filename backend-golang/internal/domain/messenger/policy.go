@@ -27,6 +27,7 @@ type User struct {
 	FullName     string
 	Rank         string
 	Role         string
+	DistrictID   *int
 	DistrictName string
 }
 
@@ -110,12 +111,25 @@ func NewPolicy() Policy {
 func (Policy) Conversation(user User, contact User) (Conversation, error) {
 	switch {
 	case user.Role == RoleHead && contact.Role == RoleOfficer:
+		if !sameDistrict(user.DistrictID, contact.DistrictID) {
+			return Conversation{}, ErrForbidden
+		}
 		return Conversation{User: user, Contact: contact, OfficerID: contact.ID}, nil
 	case user.Role == RoleOfficer && contact.Role == RoleHead:
+		if !sameDistrict(user.DistrictID, contact.DistrictID) {
+			return Conversation{}, ErrForbidden
+		}
 		return Conversation{User: user, Contact: contact, OfficerID: user.ID}, nil
 	default:
 		return Conversation{}, ErrForbidden
 	}
+}
+
+func sameDistrict(left *int, right *int) bool {
+	if left == nil || right == nil {
+		return true
+	}
+	return *left == *right
 }
 
 func (p Policy) BuildMessage(user User, contact User, request SendRequest, now time.Time) (CreateMessage, Conversation, error) {

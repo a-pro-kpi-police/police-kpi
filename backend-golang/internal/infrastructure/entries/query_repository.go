@@ -34,6 +34,10 @@ func (r Repository) ListEntries(ctx context.Context, query domainentries.EntryQu
 		where = append(where, "e.officer_id = ?")
 		args = append(args, *query.OfficerID)
 	}
+	if query.DistrictID != nil {
+		where = append(where, "u.district_id = ?")
+		args = append(args, *query.DistrictID)
+	}
 	if strings.TrimSpace(query.Month) != "" {
 		where = append(where, "e.month = ?")
 		args = append(args, strings.TrimSpace(query.Month))

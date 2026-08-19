@@ -7,7 +7,8 @@ import (
 )
 
 func (a *App) handleDashboard(w http.ResponseWriter, r *http.Request) {
-	if _, ok := requireHead(a, w, r); !ok {
+	user, ok := requireHead(a, w, r)
+	if !ok {
 		return
 	}
 	officerID, err := parseOptionalInt(r.URL.Query().Get("officer_id"))
@@ -18,6 +19,11 @@ func (a *App) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	districtID, err := parseOptionalInt(r.URL.Query().Get("district_id"))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "Группа указана неверно")
+		return
+	}
+	districtID, err = scopedHeadDistrictID(user, districtID)
+	if err != nil {
+		writeHTTPError(w, err)
 		return
 	}
 	report, err := a.dashboardService().BuildDashboard(r.Context(), domaindashboard.Filter{

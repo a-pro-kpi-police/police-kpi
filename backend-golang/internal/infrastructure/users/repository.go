@@ -108,7 +108,7 @@ func (r Repository) ConfirmedScores(ctx context.Context) (map[int]float64, error
 	return scores, rows.Err()
 }
 
-func (r Repository) ListMonths(ctx context.Context, officerID *int) ([]string, error) {
+func (r Repository) ListMonths(ctx context.Context, officerID *int, districtID *int) ([]string, error) {
 	sqlText := `SELECT month FROM (
 		SELECT DISTINCT month FROM kpi_entries
 		UNION
@@ -122,6 +122,17 @@ func (r Repository) ListMonths(ctx context.Context, officerID *int) ([]string, e
 			SELECT DISTINCT month FROM kpi_targets WHERE officer_id = ?
 		) AS months ORDER BY month DESC`
 		args = append(args, *officerID, *officerID)
+	} else if districtID != nil {
+		sqlText = `SELECT month FROM (
+			SELECT DISTINCT e.month FROM kpi_entries e
+			JOIN users u ON u.id = e.officer_id
+			WHERE u.district_id = ?
+			UNION
+			SELECT DISTINCT t.month FROM kpi_targets t
+			JOIN users u ON u.id = t.officer_id
+			WHERE u.district_id = ?
+		) AS months ORDER BY month DESC`
+		args = append(args, *districtID, *districtID)
 	}
 	rows, err := r.q.QueryContext(ctx, sqlText, args...)
 	if err != nil {

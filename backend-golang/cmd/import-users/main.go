@@ -28,6 +28,7 @@ import (
 const (
 	dialectPostgres = "postgres"
 	dialectSQLite   = "sqlite"
+	roleHead        = "head"
 	roleOfficer     = "officer"
 )
 
@@ -40,6 +41,7 @@ type options struct {
 	defaultMonthlyNorm     float64
 	dryRun                 bool
 	resetExistingPasswords bool
+	replaceData            bool
 }
 
 type txStore struct {
@@ -60,6 +62,7 @@ type employeeInput struct {
 	LastName       string
 	Rank           string
 	District       string
+	Role           string
 	MonthlyNorm    float64
 }
 
@@ -87,6 +90,7 @@ func main() {
 	flag.Float64Var(&opts.defaultMonthlyNorm, "default-monthly-norm", 100, "monthly_norm for rows without this column")
 	flag.BoolVar(&opts.dryRun, "dry-run", false, "calculate accounts and roll back database changes")
 	flag.BoolVar(&opts.resetExistingPasswords, "reset-existing-passwords", false, "generate new passwords for users found by employee number")
+	flag.BoolVar(&opts.replaceData, "replace-data", false, "delete existing users, KPI entries, targets, messages, notifications, and import batches before import; preserves KPI catalog")
 	flag.Parse()
 
 	if opts.input == "" {
@@ -138,6 +142,12 @@ func run(ctx context.Context, opts options) error {
 			_ = tx.Rollback()
 		}
 	}()
+
+	if opts.replaceData {
+		if err := replaceOperationalData(ctx, q); err != nil {
+			return err
+		}
+	}
 
 	taken, err := existingUsernames(ctx, q)
 	if err != nil {
@@ -340,6 +350,10 @@ func employeeFromRecord(record []string, indexes map[string]int, nameOrder strin
 		}
 		monthlyNorm = value
 	}
+	role, err := normalizeRole(field(record, indexes, "role"))
+	if err != nil {
+		return employeeInput{}, err
+	}
 
 	return employeeInput{
 		EmployeeNumber: cleanEmployeeNumber(field(record, indexes, "employee_number")),
@@ -348,6 +362,7 @@ func employeeFromRecord(record []string, indexes map[string]int, nameOrder strin
 		LastName:       strings.TrimSpace(lastName),
 		Rank:           field(record, indexes, "rank"),
 		District:       field(record, indexes, "district"),
+		Role:           role,
 		MonthlyNorm:    monthlyNorm,
 	}, nil
 }
@@ -400,6 +415,10 @@ func headerAliases() map[string][]string {
 			"monthly_norm", "norm", "target_score",
 			"норма", "месячная норма", "целевой балл", "цель",
 		},
+		"role": {
+			"role", "account_role", "user_role",
+			"роль", "рөл", "тип аккаунта", "права",
+		},
 	}
 }
 
@@ -447,6 +466,18 @@ func parseFullName(fullName, nameOrder string) (firstName, lastName string) {
 		return parts[0], parts[1]
 	}
 	return parts[1], parts[0]
+}
+
+func normalizeRole(value string) (string, error) {
+	value = strings.ToLower(strings.TrimSpace(value))
+	switch value {
+	case "", roleOfficer, "employee", "сотрудник", "қызметкер":
+		return roleOfficer, nil
+	case roleHead, "commander", "chief", "manager", "начальник", "командир", "глава", "рота командирі":
+		return roleHead, nil
+	default:
+		return "", fmt.Errorf("invalid role %q: expected head or officer", value)
+	}
 }
 
 func loginBase(employee employeeInput) string {
@@ -606,6 +637,24 @@ func ensureDistrict(ctx context.Context, q queryer, district string) (*int, bool
 	return &id, true, nil
 }
 
+func replaceOperationalData(ctx context.Context, q queryer) error {
+	statements := []string{
+		`DELETE FROM direct_messages`,
+		`DELETE FROM app_notifications`,
+		`DELETE FROM kpi_entries`,
+		`DELETE FROM kpi_targets`,
+		`DELETE FROM import_batches`,
+		`DELETE FROM users`,
+		`DELETE FROM districts`,
+	}
+	for _, statement := range statements {
+		if _, err := q.ExecContext(ctx, statement); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func insertUser(ctx context.Context, q queryer, employee employeeInput, username, passwordHash string, districtID *int) error {
 	_, err := q.ExecContext(ctx, `INSERT INTO users
 		(username, password_hash, full_name, rank, role, district_id, source_employee_number, monthly_norm)
@@ -614,7 +663,7 @@ func insertUser(ctx context.Context, q queryer, employee employeeInput, username
 		passwordHash,
 		employee.FullName,
 		employee.Rank,
-		roleOfficer,
+		employee.Role,
 		nullableInt(districtID),
 		nullableString(employee.EmployeeNumber),
 		employee.MonthlyNorm,
@@ -630,7 +679,7 @@ func updateUser(ctx context.Context, q queryer, userID int, employee employeeInp
 			passwordHash,
 			employee.FullName,
 			employee.Rank,
-			roleOfficer,
+			employee.Role,
 			nullableInt(districtID),
 			employee.MonthlyNorm,
 			userID,
@@ -642,7 +691,7 @@ func updateUser(ctx context.Context, q queryer, userID int, employee employeeInp
 		WHERE id = ?`,
 		employee.FullName,
 		employee.Rank,
-		roleOfficer,
+		employee.Role,
 		nullableInt(districtID),
 		employee.MonthlyNorm,
 		userID,

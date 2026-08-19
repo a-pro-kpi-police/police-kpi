@@ -189,6 +189,10 @@ func messengerUser(user domainusers.User) domainmessenger.User {
 		Rank:     user.Rank,
 		Role:     user.Role,
 	}
+	if user.DistrictID != nil {
+		id := *user.DistrictID
+		result.DistrictID = &id
+	}
 	if user.District != nil {
 		result.DistrictName = user.District.Name
 	}

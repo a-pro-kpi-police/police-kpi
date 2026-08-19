@@ -41,6 +41,9 @@ func (a *App) handleListEntries(w http.ResponseWriter, r *http.Request) {
 			}
 			entryQuery.OfficerID = &officerID
 		}
+		if scope, scoped := headScopeDistrictValue(user); scoped {
+			entryQuery.DistrictID = &scope
+		}
 	}
 	if month := strings.TrimSpace(queryValues.Get("month")); month != "" {
 		entryQuery.Month = month
@@ -211,6 +214,10 @@ func (a *App) handleDownloadAttachment(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, "Недостаточно прав")
 		return
 	}
+	if err := a.ensureOfficerInHeadScope(r.Context(), user, entry.OfficerID); err != nil {
+		writeHTTPError(w, err)
+		return
+	}
 	if entry.AttachmentStorageName == "" || entry.AttachmentName == "" {
 		writeError(w, http.StatusNotFound, "Вложение не найдено")
 		return
@@ -254,6 +261,13 @@ func (a *App) handleUpdateEntryStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) updateKpiEntryStatus(ctx context.Context, user *User, entryID int, payload EntryStatusUpdate) (domainentries.ListedEntry, error) {
+	entry, err := a.entryQueryService().GetEntry(ctx, entryID)
+	if err != nil {
+		return domainentries.ListedEntry{}, entryStatusHTTPError(err)
+	}
+	if err := a.ensureOfficerInHeadScope(ctx, user, entry.OfficerID); err != nil {
+		return domainentries.ListedEntry{}, err
+	}
 	service := appentries.NewStatusService(a.entryRepository(), domainentries.NewStatusPolicy())
 	updated, err := service.UpdateEntryStatus(ctx, entryActor(user), domainentries.StatusUpdateRequest{
 		EntryID:     entryID,
@@ -280,6 +294,11 @@ func entryStatusHTTPError(err error) error {
 }
 
 func (a *App) createKpiEntry(ctx context.Context, user *User, payload EntryCreate, attachment domainentries.Attachment) (domainentries.ListedEntry, error) {
+	if user.Role == roleHead && payload.OfficerID != nil {
+		if err := a.ensureOfficerInHeadScope(ctx, user, *payload.OfficerID); err != nil {
+			return domainentries.ListedEntry{}, err
+		}
+	}
 	service := appentries.NewService(a.entryRepository(), domainentries.NewCreationPolicy(), todayDate)
 	created, err := service.CreateEntry(ctx, entryActor(user), domainentries.CreateRequest{
 		CatalogID:  payload.CatalogID,

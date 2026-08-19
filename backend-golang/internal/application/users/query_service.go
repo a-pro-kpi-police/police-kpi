@@ -10,7 +10,7 @@ type QueryRepository interface {
 	ListDistricts(ctx context.Context) ([]domainusers.District, error)
 	ListOfficers(ctx context.Context, districtID int) ([]domainusers.User, error)
 	ConfirmedScores(ctx context.Context) (map[int]float64, error)
-	ListMonths(ctx context.Context, officerID *int) ([]string, error)
+	ListMonths(ctx context.Context, officerID *int, districtID *int) ([]string, error)
 }
 
 type QueryService struct {
@@ -26,8 +26,8 @@ func (s QueryService) ListDistricts(ctx context.Context) ([]domainusers.District
 	return s.repo.ListDistricts(ctx)
 }
 
-func (s QueryService) ListOfficersWithEfficiency(ctx context.Context) ([]domainusers.OfficerWithEfficiency, error) {
-	officers, err := s.repo.ListOfficers(ctx, 0)
+func (s QueryService) ListOfficersWithEfficiency(ctx context.Context, districtID int) ([]domainusers.OfficerWithEfficiency, error) {
+	officers, err := s.repo.ListOfficers(ctx, districtID)
 	if err != nil {
 		return nil, err
 	}
@@ -39,8 +39,8 @@ func (s QueryService) ListOfficersWithEfficiency(ctx context.Context) ([]domainu
 	return result, nil
 }
 
-func (s QueryService) EfficiencyMap(ctx context.Context) (map[int]domainusers.Efficiency, error) {
-	officers, err := s.repo.ListOfficers(ctx, 0)
+func (s QueryService) EfficiencyMap(ctx context.Context, districtID int) (map[int]domainusers.Efficiency, error) {
+	officers, err := s.repo.ListOfficers(ctx, districtID)
 	if err != nil {
 		return nil, err
 	}
@@ -54,9 +54,12 @@ func (s QueryService) EfficiencyMap(ctx context.Context) (map[int]domainusers.Ef
 
 func (s QueryService) ListMonths(ctx context.Context, actor domainusers.User) ([]string, error) {
 	var officerID *int
+	var districtID *int
 	if actor.Role != domainusers.RoleHead {
 		id := actor.ID
 		officerID = &id
+	} else if actor.DistrictID != nil {
+		districtID = actor.DistrictID
 	}
-	return s.repo.ListMonths(ctx, officerID)
+	return s.repo.ListMonths(ctx, officerID, districtID)
 }

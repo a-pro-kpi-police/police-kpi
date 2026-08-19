@@ -24,7 +24,7 @@ services:
     environment:
       KPI_DATABASE_URL: postgres://kpi:kpi@postgres:5432/kpi?sslmode=disable
       KPI_DEBUG: "1"
-      KPI_SEED_MODE: monthly_import
+      KPI_SEED_MODE: catalog_only
       KPI_MONTHLY_IMPORT_PATH: /app/import_data/monthly_kpi_2026_07.csv
       KPI_UPLOAD_DIR: /data/uploads
     ports:

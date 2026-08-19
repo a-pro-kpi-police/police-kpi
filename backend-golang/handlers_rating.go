@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"net/http"
 	"sort"
+	"strings"
 
 	domainusers "kpi-police/backend-golang/internal/domain/users"
 )
@@ -16,16 +17,18 @@ type ratingScore struct {
 }
 
 func (a *App) handleRating(w http.ResponseWriter, r *http.Request) {
-	if _, ok := requireHead(a, w, r); !ok {
+	user, ok := requireHead(a, w, r)
+	if !ok {
 		return
 	}
 	month := r.URL.Query().Get("month")
-	officers, err := a.userQueryService().ListOfficersWithEfficiency(r.Context())
+	scope, _ := headScopeDistrictValue(user)
+	officers, err := a.userQueryService().ListOfficersWithEfficiency(r.Context(), scope)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	scores, err := a.ratingScores(r.Context(), month)
+	scores, err := a.ratingScores(r.Context(), month, scope)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -33,16 +36,25 @@ func (a *App) handleRating(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, ratingOfficersOut(officers, scores))
 }
 
-func (a *App) ratingScores(ctx context.Context, month string) (map[int]ratingScore, error) {
+func (a *App) ratingScores(ctx context.Context, month string, districtID int) (map[int]ratingScore, error) {
 	query := `SELECT officer_id,
 		COALESCE(SUM(CASE WHEN status = ? AND quantity > 0 THEN final_score ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN status = ? AND quantity > 0 THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN status = ? AND quantity > 0 THEN 1 ELSE 0 END), 0)
 	FROM kpi_entries`
 	args := []any{"confirmed", "confirmed", "pending"}
+	where := []string{}
 	if month != "" {
-		query += ` WHERE month = ?`
+		where = append(where, "month = ?")
 		args = append(args, month)
+	}
+	if districtID > 0 {
+		query += ` JOIN users u ON u.id = kpi_entries.officer_id`
+		where = append(where, "u.district_id = ?")
+		args = append(args, districtID)
+	}
+	if len(where) > 0 {
+		query += ` WHERE ` + strings.Join(where, " AND ")
 	}
 	query += ` GROUP BY officer_id`
 

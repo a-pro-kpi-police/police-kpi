@@ -10,6 +10,7 @@ var (
 type EntryQuery struct {
 	Actor         Actor
 	OfficerID     *int
+	DistrictID    *int
 	Month         string
 	Months        []string
 	Year          string

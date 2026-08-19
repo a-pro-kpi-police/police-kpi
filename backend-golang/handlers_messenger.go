@@ -21,7 +21,8 @@ func (a *App) handleMessengerContacts(w http.ResponseWriter, r *http.Request) {
 	efficiency := map[int]domainusers.Efficiency{}
 	includeEfficiency := r.URL.Query().Get("include_efficiency")
 	if includeEfficiency != "0" && includeEfficiency != "false" {
-		efficiency, err = a.userQueryService().EfficiencyMap(r.Context())
+		scope, _ := headScopeDistrictValue(user)
+		efficiency, err = a.userQueryService().EfficiencyMap(r.Context(), scope)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -137,6 +138,10 @@ func domainUser(user *User) domainusers.User {
 		Rank:        user.Rank,
 		Role:        user.Role,
 		MonthlyNorm: user.MonthlyNorm,
+	}
+	if user.DistrictID.Valid {
+		id := int(user.DistrictID.Int64)
+		result.DistrictID = &id
 	}
 	if user.District != nil {
 		district := domainusers.District{

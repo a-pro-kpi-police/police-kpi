@@ -116,7 +116,7 @@ func (r Repository) CreateEntry(ctx context.Context, actor domainentries.Actor, 
 		if strings.TrimSpace(entry.CatalogCode) != "" {
 			code = entry.CatalogCode
 		}
-		if err := notifyHeads(ctx, tx, "entry_pending", "Новая запись KPI", fmt.Sprintf("%s отправил запись %s на подтверждение.", actor.FullName, code), "/entries"); err != nil {
+		if err := notifyHeads(ctx, tx, entry.OfficerID, "entry_pending", "Новая запись KPI", fmt.Sprintf("%s отправил запись %s на подтверждение.", actor.FullName, code), "/entries"); err != nil {
 			return domainentries.Entry{}, err
 		}
 	}
@@ -188,8 +188,14 @@ func (r Repository) ApplyStatusChange(ctx context.Context, change domainentries.
 	return entry, nil
 }
 
-func notifyHeads(ctx context.Context, q Tx, kind string, title string, message string, link string) error {
-	rows, err := q.QueryContext(ctx, `SELECT id FROM users WHERE role = ?`, domainentries.RoleHead)
+func notifyHeads(ctx context.Context, q Tx, officerID int, kind string, title string, message string, link string) error {
+	rows, err := q.QueryContext(ctx, `SELECT h.id
+		FROM users h
+		LEFT JOIN users o ON o.id = ?
+		WHERE h.role = ? AND (h.district_id IS NULL OR h.district_id = o.district_id)`,
+		officerID,
+		domainentries.RoleHead,
+	)
 	if err != nil {
 		return err
 	}

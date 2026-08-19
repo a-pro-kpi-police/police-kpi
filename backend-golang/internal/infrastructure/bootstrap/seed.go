@@ -21,6 +21,7 @@ const (
 	targetOfficers          = 20
 	targetKPIEntries        = 1000
 	MonthlyImportMode       = "monthly_import"
+	CatalogOnlyMode         = "catalog_only"
 	defaultMonthlyImportRel = "import_data/monthly_kpi_2026_07.csv"
 	roleHead                = "head"
 	roleOfficer             = "officer"
@@ -106,6 +107,10 @@ func Seed(ctx context.Context, config Config) error {
 	}
 	if err := syncCatalog(ctx, tx, catalog); err != nil {
 		return err
+	}
+
+	if os.Getenv("KPI_SEED_MODE") == CatalogOnlyMode {
+		return tx.Commit()
 	}
 
 	if os.Getenv("KPI_SEED_MODE") == MonthlyImportMode {
