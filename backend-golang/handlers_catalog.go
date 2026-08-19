@@ -2,6 +2,8 @@ package main
 
 import (
 	"net/http"
+
+	domaincatalog "kpi-police/backend-golang/internal/domain/catalog"
 )
 
 func (a *App) handleCatalog(w http.ResponseWriter, r *http.Request) {
@@ -9,7 +11,15 @@ func (a *App) handleCatalog(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	items, err := a.catalogRepository().ListActive(r.Context(), user.Role == roleHead)
+	var (
+		items []domaincatalog.Item
+		err   error
+	)
+	if parseBoolInt(r.URL.Query().Get("positive_only")) {
+		items, err = a.catalogRepository().ListActivePositive(r.Context())
+	} else {
+		items, err = a.catalogRepository().ListActive(r.Context(), user.Role == roleHead)
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return

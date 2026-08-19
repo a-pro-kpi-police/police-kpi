@@ -37,7 +37,7 @@ export default function Targets() {
   useEffect(() => {
     let active = true
     setLoading(true)
-    api.get('/catalog')
+    api.get('/catalog', { params: { positive_only: 1 } })
       .then(({ data }) => {
         if (!active) return
         const items = Array.isArray(data) ? data : []

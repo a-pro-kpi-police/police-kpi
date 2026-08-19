@@ -624,25 +624,23 @@ export default function Dashboard() {
       api.get('/dashboard', { params }),
       api.get('/target-overview', { params: targetParams }),
     ])
-    setData(dashboardResponse.data)
-    setComparisons(dashboardResponse.data.comparisons)
+    const dashboardData = dashboardResponse.data
+    setData(dashboardData)
+    setComparisons(dashboardData.comparisons)
+    setBlocks((dashboardData.blocks || []).map((item) => item.block).filter(Boolean))
     setTargetOverview(targetOverviewResponse.data)
   }
 
   useEffect(() => {
     Promise.all([
       api.get('/months'),
-      api.get('/catalog'),
       api.get('/districts'),
       isHead ? api.get('/officers') : Promise.resolve({ data: [] }),
-    ]).then(([monthsResponse, catalogResponse, districtsResponse, officersResponse]) => {
+    ]).then(([monthsResponse, districtsResponse, officersResponse]) => {
       setMonths(monthsResponse.data)
       const initialMonth = monthsResponse.data[0] || ''
       setMonth(initialMonth)
       setDistricts(districtsResponse.data)
-      const list = []
-      for (const c of catalogResponse.data) if (c.block && !list.includes(c.block)) list.push(c.block)
-      setBlocks(list)
       const directory = officersResponse.data.map((item) => ({
         officer_id: item.id,
         name: item.full_name,
