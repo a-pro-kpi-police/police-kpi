@@ -224,25 +224,11 @@ func loadCatalogCSV(path string) ([]CatalogItem, error) {
 }
 
 func syncCatalog(ctx context.Context, tx Tx, catalog []CatalogItem) error {
-	if _, err := tx.ExecContext(ctx, `UPDATE kpi_catalog SET is_active = 0`); err != nil {
-		return err
-	}
 	for _, item := range catalog {
 		if _, err := tx.ExecContext(ctx, `INSERT INTO kpi_catalog
 			(code, indicator, block, subblock, npa, points_per_unit, unit, source_url, monthly_limit, is_mass, is_critical, is_active)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
-			ON CONFLICT(code) DO UPDATE SET
-				indicator = excluded.indicator,
-				block = excluded.block,
-				subblock = excluded.subblock,
-				npa = excluded.npa,
-				points_per_unit = excluded.points_per_unit,
-				unit = excluded.unit,
-				source_url = excluded.source_url,
-				monthly_limit = excluded.monthly_limit,
-				is_mass = excluded.is_mass,
-				is_critical = excluded.is_critical,
-				is_active = 1`,
+			ON CONFLICT(code) DO NOTHING`,
 			item.Code,
 			item.Indicator,
 			item.Block,

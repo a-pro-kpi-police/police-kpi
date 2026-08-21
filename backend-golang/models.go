@@ -80,6 +80,20 @@ type AdminUserSavePayload struct {
 	MonthlyNorm          *float64 `json:"monthly_norm"`
 }
 
+type AdminCatalogSavePayload struct {
+	Code          string   `json:"code"`
+	Indicator     string   `json:"indicator"`
+	Block         string   `json:"block"`
+	Subblock      string   `json:"subblock"`
+	NPA           string   `json:"npa"`
+	PointsPerUnit *float64 `json:"points_per_unit"`
+	Unit          string   `json:"unit"`
+	SourceURL     string   `json:"source_url"`
+	MonthlyLimit  *float64 `json:"monthly_limit"`
+	IsMass        bool     `json:"is_mass"`
+	IsCritical    bool     `json:"is_critical"`
+}
+
 type RatingOfficerOut struct {
 	OfficerID       int     `json:"officer_id"`
 	Name            string  `json:"name"`

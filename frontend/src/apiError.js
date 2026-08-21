@@ -1,5 +1,11 @@
 const DETAIL_TO_KEY = {
   'Показатель KPI не найден': 'catalogNotFoundError',
+  'Код KPI обязателен': 'kpiCodeRequiredError',
+  'Показатель KPI обязателен': 'kpiIndicatorRequiredError',
+  'Блок KPI обязателен': 'kpiBlockRequiredError',
+  'Код KPI уже занят': 'kpiCodeTakenError',
+  'Балл KPI должен быть нулём или больше': 'kpiPointsNonNegativeError',
+  'Лимит KPI не может быть отрицательным': 'kpiLimitNonNegativeError',
   'Количество должно быть больше нуля': 'quantityPositiveError',
   'Месяц указан неверно': 'monthInvalidError',
   'Сотрудник не указан': 'officerRequiredError',
