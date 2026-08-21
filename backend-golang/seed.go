@@ -7,7 +7,10 @@ import (
 	"kpi-police/backend-golang/internal/infrastructure/bootstrap"
 )
 
-const monthlyImportMode = bootstrap.MonthlyImportMode
+const (
+	monthlyImportMode = bootstrap.MonthlyImportMode
+	demoSeedMode      = bootstrap.DemoSeedMode
+)
 
 func (a *App) seed() error {
 	logDebugf("bootstrap seed: start")

@@ -79,6 +79,8 @@ openssl rand -base64 24
 - `KPI_ADMIN_PASSWORD` — пароль системного администратора `admin`.
 - `KPI_HEAD_PASSWORD` — пароль начальника `head` при первом импорте.
 - `KPI_IMPORT_DEFAULT_PASSWORD` — временный пароль импортированных сотрудников.
+- `KPI_SEED_MODE=catalog_only` — для production: создавать только справочник
+  KPI и аккаунт `admin`, без демо-сотрудников и месячного CSV-импорта.
 
 Важно: начальные пароли применяются при первом создании базы. Если контейнеры
 уже запускались, смена этих переменных не изменит существующие пароли в БД.
@@ -123,6 +125,41 @@ cd /opt/kpi-police
 git pull
 docker compose -f docker-compose.prod.yml up -d --build
 docker compose -f docker-compose.prod.yml logs -f --tail=100
+```
+
+## Удаление моковых seed-данных с production
+
+Если production уже запускался с `KPI_SEED_MODE=monthly_import` или старым
+demo seed, сначала в `.env` выставьте:
+
+```bash
+KPI_SEED_MODE=catalog_only
+```
+
+Затем перезапустите backend, чтобы новые моковые сотрудники больше не
+создавались:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build backend
+```
+
+Перед очисткой сделайте резервную копию:
+
+```bash
+docker compose -f docker-compose.prod.yml exec postgres pg_dump -U kpi kpi > kpi_backup_before_mock_cleanup.sql
+```
+
+Сначала посмотрите, кого скрипт считает моковыми:
+
+```bash
+docker compose -f docker-compose.prod.yml exec -T postgres psql -U kpi -d kpi < deploy/preview-prod-mock-data.sql
+```
+
+Если список верный, удалите моковых сотрудников вместе с их KPI-записями,
+целями, уведомлениями и сообщениями:
+
+```bash
+docker compose -f docker-compose.prod.yml exec -T postgres psql -U kpi -d kpi < deploy/cleanup-prod-mock-data.sql
 ```
 
 ## Резервные копии

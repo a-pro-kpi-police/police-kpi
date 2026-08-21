@@ -6,6 +6,46 @@ import (
 	"testing"
 )
 
+func TestDefaultSeedCreatesOnlyCatalogAndAdmin(t *testing.T) {
+	dbPath := filepath.ToSlash(filepath.Join(t.TempDir(), "kpi_empty.db"))
+	t.Setenv("KPI_DATABASE_URL", "sqlite:///"+dbPath)
+	t.Setenv("KPI_SEED_MODE", "")
+	t.Setenv("KPI_UPLOAD_DIR", filepath.Join(t.TempDir(), "uploads"))
+
+	app, err := NewApp()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer app.db.Close()
+
+	assertCount(t, app, "users", 1)
+	assertCount(t, app, "kpi_entries", 0)
+
+	admin, err := app.getUserByUsername(context.Background(), "admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if admin.Role != roleAdmin {
+		t.Fatalf("admin role = %q, want %q", admin.Role, roleAdmin)
+	}
+}
+
+func TestDemoSeedModeCreatesDemoData(t *testing.T) {
+	dbPath := filepath.ToSlash(filepath.Join(t.TempDir(), "kpi_demo.db"))
+	t.Setenv("KPI_DATABASE_URL", "sqlite:///"+dbPath)
+	t.Setenv("KPI_SEED_MODE", demoSeedMode)
+	t.Setenv("KPI_UPLOAD_DIR", filepath.Join(t.TempDir(), "uploads"))
+
+	app, err := NewApp()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer app.db.Close()
+
+	assertCount(t, app, "users", 22)
+	assertCount(t, app, "kpi_entries", 1000)
+}
+
 func TestMonthlyImportSeed(t *testing.T) {
 	if testing.Short() {
 		t.Skip("monthly CSV import is an integration check")

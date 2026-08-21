@@ -22,6 +22,7 @@ const (
 	targetKPIEntries        = 1000
 	MonthlyImportMode       = "monthly_import"
 	CatalogOnlyMode         = "catalog_only"
+	DemoSeedMode            = "demo"
 	defaultMonthlyImportRel = "import_data/monthly_kpi_2026_07.csv"
 	roleAdmin               = "admin"
 	roleHead                = "head"
@@ -113,11 +114,12 @@ func Seed(ctx context.Context, config Config) error {
 		return err
 	}
 
-	if os.Getenv("KPI_SEED_MODE") == CatalogOnlyMode {
+	seedMode := strings.TrimSpace(os.Getenv("KPI_SEED_MODE"))
+	if seedMode == "" || seedMode == CatalogOnlyMode {
 		return tx.Commit()
 	}
 
-	if os.Getenv("KPI_SEED_MODE") == MonthlyImportMode {
+	if seedMode == MonthlyImportMode {
 		if err := seedMonthlyImport(ctx, tx, catalog, config); err != nil {
 			return err
 		}
@@ -125,6 +127,10 @@ func Seed(ctx context.Context, config Config) error {
 			return err
 		}
 		return tx.Commit()
+	}
+
+	if seedMode != DemoSeedMode {
+		return fmt.Errorf("unsupported KPI_SEED_MODE %q; use %q, %q, or %q", seedMode, CatalogOnlyMode, MonthlyImportMode, DemoSeedMode)
 	}
 
 	var usersCount int

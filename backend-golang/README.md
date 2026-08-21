@@ -18,7 +18,8 @@ Environment variables:
 - `KPI_DEBUG=1` enables debug logs
 - `KPI_SECRET`
 - `KPI_UPLOAD_DIR`, default `./uploads`
-- `KPI_SEED_MODE=monthly_import`
+- `KPI_SEED_MODE`, default `catalog_only`; supported values are `catalog_only`,
+  `monthly_import`, and `demo`
 - `KPI_MONTHLY_IMPORT_PATH`, default `import_data/monthly_kpi_2026_07.csv`
 - `KPI_ADMIN_PASSWORD`, default `admin123`
 - `KPI_HEAD_PASSWORD`, default `head123`
