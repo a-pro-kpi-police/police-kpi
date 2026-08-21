@@ -19,6 +19,9 @@ backend/uploads/
 # Generated credential exports
 backend-golang/import_data/*accounts*.csv
 backend-golang/import_data/*credentials*.csv
+credential_delivery/
+output/pdf/dps_account_cards_*.pdf
+tmp/pdfs/credential_cards_*/
 
 # IDE / OS
 .idea/
