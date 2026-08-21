@@ -399,10 +399,10 @@ function CatalogModal({ item, onClose, onSaved }) {
   )
 }
 
-export default function Admin() {
+export default function Admin({ initialTab = 'employees' }) {
   const { t, lang } = useI18n()
   const { notify } = useNotify()
-  const [activeTab, setActiveTab] = useState('employees')
+  const [activeTab, setActiveTab] = useState(initialTab)
   const [employees, setEmployees] = useState([])
   const [catalogItems, setCatalogItems] = useState([])
   const [districts, setDistricts] = useState([])
@@ -437,6 +437,10 @@ export default function Admin() {
   useEffect(() => {
     loadAdminData()
   }, [loadAdminData])
+
+  useEffect(() => {
+    setActiveTab(initialTab)
+  }, [initialTab])
 
   const filteredEmployees = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase()

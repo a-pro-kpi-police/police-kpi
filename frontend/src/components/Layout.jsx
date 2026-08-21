@@ -118,7 +118,8 @@ export default function Layout() {
           )}
           {isHead && <NavLink to="/targets" className="nav-link">{t('targets')}</NavLink>}
           {isHead && <NavLink to="/officers" className="nav-link">{t('officers')}</NavLink>}
-          {isAdmin && <NavLink to="/admin" className="nav-link">{t('adminPanel')}</NavLink>}
+          {isAdmin && <NavLink to="/admin" end className="nav-link">{t('adminPanel')}</NavLink>}
+          {isAdmin && <NavLink to="/admin/catalog" className="nav-link">{t('targets')}</NavLink>}
         </nav>
       </aside>
       <main className="content">
