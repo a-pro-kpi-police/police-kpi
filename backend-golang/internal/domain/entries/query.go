@@ -63,7 +63,7 @@ func NewQueryPolicy() QueryPolicy {
 }
 
 func (QueryPolicy) Normalize(query EntryQuery) (EntryQuery, error) {
-	if query.Actor.Role != RoleHead {
+	if query.Actor.Role != RoleHead && query.Actor.Role != RoleAdmin {
 		officerID := query.Actor.ID
 		query.OfficerID = &officerID
 	}

@@ -23,6 +23,7 @@ const (
 	MonthlyImportMode       = "monthly_import"
 	CatalogOnlyMode         = "catalog_only"
 	defaultMonthlyImportRel = "import_data/monthly_kpi_2026_07.csv"
+	roleAdmin               = "admin"
 	roleHead                = "head"
 	roleOfficer             = "officer"
 	statusPending           = "pending"
@@ -108,6 +109,9 @@ func Seed(ctx context.Context, config Config) error {
 	if err := syncCatalog(ctx, tx, catalog); err != nil {
 		return err
 	}
+	if err := ensureAdmin(ctx, tx, config); err != nil {
+		return err
+	}
 
 	if os.Getenv("KPI_SEED_MODE") == CatalogOnlyMode {
 		return tx.Commit()
@@ -124,7 +128,7 @@ func Seed(ctx context.Context, config Config) error {
 	}
 
 	var usersCount int
-	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM users`).Scan(&usersCount); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE role <> ?`, roleAdmin).Scan(&usersCount); err != nil {
 		return err
 	}
 	if usersCount == 0 {
@@ -498,6 +502,38 @@ func upsertHead(ctx context.Context, tx Tx, districtID int, config Config) error
 	}
 	_, err = tx.ExecContext(ctx, `UPDATE users SET full_name = ?, rank = ?, role = ?, district_id = ? WHERE id = ?`,
 		headFullName, "Начальник подразделения", roleHead, districtID, existing)
+	return err
+}
+
+func ensureAdmin(ctx context.Context, tx Tx, config Config) error {
+	password, err := config.HashPassword(envDefault("KPI_ADMIN_PASSWORD", "admin123"))
+	if err != nil {
+		return err
+	}
+	var existing int
+	var existingRole string
+	err = tx.QueryRowContext(ctx, `SELECT id, role FROM users WHERE username = 'admin'`).Scan(&existing, &existingRole)
+	if errors.Is(err, sql.ErrNoRows) {
+		_, err = tx.ExecContext(ctx, `INSERT INTO users
+			(username, password_hash, full_name, rank, role, district_id, monthly_norm)
+			VALUES ('admin', ?, ?, ?, ?, NULL, 100.0)`,
+			password,
+			"Системный администратор",
+			"Администратор",
+			roleAdmin,
+		)
+		return err
+	}
+	if err != nil {
+		return err
+	}
+	if existingRole != roleAdmin {
+		return errors.New("username admin is reserved for the system administrator")
+	}
+	_, err = tx.ExecContext(ctx, `UPDATE users
+		SET full_name = ?, rank = ?, role = ?, district_id = NULL
+		WHERE id = ?`,
+		"Системный администратор", "Администратор", roleAdmin, existing)
 	return err
 }
 

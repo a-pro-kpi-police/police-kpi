@@ -3,6 +3,7 @@ package users
 import "errors"
 
 const (
+	RoleAdmin   = "admin"
 	RoleHead    = "head"
 	RoleOfficer = "officer"
 )

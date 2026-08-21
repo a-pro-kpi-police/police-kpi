@@ -13,6 +13,15 @@ const DETAIL_TO_KEY = {
   'Недопустимый тип файла': 'attachmentTypeError',
   'Файл слишком большой': 'attachmentTooLargeError',
   'Вложение не найдено': 'attachmentNotFoundError',
+  'Логин обязателен': 'usernameRequiredError',
+  'Пароль обязателен': 'passwordRequiredError',
+  'ФИО сотрудника обязательно': 'fullNameRequiredError',
+  'Укажите участок сотрудника': 'districtRequiredError',
+  'Участок не найден': 'districtNotFoundError',
+  'Логин уже занят': 'usernameTakenError',
+  'Табельный номер уже занят': 'employeeNumberTakenError',
+  'Месячная норма должна быть больше нуля': 'monthlyNormPositiveError',
+  'Недопустимая роль пользователя': 'userRoleInvalidError',
 }
 
 export function getApiErrorMessage(err, t, fallbackKey = 'saveError') {

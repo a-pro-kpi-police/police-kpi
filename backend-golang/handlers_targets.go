@@ -172,7 +172,7 @@ func (a *App) handleTargetOverview(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) resolveTargetOfficerID(w http.ResponseWriter, r *http.Request, user *User, requireHeadParam bool) (int, bool) {
-	if user.Role == roleHead {
+	if isEntryManagerRole(user.Role) {
 		officerID, err := parseInt(r.URL.Query().Get("officer_id"))
 		if err != nil || officerID <= 0 {
 			writeError(w, http.StatusBadRequest, "Сотрудник не указан")

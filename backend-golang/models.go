@@ -6,6 +6,7 @@ import (
 )
 
 const (
+	roleAdmin   = "admin"
 	roleHead    = "head"
 	roleOfficer = "officer"
 
@@ -54,6 +55,29 @@ type OfficerOut struct {
 	EfficiencyRank  int       `json:"efficiency_rank"`
 	EfficiencyTotal int       `json:"efficiency_total"`
 	EfficiencyScore float64   `json:"efficiency_score"`
+}
+
+type AdminUserOut struct {
+	ID                   int       `json:"id"`
+	Username             string    `json:"username"`
+	FullName             string    `json:"full_name"`
+	Rank                 string    `json:"rank"`
+	Role                 string    `json:"role"`
+	MonthlyNorm          float64   `json:"monthly_norm"`
+	District             *District `json:"district"`
+	SourceEmployeeNumber string    `json:"source_employee_number"`
+	EntriesCount         int       `json:"entries_count"`
+}
+
+type AdminUserSavePayload struct {
+	Username             string   `json:"username"`
+	Password             string   `json:"password"`
+	FullName             string   `json:"full_name"`
+	Rank                 string   `json:"rank"`
+	Role                 string   `json:"role"`
+	DistrictID           *int     `json:"district_id"`
+	SourceEmployeeNumber string   `json:"source_employee_number"`
+	MonthlyNorm          *float64 `json:"monthly_norm"`
 }
 
 type RatingOfficerOut struct {

@@ -68,6 +68,7 @@ Docker-конфигурация импортирует снимок данных
 | Логин | Пароль | Роль |
 |---|---|---|
 | `KPI_DEBUG` | Enable debug logs (`1`, `true`, `yes`, `on`) | off |
+| `admin` | значение `KPI_ADMIN_PASSWORD` | Администратор |
 | `head` | `head123` | Начальник отдела |
 | `officer001` … `officer152` | `pass123` | Импортированные сотрудники |
 
@@ -76,6 +77,7 @@ Docker-конфигурация импортирует снимок данных
 
 | Логин | Пароль | Роль |
 |---|---|---|
+| `admin` | `admin123` | Администратор |
 | `head` | `head123` | Начальник отдела |
 | `officer001` … `officer020` | `pass123` | Сотрудники |
 
@@ -119,6 +121,7 @@ Vite по умолчанию отправляет запросы `/api` на
 | `KPI_UPLOAD_DIR` | Каталог для вложений | `backend-golang/uploads` |
 | `KPI_SEED_MODE` | Режим начального заполнения | демонстрационные данные |
 | `KPI_MONTHLY_IMPORT_PATH` | Путь к CSV месячного импорта | `backend-golang/import_data/monthly_kpi_2026_07.csv` |
+| `KPI_ADMIN_PASSWORD` | Пароль системного администратора | `admin123` |
 | `KPI_HEAD_PASSWORD` | Пароль начальника при месячном импорте | `head123` |
 | `KPI_IMPORT_DEFAULT_PASSWORD` | Пароль импортированных сотрудников | `pass123` |
 

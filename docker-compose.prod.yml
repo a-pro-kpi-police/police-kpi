@@ -33,6 +33,7 @@ services:
       KPI_SEED_MODE: ${KPI_SEED_MODE:-catalog_only}
       KPI_MONTHLY_IMPORT_PATH: /app/import_data/monthly_kpi_2026_07.csv
       KPI_UPLOAD_DIR: /data/uploads
+      KPI_ADMIN_PASSWORD: ${KPI_ADMIN_PASSWORD:?Set KPI_ADMIN_PASSWORD in .env}
       KPI_HEAD_PASSWORD: ${KPI_HEAD_PASSWORD:?Set KPI_HEAD_PASSWORD in .env}
       KPI_IMPORT_DEFAULT_PASSWORD: ${KPI_IMPORT_DEFAULT_PASSWORD:?Set KPI_IMPORT_DEFAULT_PASSWORD in .env}
     volumes:

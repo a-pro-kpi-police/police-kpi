@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard.jsx'
 import Entries from './pages/Entries.jsx'
 import Officers from './pages/Officers.jsx'
 import Targets from './pages/Targets.jsx'
+import Admin from './pages/Admin.jsx'
 
 function Protected({ children }) {
   const { user, loading } = useAuth()
@@ -17,12 +18,25 @@ function Protected({ children }) {
 
 function HeadOnly({ children }) {
   const { user } = useAuth()
-  if (user?.role !== 'head') return <Navigate to="/entries" replace />
+  if (user?.role !== 'head') return <Navigate to={user?.role === 'admin' ? '/admin' : '/entries'} replace />
+  return children
+}
+
+function AdminOnly({ children }) {
+  const { user } = useAuth()
+  if (user?.role !== 'admin') return <Navigate to={user?.role === 'head' ? '/dashboard' : '/entries'} replace />
+  return children
+}
+
+function MessengerOnly({ children }) {
+  const { user } = useAuth()
+  if (user?.role === 'admin') return <Navigate to="/admin" replace />
   return children
 }
 
 function HomeRedirect() {
   const { user } = useAuth()
+  if (user?.role === 'admin') return <Navigate to="/admin" replace />
   return <Navigate to={user?.role === 'head' ? '/dashboard' : '/entries'} replace />
 }
 
@@ -56,7 +70,14 @@ export default function App() {
           }
         />
         <Route path="entries" element={<Entries />} />
-        <Route path="messenger" element={<Messenger />} />
+        <Route
+          path="messenger"
+          element={
+            <MessengerOnly>
+              <Messenger />
+            </MessengerOnly>
+          }
+        />
         <Route
           path="targets"
           element={
@@ -71,6 +92,14 @@ export default function App() {
             <HeadOnly>
               <Officers />
             </HeadOnly>
+          }
+        />
+        <Route
+          path="admin"
+          element={
+            <AdminOnly>
+              <Admin />
+            </AdminOnly>
           }
         />
       </Route>

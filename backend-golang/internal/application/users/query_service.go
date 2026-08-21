@@ -55,10 +55,10 @@ func (s QueryService) EfficiencyMap(ctx context.Context, districtID int) (map[in
 func (s QueryService) ListMonths(ctx context.Context, actor domainusers.User) ([]string, error) {
 	var officerID *int
 	var districtID *int
-	if actor.Role != domainusers.RoleHead {
+	if actor.Role == domainusers.RoleOfficer {
 		id := actor.ID
 		officerID = &id
-	} else if actor.DistrictID != nil {
+	} else if actor.Role == domainusers.RoleHead && actor.DistrictID != nil {
 		districtID = actor.DistrictID
 	}
 	return s.repo.ListMonths(ctx, officerID, districtID)

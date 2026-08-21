@@ -8,6 +8,7 @@ import (
 )
 
 const (
+	RoleAdmin   = "admin"
 	RoleHead    = "head"
 	RoleOfficer = "officer"
 
@@ -107,7 +108,7 @@ func NewCreationPolicy() CreationPolicy {
 
 func (CreationPolicy) ResolveOfficerID(actor Actor, requestedOfficerID *int) (int, error) {
 	switch actor.Role {
-	case RoleHead:
+	case RoleHead, RoleAdmin:
 		if requestedOfficerID == nil {
 			return 0, ErrOfficerRequired
 		}
@@ -126,7 +127,7 @@ func (CreationPolicy) BuildPendingEntry(request CreateRequest, actor Actor, offi
 	if !catalog.IsActive {
 		return Entry{}, ErrCatalogNotFound
 	}
-	if actor.Role != RoleHead && catalog.PointsPerUnit < 0 {
+	if !canManageEntries(actor.Role) && catalog.PointsPerUnit < 0 {
 		return Entry{}, ErrNegativeKPIForbidden
 	}
 
@@ -204,7 +205,7 @@ func NewStatusPolicy() StatusPolicy {
 }
 
 func (StatusPolicy) ChangeStatus(actor Actor, entry Entry, request StatusUpdateRequest) (StatusChange, error) {
-	if actor.Role != RoleHead {
+	if !canManageEntries(actor.Role) {
 		return StatusChange{}, ErrForbidden
 	}
 	status := strings.TrimSpace(request.Status)
@@ -227,4 +228,8 @@ func validStatus(status string) bool {
 
 func shouldNotifyOfficer(previousStatus string, nextStatus string) bool {
 	return previousStatus != nextStatus && (nextStatus == StatusConfirmed || nextStatus == StatusRejected)
+}
+
+func canManageEntries(role string) bool {
+	return role == RoleHead || role == RoleAdmin
 }

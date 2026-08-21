@@ -21,7 +21,7 @@ func TestMonthlyImportSeed(t *testing.T) {
 	}
 	defer app.db.Close()
 
-	assertCount(t, app, "users", 153)
+	assertCount(t, app, "users", 154)
 	assertCount(t, app, "kpi_entries", 20368)
 
 	var activeCatalog int
@@ -37,6 +37,16 @@ func TestMonthlyImportSeed(t *testing.T) {
 	}
 	if !verifyPassword("head123", head.PasswordHash) {
 		t.Fatal("seeded head password is not valid")
+	}
+	admin, err := app.getUserByUsername(context.Background(), "admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if admin.Role != roleAdmin {
+		t.Fatalf("admin role = %q, want %q", admin.Role, roleAdmin)
+	}
+	if !verifyPassword("admin123", admin.PasswordHash) {
+		t.Fatal("seeded admin password is not valid")
 	}
 }
 

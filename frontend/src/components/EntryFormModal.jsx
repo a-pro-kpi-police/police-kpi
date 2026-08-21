@@ -17,9 +17,9 @@ const ATTACHMENT_ACCEPT = [
 
 export default function EntryFormModal({ catalog, officers, onClose, onCreated }) {
   const { t, lang } = useI18n()
-  const { user, isHead } = useAuth()
+  const { user, canManageEntries } = useAuth()
   const { notify } = useNotify()
-  const [officerId, setOfficerId] = useState(isHead ? officers[0]?.id || '' : user?.id || '')
+  const [officerId, setOfficerId] = useState(canManageEntries ? officers[0]?.id || '' : user?.id || '')
   const [catalogId, setCatalogId] = useState(catalog[0]?.id || '')
   const [quantity, setQuantity] = useState(1)
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
@@ -29,7 +29,7 @@ export default function EntryFormModal({ catalog, officers, onClose, onCreated }
   const [error, setError] = useState('')
   const [targetProgress, setTargetProgress] = useState(null)
 
-  const officer = isHead
+  const officer = canManageEntries
     ? officers.find((item) => item.id === Number(officerId))
     : user
   const officerOptions = useMemo(
@@ -58,16 +58,16 @@ export default function EntryFormModal({ catalog, officers, onClose, onCreated }
   const final = Math.round(capped * coeff * 100) / 100
 
   useEffect(() => {
-    if (!date || (isHead && !officerId)) {
+    if (!date || (canManageEntries && !officerId)) {
       setTargetProgress(null)
       return
     }
     const params = { month: date.slice(0, 7) }
-    if (isHead) params.officer_id = Number(officerId)
+    if (canManageEntries) params.officer_id = Number(officerId)
     api.get('/target-progress', { params })
       .then((r) => setTargetProgress(r.data))
       .catch(() => setTargetProgress(null))
-  }, [date, isHead, officerId])
+  }, [canManageEntries, date, officerId])
 
   const submit = async (e) => {
     e.preventDefault()
@@ -77,7 +77,7 @@ export default function EntryFormModal({ catalog, officers, onClose, onCreated }
     try {
       const payload = {
         catalog_id: Number(catalogId),
-        ...(isHead ? { officer_id: Number(officerId) } : {}),
+        ...(canManageEntries ? { officer_id: Number(officerId) } : {}),
         quantity: Number(quantity),
         date,
         comments,
@@ -113,7 +113,7 @@ export default function EntryFormModal({ catalog, officers, onClose, onCreated }
         <form className="entry-form" onSubmit={submit}>
           <div className="entry-form-layout">
             <section className="entry-form-fields">
-              {isHead && (
+              {canManageEntries && (
                 <>
                   <label>{t('selectOfficer')}</label>
                   <NameFilterCombobox
@@ -213,7 +213,7 @@ export default function EntryFormModal({ catalog, officers, onClose, onCreated }
                   ) : '—'}
                 </b>
               </div>
-              <div><span>{t(isHead ? 'employeeCoeff' : 'yourCoeff')}</span><b>{coeff}</b></div>
+              <div><span>{t(canManageEntries ? 'employeeCoeff' : 'yourCoeff')}</span><b>{coeff}</b></div>
               <div><span>{t('monthlyLimit')}</span><b>{selected?.monthly_limit || '—'}</b></div>
               <div><span>{t('massIndicator')}</span><b>{selected?.is_mass ? t('yes') : t('no')}</b></div>
               <div><span>{t('criticalIndicator')}</span><b>{selected?.is_critical ? t('yes') : t('no')}</b></div>
@@ -233,7 +233,7 @@ export default function EntryFormModal({ catalog, officers, onClose, onCreated }
             <button
               type="submit"
               className="btn btn-primary"
-              disabled={saving || !catalogId || (isHead && !officerId)}
+              disabled={saving || !catalogId || (canManageEntries && !officerId)}
             >
               {t('save')}
             </button>

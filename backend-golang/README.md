@@ -20,6 +20,7 @@ Environment variables:
 - `KPI_UPLOAD_DIR`, default `./uploads`
 - `KPI_SEED_MODE=monthly_import`
 - `KPI_MONTHLY_IMPORT_PATH`, default `import_data/monthly_kpi_2026_07.csv`
+- `KPI_ADMIN_PASSWORD`, default `admin123`
 - `KPI_HEAD_PASSWORD`, default `head123`
 - `KPI_IMPORT_DEFAULT_PASSWORD`, default `pass123`
 

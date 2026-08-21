@@ -22,7 +22,7 @@ function ThemeIcon({ dark }) {
 }
 
 export default function Layout() {
-  const { user, logout, isHead } = useAuth()
+  const { user, logout, isAdmin, isHead, canManageEntries } = useAuth()
   const { t, lang } = useI18n()
   const navigate = useNavigate()
   const [messageUnread, setMessageUnread] = useState(0)
@@ -33,13 +33,17 @@ export default function Layout() {
   const themeSwitchFrame = useRef(null)
 
   const loadMessageUnread = useCallback(async () => {
+    if (isAdmin) {
+      setMessageUnread(0)
+      return
+    }
     try {
       const { data } = await api.get('/messenger/unread-count')
       setMessageUnread(Number(data.unread_count) || 0)
     } catch {
       setMessageUnread(0)
     }
-  }, [])
+  }, [isAdmin])
 
   useEffect(() => {
     loadMessageUnread()
@@ -104,14 +108,17 @@ export default function Layout() {
         <nav>
           {isHead && <NavLink to="/dashboard" className="nav-link">{t('dashboard')}</NavLink>}
           <NavLink to="/entries" className="nav-link">
-            {isHead ? t('entries') : t('myEntries')}
+            {canManageEntries ? t('entries') : t('myEntries')}
           </NavLink>
-          <NavLink to="/messenger" className="nav-link nav-link-with-count">
-            <span>{t('messenger')}</span>
-            {messageUnread > 0 && <span className="nav-unread-count">{messageUnread}</span>}
-          </NavLink>
+          {!isAdmin && (
+            <NavLink to="/messenger" className="nav-link nav-link-with-count">
+              <span>{t('messenger')}</span>
+              {messageUnread > 0 && <span className="nav-unread-count">{messageUnread}</span>}
+            </NavLink>
+          )}
           {isHead && <NavLink to="/targets" className="nav-link">{t('targets')}</NavLink>}
           {isHead && <NavLink to="/officers" className="nav-link">{t('officers')}</NavLink>}
+          {isAdmin && <NavLink to="/admin" className="nav-link">{t('adminPanel')}</NavLink>}
         </nav>
       </aside>
       <main className="content">
@@ -119,7 +126,7 @@ export default function Layout() {
           <div className="user-box">
             <div className="user-name">{user.full_name}</div>
             <div className="user-meta">
-              {user.rank} · {t(`role_${user.role}`)}
+              {[user.rank, t(`role_${user.role}`)].filter(Boolean).join(' · ')}
               {user.district ? ` · ${districtName(user.district, lang)}` : ''}
             </div>
           </div>

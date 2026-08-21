@@ -67,12 +67,16 @@ cd /opt/kpi-police
 cp .env.ps.kz.example .env
 openssl rand -hex 32
 openssl rand -hex 32
+openssl rand -base64 24
+openssl rand -base64 24
+openssl rand -base64 24
 ```
 
 В `.env` замените:
 
 - `POSTGRES_PASSWORD` — первый сгенерированный hex-секрет.
 - `KPI_SECRET` — второй сгенерированный hex-секрет.
+- `KPI_ADMIN_PASSWORD` — пароль системного администратора `admin`.
 - `KPI_HEAD_PASSWORD` — пароль начальника `head` при первом импорте.
 - `KPI_IMPORT_DEFAULT_PASSWORD` — временный пароль импортированных сотрудников.
 

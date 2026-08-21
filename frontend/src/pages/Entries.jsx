@@ -55,7 +55,7 @@ function MessageIcon() {
 
 export default function Entries() {
   const { t, fmtMonth, fmtQuarter, lang } = useI18n()
-  const { isHead } = useAuth()
+  const { user, canManageEntries } = useAuth()
   const { notify } = useNotify()
   const navigate = useNavigate()
   const [entries, setEntries] = useState([])
@@ -85,7 +85,7 @@ export default function Entries() {
       api.get('/catalog'),
       api.get('/months'),
     ]
-    if (isHead) requests.push(api.get('/officers'))
+    if (canManageEntries) requests.push(api.get('/officers'))
     Promise.all(requests).then(([catalogResponse, monthsResponse, officersResponse]) => {
       setCatalog(Array.isArray(catalogResponse.data) ? catalogResponse.data : [])
       setMonths(Array.isArray(monthsResponse.data) ? monthsResponse.data : [])
@@ -93,7 +93,7 @@ export default function Entries() {
         setOfficers(Array.isArray(officersResponse.data) ? officersResponse.data : [])
       }
     })
-  }, [isHead])
+  }, [canManageEntries])
 
   // Периоды загружаются отдельно, поэтому серверная пагинация не обрезает фильтры.
   const periodOptions = useMemo(() => {
@@ -136,13 +136,13 @@ export default function Entries() {
   const entryQuery = useMemo(() => ({
     limit: PAGE_SIZE,
     status: statusFilter || undefined,
-    officer_id: isHead && officerFilter ? Number(officerFilter) : undefined,
+    officer_id: canManageEntries && officerFilter ? Number(officerFilter) : undefined,
     period_type: periodType && periodValue ? periodType : undefined,
     period_value: periodType && periodValue ? periodValue : undefined,
     sort_key: sort.key,
     sort_dir: sort.dir,
   }), [
-    isHead,
+    canManageEntries,
     officerFilter,
     periodType,
     periodValue,
@@ -215,11 +215,11 @@ export default function Entries() {
   const summaryMonth = periodType === 'month' && periodValue ? periodValue : currentMonth()
 
   useEffect(() => {
-    if (isHead) return
+    if (canManageEntries) return
     api.get('/target-progress', { params: { month: summaryMonth } })
       .then((r) => setTargetProgress(r.data))
       .catch(() => setTargetProgress(null))
-  }, [isHead, summaryMonth])
+  }, [canManageEntries, summaryMonth])
 
   const periodLabel = (type, val) => {
     if (type === 'month') return fmtMonth(val)
@@ -302,16 +302,27 @@ export default function Entries() {
 
   const discussEntry = (entry) => {
     const params = new URLSearchParams({ entry: String(entry.id) })
-    if (isHead) params.set('contact', String(entry.officer_id))
+    if (user?.role === 'head') params.set('contact', String(entry.officer_id))
     navigate(`/messenger?${params.toString()}`)
+  }
+
+  const deleteEntry = async (entry) => {
+    if (!window.confirm(t('confirmDeleteEntry'))) return
+    try {
+      await api.delete(`/entries/${entry.id}`)
+      setEntries((prev) => prev.filter((item) => item.id !== entry.id))
+      notify(t('entryDeleted'))
+    } catch (err) {
+      notify(getApiErrorMessage(err, t, 'entryDeleteError'), 'error')
+    }
   }
 
   return (
     <div>
       <div className="page-head entries-page-head">
-        <h1>{isHead ? t('entries') : t('myEntries')}</h1>
+        <h1>{canManageEntries ? t('entries') : t('myEntries')}</h1>
         <div className={`page-head-actions entries-filters${periodType ? ' has-period-value' : ''}`}>
-          {isHead && (
+          {canManageEntries && (
             <NameFilterCombobox
               items={officerOptions}
               value={officerFilter}
@@ -339,7 +350,7 @@ export default function Entries() {
           </select>
           <button
             className="btn btn-primary"
-            disabled={!catalog.length || (isHead && !officers.length)}
+            disabled={!catalog.length || (canManageEntries && !officers.length)}
             onClick={() => setShowModal(true)}
           >
             + {t('addEntry')}
@@ -347,7 +358,7 @@ export default function Entries() {
         </div>
       </div>
 
-      {!isHead && targetProgress && (
+      {!canManageEntries && targetProgress && (
         <>
           <div className="summary-note">{t('summaryForMonth')} {fmtMonth(summaryMonth)}</div>
           <div className="stat-grid">
@@ -372,7 +383,7 @@ export default function Entries() {
         >
           <option value="date">{t('colDate')}</option>
           <option value="month">{t('colMonth')}</option>
-          {isHead && <option value="officer_name">{t('colOfficer')}</option>}
+          {canManageEntries && <option value="officer_name">{t('colOfficer')}</option>}
           <option value="code">{t('colCode')}</option>
           <option value="final_score">{t('colFinal')}</option>
           <option value="status">{t('colStatus')}</option>
@@ -402,7 +413,7 @@ export default function Entries() {
                   <span aria-hidden="true">·</span>
                   <time dateTime={e.date}>{e.date}</time>
                 </div>
-                {isHead && (
+                {canManageEntries && (
                   <ProfileHoverCard profile={{
                     id: e.officer_id,
                     name: e.officer_name,
@@ -487,17 +498,19 @@ export default function Entries() {
             )}
 
             <footer className="entry-record-actions">
-              <button
-                type="button"
-                className="btn btn-sm btn-ghost entry-record-message"
-                onClick={() => discussEntry(e)}
-                aria-label={t('discussThisKpi')}
-                title={t('discussThisKpi')}
-              >
-                <MessageIcon />
-                {t('sendMessage')}
-              </button>
-              {isHead && (
+              {user?.role !== 'admin' && (
+                <button
+                  type="button"
+                  className="btn btn-sm btn-ghost entry-record-message"
+                  onClick={() => discussEntry(e)}
+                  aria-label={t('discussThisKpi')}
+                  title={t('discussThisKpi')}
+                >
+                  <MessageIcon />
+                  {t('sendMessage')}
+                </button>
+              )}
+              {canManageEntries && (
                 <div className="entry-record-review-actions">
                   <button
                     className="btn btn-sm btn-confirm"
@@ -516,6 +529,14 @@ export default function Entries() {
                     title={t('reject')}
                   >
                     ✕ {t('reject')}
+                  </button>
+                  <button
+                    className="btn btn-sm btn-delete"
+                    onClick={() => deleteEntry(e)}
+                    aria-label={t('deleteEntry')}
+                    title={t('deleteEntry')}
+                  >
+                    {t('delete')}
                   </button>
                 </div>
               )}
@@ -546,7 +567,7 @@ export default function Entries() {
           onClose={() => setShowModal(false)}
           onCreated={(entry) => {
             setEntries((prev) => [entry, ...prev])
-            if (!isHead) {
+            if (!canManageEntries) {
               api.get('/target-progress', { params: { month: summaryMonth } })
                 .then((r) => setTargetProgress(r.data))
                 .catch(() => setTargetProgress(null))

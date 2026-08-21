@@ -77,11 +77,17 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /api/rating", a.handleRating)
 	mux.HandleFunc("GET /api/months", a.handleMonths)
 
+	mux.HandleFunc("GET /api/admin/users", a.handleAdminListUsers)
+	mux.HandleFunc("POST /api/admin/users", a.handleAdminCreateUser)
+	mux.HandleFunc("PATCH /api/admin/users/{user_id}", a.handleAdminUpdateUser)
+	mux.HandleFunc("DELETE /api/admin/users/{user_id}", a.handleAdminDeleteUser)
+
 	mux.HandleFunc("GET /api/entries", a.handleListEntries)
 	mux.HandleFunc("POST /api/entries", a.handleCreateEntry)
 	mux.HandleFunc("POST /api/entries/with-attachment", a.handleCreateEntryWithAttachment)
 	mux.HandleFunc("GET /api/entries/{entry_id}/attachment", a.handleDownloadAttachment)
 	mux.HandleFunc("PATCH /api/entries/{entry_id}/status", a.handleUpdateEntryStatus)
+	mux.HandleFunc("DELETE /api/entries/{entry_id}", a.handleDeleteEntry)
 
 	mux.HandleFunc("GET /api/dashboard", a.handleDashboard)
 
@@ -235,6 +241,34 @@ func requireHead(a *App, w http.ResponseWriter, r *http.Request) (*User, bool) {
 		return nil, false
 	}
 	return user, true
+}
+
+func requireAdmin(a *App, w http.ResponseWriter, r *http.Request) (*User, bool) {
+	user, ok := requireUser(a, w, r)
+	if !ok {
+		return nil, false
+	}
+	if user.Role != roleAdmin {
+		writeError(w, http.StatusForbidden, "Доступно только администратору")
+		return nil, false
+	}
+	return user, true
+}
+
+func requireHeadOrAdmin(a *App, w http.ResponseWriter, r *http.Request) (*User, bool) {
+	user, ok := requireUser(a, w, r)
+	if !ok {
+		return nil, false
+	}
+	if !isEntryManagerRole(user.Role) {
+		writeError(w, http.StatusForbidden, "Недостаточно прав")
+		return nil, false
+	}
+	return user, true
+}
+
+func isEntryManagerRole(role string) bool {
+	return role == roleHead || role == roleAdmin
 }
 
 func (a *App) currentUser(r *http.Request) (*User, error) {

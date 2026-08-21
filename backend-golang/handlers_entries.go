@@ -32,7 +32,7 @@ func (a *App) handleListEntries(w http.ResponseWriter, r *http.Request) {
 	}
 	queryValues := r.URL.Query()
 	entryQuery := domainentries.EntryQuery{Actor: entryActor(user)}
-	if user.Role == roleHead {
+	if isEntryManagerRole(user.Role) {
 		if officerText := queryValues.Get("officer_id"); officerText != "" {
 			officerID, err := parseInt(officerText)
 			if err != nil {
@@ -210,7 +210,7 @@ func (a *App) handleDownloadAttachment(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	if user.Role != roleHead && entry.OfficerID != user.ID {
+	if !isEntryManagerRole(user.Role) && entry.OfficerID != user.ID {
 		writeError(w, http.StatusForbidden, "Недостаточно прав")
 		return
 	}
@@ -238,7 +238,7 @@ func (a *App) handleDownloadAttachment(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleUpdateEntryStatus(w http.ResponseWriter, r *http.Request) {
-	user, ok := requireHead(a, w, r)
+	user, ok := requireHeadOrAdmin(a, w, r)
 	if !ok {
 		return
 	}
@@ -258,6 +258,61 @@ func (a *App) handleUpdateEntryStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, listedEntryOut(updated))
+}
+
+func (a *App) handleDeleteEntry(w http.ResponseWriter, r *http.Request) {
+	user, ok := requireHeadOrAdmin(a, w, r)
+	if !ok {
+		return
+	}
+	entryID, valid := parseIDPathValue(r, "entry_id")
+	if !valid {
+		writeError(w, http.StatusNotFound, "Запись не найдена")
+		return
+	}
+	entry, err := a.entryQueryService().GetEntry(r.Context(), entryID)
+	if errors.Is(err, domainentries.ErrEntryNotFound) {
+		writeError(w, http.StatusNotFound, "Запись не найдена")
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if err := a.ensureOfficerInHeadScope(r.Context(), user, entry.OfficerID); err != nil {
+		writeHTTPError(w, err)
+		return
+	}
+
+	tx, err := a.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(r.Context(), `DELETE FROM direct_messages WHERE entry_id = ?`, entryID); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	result, err := tx.ExecContext(r.Context(), `DELETE FROM kpi_entries WHERE id = ?`, entryID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if affected, err := result.RowsAffected(); err == nil && affected == 0 {
+		writeError(w, http.StatusNotFound, "Запись не найдена")
+		return
+	}
+	if _, err := recalculateOfficerMonth(r.Context(), tx, entry.OfficerID, entry.Month); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	a.removeStoredAttachments([]string{entry.AttachmentStorageName})
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (a *App) updateKpiEntryStatus(ctx context.Context, user *User, entryID int, payload EntryStatusUpdate) (domainentries.ListedEntry, error) {
@@ -294,7 +349,7 @@ func entryStatusHTTPError(err error) error {
 }
 
 func (a *App) createKpiEntry(ctx context.Context, user *User, payload EntryCreate, attachment domainentries.Attachment) (domainentries.ListedEntry, error) {
-	if user.Role == roleHead && payload.OfficerID != nil {
+	if isEntryManagerRole(user.Role) && payload.OfficerID != nil {
 		if err := a.ensureOfficerInHeadScope(ctx, user, *payload.OfficerID); err != nil {
 			return domainentries.ListedEntry{}, err
 		}
