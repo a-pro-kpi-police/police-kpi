@@ -81,6 +81,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("POST /api/admin/users", a.handleAdminCreateUser)
 	mux.HandleFunc("PATCH /api/admin/users/{user_id}", a.handleAdminUpdateUser)
 	mux.HandleFunc("DELETE /api/admin/users/{user_id}", a.handleAdminDeleteUser)
+	mux.HandleFunc("GET /api/admin/rating", a.handleAdminRating)
 	mux.HandleFunc("GET /api/admin/catalog", a.handleAdminListCatalog)
 	mux.HandleFunc("POST /api/admin/catalog", a.handleAdminCreateCatalogItem)
 	mux.HandleFunc("PATCH /api/admin/catalog/{catalog_id}", a.handleAdminUpdateCatalogItem)

@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import api from '../api'
 import { getApiErrorMessage } from '../apiError.js'
+import NameFilterCombobox from '../components/NameFilterCombobox.jsx'
 import { districtName } from '../districtLocale.js'
+import {
+  EFFECTIVENESS_CATEGORIES,
+  effectivenessCategory,
+  maxEffectivenessScore,
+  relativeScorePercent,
+} from '../effectiveness.js'
 import { useI18n } from '../i18n.jsx'
 import { useNotify } from '../notifications.jsx'
 
@@ -15,6 +23,40 @@ const RANKS = [
   'Подполковник полиции',
   'Полковник полиции',
 ]
+
+const rankOrder = (rank) => {
+  const index = RANKS.indexOf(rank)
+  return index === -1 ? RANKS.length : index
+}
+
+const compareRatingNames = (a, b) => (a.name || '').localeCompare(b.name || '', 'ru')
+
+function SortTh({ column, label, sort, onSort }) {
+  const active = sort.key === column
+  return (
+    <th
+      className={`sortable${active ? ' sorted' : ''}`}
+      aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+      onClick={() => onSort(column)}
+    >
+      {label}
+      <span className="sort-ind">{active ? (sort.dir === 'asc' ? '▲' : '▼') : '⇅'}</span>
+    </th>
+  )
+}
+
+function EffectivenessBadge({ category, t }) {
+  const labelKey = {
+    very_effective: 'categoryVeryEffective',
+    effective: 'categoryEffective',
+    little_effective: 'categoryLittleEffective',
+  }[category]
+  return (
+    <span className={`effectiveness-badge effectiveness-${category}`}>
+      {t(labelKey)}
+    </span>
+  )
+}
 
 const newEmployeeForm = (districts) => ({
   username: '',
@@ -400,17 +442,26 @@ function CatalogModal({ item, onClose, onSaved }) {
 }
 
 export default function Admin({ initialTab = 'employees' }) {
-  const { t, lang } = useI18n()
+  const { t, fmtMonth, lang } = useI18n()
   const { notify } = useNotify()
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState(initialTab)
   const [employees, setEmployees] = useState([])
   const [catalogItems, setCatalogItems] = useState([])
+  const [ratingRows, setRatingRows] = useState([])
+  const [months, setMonths] = useState([])
   const [districts, setDistricts] = useState([])
   const [query, setQuery] = useState('')
   const [catalogQuery, setCatalogQuery] = useState('')
   const [districtFilter, setDistrictFilter] = useState('')
   const [blockFilter, setBlockFilter] = useState('')
+  const [ratingMonth, setRatingMonth] = useState('')
+  const [ratingDistrictFilter, setRatingDistrictFilter] = useState('')
+  const [ratingOfficerFilter, setRatingOfficerFilter] = useState('')
+  const [ratingCategoryFilter, setRatingCategoryFilter] = useState('')
+  const [ratingSort, setRatingSort] = useState({ key: 'score', dir: 'desc' })
   const [loading, setLoading] = useState(true)
+  const [ratingLoading, setRatingLoading] = useState(false)
   const [editingEmployee, setEditingEmployee] = useState(null)
   const [editingCatalogItem, setEditingCatalogItem] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
@@ -419,14 +470,16 @@ export default function Admin({ initialTab = 'employees' }) {
   const loadAdminData = useCallback(async () => {
     setLoading(true)
     try {
-      const [usersResponse, districtsResponse, catalogResponse] = await Promise.all([
+      const [usersResponse, districtsResponse, catalogResponse, monthsResponse] = await Promise.all([
         api.get('/admin/users'),
         api.get('/districts'),
         api.get('/admin/catalog'),
+        api.get('/months'),
       ])
       setEmployees(Array.isArray(usersResponse.data) ? usersResponse.data : [])
       setDistricts(Array.isArray(districtsResponse.data) ? districtsResponse.data : [])
       setCatalogItems(Array.isArray(catalogResponse.data) ? catalogResponse.data : [])
+      setMonths(Array.isArray(monthsResponse.data) ? monthsResponse.data : [])
     } catch (err) {
       notify(getApiErrorMessage(err, t, 'adminDataLoadError'), 'error')
     } finally {
@@ -434,9 +487,48 @@ export default function Admin({ initialTab = 'employees' }) {
     }
   }, [notify, t])
 
+  const loadRatingData = useCallback(async () => {
+    setRatingLoading(true)
+    try {
+      const params = {}
+      if (ratingMonth) params.month = ratingMonth
+      if (ratingDistrictFilter) params.district_id = ratingDistrictFilter
+      const { data } = await api.get('/admin/rating', { params })
+      const rows = (Array.isArray(data) ? data : [])
+        .map((officer) => {
+          const finalScore = Number(officer.final) || 0
+          return {
+            officer_id: officer.officer_id,
+            name: officer.name,
+            rank: officer.rank,
+            district: officer.district || '',
+            district_id: officer.district_id || '',
+            final: finalScore,
+            confirmed: Number(officer.confirmed) || 0,
+            pending: Number(officer.pending) || 0,
+            category_score: finalScore,
+            efficiency_rank: officer.efficiency_rank,
+            efficiency_total: officer.efficiency_total,
+            efficiency_score: officer.efficiency_score,
+          }
+        })
+        .sort((left, right) => (right.final - left.final) || compareRatingNames(left, right))
+      setRatingRows(rows)
+    } catch (err) {
+      notify(getApiErrorMessage(err, t, 'ratingLoadError'), 'error')
+      setRatingRows([])
+    } finally {
+      setRatingLoading(false)
+    }
+  }, [notify, ratingDistrictFilter, ratingMonth, t])
+
   useEffect(() => {
     loadAdminData()
   }, [loadAdminData])
+
+  useEffect(() => {
+    if (activeTab === 'rating') loadRatingData()
+  }, [activeTab, loadRatingData])
 
   useEffect(() => {
     setActiveTab(initialTab)
@@ -483,6 +575,48 @@ export default function Admin({ initialTab = 'employees' }) {
       })
   }, [blockFilter, catalogItems, catalogQuery])
 
+  const displayedRatingMonths = ratingMonth && !months.includes(ratingMonth)
+    ? [ratingMonth, ...months]
+    : months
+
+  const ratingOfficerOptions = useMemo(() => (
+    ratingRows.map((officer) => ({
+      id: officer.officer_id,
+      label: officer.name,
+      description: [officer.rank, districtName(officer.district, lang)].filter(Boolean).join(' · '),
+    }))
+  ), [lang, ratingRows])
+
+  const categorizedRatingRows = useMemo(() => {
+    const maxScore = maxEffectivenessScore(ratingRows)
+    return ratingRows.map((officer) => ({
+      ...officer,
+      achievement_percent: relativeScorePercent(officer.final, maxScore),
+      effectivenessCategory: effectivenessCategory(officer, maxScore),
+    }))
+  }, [ratingRows])
+
+  const filteredRatingRows = useMemo(() => {
+    const rows = categorizedRatingRows
+      .map((officer, index) => ({ ...officer, rankNum: index + 1 }))
+      .filter((officer) => (
+        !ratingOfficerFilter || String(officer.officer_id) === String(ratingOfficerFilter)
+      ))
+      .filter((officer) => (
+        !ratingCategoryFilter || officer.effectivenessCategory === ratingCategoryFilter
+      ))
+
+    const factor = ratingSort.dir === 'asc' ? 1 : -1
+    return [...rows].sort((left, right) => {
+      const comparison = ratingSort.key === 'score'
+        ? left.final - right.final
+        : ratingSort.key === 'rank'
+          ? rankOrder(left.rank) - rankOrder(right.rank)
+          : compareRatingNames(left, right)
+      return comparison ? comparison * factor : compareRatingNames(left, right)
+    })
+  }, [categorizedRatingRows, ratingCategoryFilter, ratingOfficerFilter, ratingSort])
+
   const upsertEmployee = (employee) => {
     setEmployees((current) => {
       if (current.some((item) => item.id === employee.id)) {
@@ -522,6 +656,23 @@ export default function Admin({ initialTab = 'employees' }) {
     }
   }
 
+  const selectAdminTab = (tab) => {
+    setActiveTab(tab)
+    navigate({
+      employees: '/admin',
+      catalog: '/admin/catalog',
+      rating: '/admin/rating',
+    }[tab])
+  }
+
+  const toggleRatingSort = (key) => {
+    setRatingSort((current) => (
+      current.key === key
+        ? { key, dir: current.dir === 'asc' ? 'desc' : 'asc' }
+        : { key, dir: 'asc' }
+    ))
+  }
+
   const deleteCatalogItem = async (item) => {
     const message = formatTemplate(t('confirmDeleteTargetKpi'), { code: item.code })
     if (!window.confirm(message)) return
@@ -542,16 +693,23 @@ export default function Admin({ initialTab = 'employees' }) {
           <button
             type="button"
             className={`btn ${activeTab === 'employees' ? 'btn-primary' : 'btn-ghost'}`}
-            onClick={() => setActiveTab('employees')}
+            onClick={() => selectAdminTab('employees')}
           >
             {t('employees')}
           </button>
           <button
             type="button"
             className={`btn ${activeTab === 'catalog' ? 'btn-primary' : 'btn-ghost'}`}
-            onClick={() => setActiveTab('catalog')}
+            onClick={() => selectAdminTab('catalog')}
           >
             {t('targets')}
+          </button>
+          <button
+            type="button"
+            className={`btn ${activeTab === 'rating' ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => selectAdminTab('rating')}
+          >
+            {t('officers')}
           </button>
         </div>
       </div>
@@ -770,6 +928,136 @@ export default function Admin({ initialTab = 'employees' }) {
                   {loading && (
                     <tr>
                       <td colSpan={8} className="empty">{t('loadingTargets')}</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+
+      {activeTab === 'rating' && (
+        <>
+          <div className="admin-section-toolbar admin-rating-toolbar">
+            <NameFilterCombobox
+              items={ratingOfficerOptions}
+              value={ratingOfficerFilter}
+              onChange={setRatingOfficerFilter}
+            />
+            <select
+              className="select officers-period-select"
+              value={ratingMonth}
+              onChange={(event) => setRatingMonth(event.target.value)}
+              aria-label={t('period')}
+            >
+              <option value="">{t('periodAll')}</option>
+              {displayedRatingMonths.map((item) => (
+                <option key={item} value={item}>{fmtMonth(item)}</option>
+              ))}
+            </select>
+            <select
+              className="select officers-district-select"
+              value={ratingDistrictFilter}
+              onChange={(event) => {
+                setRatingDistrictFilter(event.target.value)
+                setRatingOfficerFilter('')
+              }}
+              aria-label={t('selectGroup')}
+            >
+              <option value="">{t('allGroups')}</option>
+              {districts.map((district) => (
+                <option key={district.id} value={district.id}>
+                  {districtName(district, lang)}
+                </option>
+              ))}
+            </select>
+            <select
+              className="select officers-category-select"
+              value={ratingCategoryFilter}
+              onChange={(event) => setRatingCategoryFilter(event.target.value)}
+              aria-label={t('effectivenessCategory')}
+            >
+              <option value="">{t('allEffectivenessCategories')}</option>
+              {EFFECTIVENESS_CATEGORIES.map((item) => (
+                <option key={item} value={item}>
+                  {t({
+                    very_effective: 'categoryVeryEffective',
+                    effective: 'categoryEffective',
+                    little_effective: 'categoryLittleEffective',
+                  }[item])}
+                </option>
+              ))}
+            </select>
+            <select
+              className="select officers-score-sort"
+              value={ratingSort.key === 'score' ? ratingSort.dir : ''}
+              onChange={(event) => setRatingSort({ key: 'score', dir: event.target.value })}
+              aria-label={t('sortEffectiveness')}
+            >
+              {ratingSort.key !== 'score' && <option value="">{t('sortEffectiveness')}</option>}
+              <option value="desc">{t('sortBestFirst')}</option>
+              <option value="asc">{t('sortWorstFirst')}</option>
+            </select>
+          </div>
+
+          <div className="card table-card">
+            <div className="table-scroll admin-table-scroll">
+              <table className="data-table admin-rating-table">
+                <colgroup>
+                  <col className="admin-rating-col-position" />
+                  <col className="admin-rating-col-name" />
+                  <col className="admin-rating-col-rank" />
+                  <col className="admin-rating-col-district" />
+                  <col className="admin-rating-col-score" />
+                  <col className="admin-rating-col-achievement" />
+                  <col className="admin-rating-col-category" />
+                  <col className="admin-rating-col-confirmed" />
+                  <col className="admin-rating-col-pending" />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <SortTh column="surname" label={t('colOfficer')} sort={ratingSort} onSort={toggleRatingSort} />
+                    <SortTh column="rank" label={t('colRank')} sort={ratingSort} onSort={toggleRatingSort} />
+                    <th>{t('colDistrict')}</th>
+                    <th className="num">{t('confirmedFinal')}</th>
+                    <th className="num">{t('colAchievement')}</th>
+                    <th>{t('effectivenessCategory')}</th>
+                    <th className="num">{t('confirmedCount')}</th>
+                    <th className="num">{t('pendingShort')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRatingRows.map((officer) => (
+                    <tr key={officer.officer_id}>
+                      <td className="rank-cell">
+                        <span className={`rank-num rank-${officer.rankNum}${officer.rankNum >= 100 ? ' rank-num-wide' : ''}`}>
+                          {officer.rankNum}
+                        </span>
+                      </td>
+                      <td className="strong">{officer.name}</td>
+                      <td className="muted">{officer.rank || '—'}</td>
+                      <td className="muted">{districtName(officer.district, lang) || '—'}</td>
+                      <td className="num strong">{officer.final}</td>
+                      <td className="num">{officer.achievement_percent}%</td>
+                      <td>
+                        <EffectivenessBadge category={officer.effectivenessCategory} t={t} />
+                      </td>
+                      <td className="num">{officer.confirmed}</td>
+                      <td className="num">{officer.pending}</td>
+                    </tr>
+                  ))}
+                  {!ratingLoading && filteredRatingRows.length === 0 && (
+                    <tr>
+                      <td colSpan={9} className="empty">
+                        {ratingRows.length === 0 ? t('noEmployees') : t('nothingFound')}
+                      </td>
+                    </tr>
+                  )}
+                  {ratingLoading && (
+                    <tr>
+                      <td colSpan={9} className="empty">{t('loadingEntries')}</td>
                     </tr>
                   )}
                 </tbody>

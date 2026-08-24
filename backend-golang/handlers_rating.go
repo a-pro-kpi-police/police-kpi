@@ -21,8 +21,30 @@ func (a *App) handleRating(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	month := r.URL.Query().Get("month")
 	scope, _ := headScopeDistrictValue(user)
+	a.writeRating(w, r, scope)
+}
+
+func (a *App) handleAdminRating(w http.ResponseWriter, r *http.Request) {
+	if _, ok := requireAdmin(a, w, r); !ok {
+		return
+	}
+	districtID, err := parseOptionalInt(r.URL.Query().Get("district_id"))
+	if err != nil || (districtID != nil && *districtID <= 0) {
+		writeError(w, http.StatusBadRequest, "Участок указан неверно")
+		return
+	}
+	if districtID != nil {
+		if err := a.ensureDistrictExists(r.Context(), *districtID); err != nil {
+			writeHTTPError(w, err)
+			return
+		}
+	}
+	a.writeRating(w, r, optionalIntValue(districtID))
+}
+
+func (a *App) writeRating(w http.ResponseWriter, r *http.Request, scope int) {
+	month := r.URL.Query().Get("month")
 	officers, err := a.userQueryService().ListOfficersWithEfficiency(r.Context(), scope)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())

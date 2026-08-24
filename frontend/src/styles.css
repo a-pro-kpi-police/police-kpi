@@ -1246,6 +1246,31 @@ html.theme-root-animating #root {
   white-space: normal;
   overflow-wrap: anywhere;
 }
+.admin-rating-toolbar .name-combobox { width: 250px; }
+.admin-rating-table {
+  min-width: 1120px;
+  table-layout: fixed;
+}
+.admin-rating-table .admin-rating-col-position { width: 5%; }
+.admin-rating-table .admin-rating-col-name { width: 22%; }
+.admin-rating-table .admin-rating-col-rank { width: 14%; }
+.admin-rating-table .admin-rating-col-district { width: 14%; }
+.admin-rating-table .admin-rating-col-score { width: 10%; }
+.admin-rating-table .admin-rating-col-achievement { width: 10%; }
+.admin-rating-table .admin-rating-col-category { width: 13%; }
+.admin-rating-table .admin-rating-col-confirmed { width: 6%; }
+.admin-rating-table .admin-rating-col-pending { width: 6%; }
+.admin-rating-table th,
+.admin-rating-table td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.admin-rating-table .effectiveness-badge {
+  max-width: 100%;
+  line-height: 1.2;
+  text-align: center;
+  white-space: normal;
+}
 .admin-catalog-indicator {
   color: var(--text);
   font-weight: 650;
@@ -1282,7 +1307,9 @@ html.theme-root-animating #root {
   .admin-district-select,
   .admin-block-select,
   .admin-section-toolbar .btn,
-  .admin-tabs .btn {
+  .admin-tabs .btn,
+  .admin-rating-toolbar .name-combobox,
+  .admin-rating-toolbar .select {
     width: 100%;
     min-width: 0;
     flex: 1 1 100%;

@@ -110,6 +110,14 @@ export default function App() {
             </AdminOnly>
           }
         />
+        <Route
+          path="admin/rating"
+          element={
+            <AdminOnly>
+              <Admin initialTab="rating" />
+            </AdminOnly>
+          }
+        />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
