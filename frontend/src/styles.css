@@ -811,41 +811,6 @@ html.theme-root-animating #root {
 .team-performance-up .team-performance-comparison > strong { color: var(--green); }
 .team-performance-down .team-performance-comparison > strong { color: var(--red); }
 .team-performance-equal .team-performance-comparison > strong { color: var(--gold); }
-.performance-summary {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  width: 100%;
-  max-width: 1080px;
-  margin: 0 auto 22px;
-  overflow: hidden;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-}
-.performance-metric { min-width: 0; padding: 16px 18px; }
-.performance-metric + .performance-metric { border-left: 1px solid var(--border); }
-.performance-value {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  color: var(--navy);
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-}
-.performance-value strong { font-size: 30px; font-weight: 800; }
-.performance-value > span:not(.performance-arrow) {
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 600;
-}
-.performance-change { color: var(--muted); }
-.performance-arrow { font-size: 26px; font-weight: 800; }
-.performance-up .performance-change { color: var(--green); }
-.performance-down .performance-change { color: var(--red); }
-.performance-equal .performance-change { color: var(--gold); }
-.performance-title { margin-top: 8px; color: var(--text); font-weight: 700; }
-.performance-detail { margin-top: 4px; color: var(--muted); font-size: 12px; }
-
 /* ---------- Charts ---------- */
 .chart-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
 .chart-card { padding: 18px; }
@@ -1088,11 +1053,6 @@ html.theme-root-animating #root {
   .overview-rate-body { gap: 12px; }
   .team-performance-summary { align-items: flex-start; flex-direction: column; gap: 10px; }
   .team-performance-comparison { min-width: 0; width: 100%; }
-  .performance-summary { grid-template-columns: 1fr; }
-  .performance-metric + .performance-metric {
-    border-top: 1px solid var(--border);
-    border-left: 0;
-  }
   .target-officer-toolbar {
     width: 100%;
     align-items: stretch;
@@ -2753,8 +2713,7 @@ html[data-theme='dark'] .monthly-limit-impact dl > div:nth-child(3) dd,
 html[data-theme='dark'] .limit-excluded-value {
   color: #e1bd61;
 }
-html[data-theme='dark'] .team-performance-summary,
-html[data-theme='dark'] .performance-summary {
+html[data-theme='dark'] .team-performance-summary {
   background: var(--card);
 }
 html[data-theme='dark'] .data-table th {

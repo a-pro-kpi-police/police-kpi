@@ -305,45 +305,6 @@ function OverviewCharts({ data, t }) {
   )
 }
 
-function PerformanceSummary({ comparisons, t }) {
-  const change = comparisons.relativePercent
-  const direction = change === null ? 'unavailable' : change > 0 ? 'up' : change < 0 ? 'down' : 'equal'
-  const changeLabel = {
-    up: t('abovePeerAverage'),
-    down: t('belowPeerAverage'),
-    equal: t('equalPeerAverage'),
-    unavailable: t('peerComparisonUnavailable'),
-  }[direction]
-
-  return (
-    <div className="performance-summary">
-      <section className="performance-metric" aria-label={t('effectivenessPlace')}>
-        <div className="performance-value">
-          <strong>{comparisons.rank ? `#${comparisons.rank}` : '—'}</strong>
-          <span>/ {comparisons.officerCount}</span>
-        </div>
-        <div className="performance-title">{t('effectivenessPlace')}</div>
-        <div className="performance-detail">
-          {comparisons.focusScore} {t('points')} · {t('selectedPeriodScore')}
-        </div>
-      </section>
-
-      <section className={`performance-metric performance-${direction}`} aria-label={changeLabel}>
-        <div className="performance-value performance-change">
-          <span className="performance-arrow" aria-hidden="true">
-            {direction === 'up' ? '↑' : direction === 'down' ? '↓' : '—'}
-          </span>
-          <strong>{change === null ? '—' : `${Math.abs(change)}%`}</strong>
-        </div>
-        <div className="performance-title">{changeLabel}</div>
-        <div className="performance-detail">
-          {t('peerAverageScore')}: {comparisons.peerAverage} {t('points')}
-        </div>
-      </section>
-    </div>
-  )
-}
-
 function formatSignedScore(value) {
   const rounded = Math.round((Number(value) || 0) * 100) / 100
   if (Object.is(rounded, -0) || rounded === 0) return '0'
@@ -787,9 +748,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {officer && comparisons && (
-        <PerformanceSummary comparisons={comparisons} t={t} />
-      )}
       {!officer && targetOverview && (
         <TeamTargetSummary overview={targetOverview} fmtMonth={fmtMonth} t={t} />
       )}
