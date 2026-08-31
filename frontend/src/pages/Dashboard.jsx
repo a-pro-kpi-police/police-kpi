@@ -344,38 +344,44 @@ function PerformanceSummary({ comparisons, t }) {
   )
 }
 
-function TeamPerformanceSummary({ comparisons, fmtMonth, t }) {
-  const hasComparison = comparisons.previousMonthCount > 0 && comparisons.baseline !== 0
-  const change = hasComparison
-    ? Number((((comparisons.currentScore - comparisons.baseline) / Math.abs(comparisons.baseline)) * 100).toFixed(1))
-    : null
-  const direction = change === null ? 'unavailable' : change > 0 ? 'up' : change < 0 ? 'down' : 'equal'
-  const comparisonLabel = {
-    up: t('abovePreviousAverage'),
-    down: t('belowPreviousAverage'),
-    equal: t('equalPreviousAverage'),
-    unavailable: t('previousComparisonUnavailable'),
-  }[direction]
+function formatSignedScore(value) {
+  const rounded = Math.round((Number(value) || 0) * 100) / 100
+  if (Object.is(rounded, -0) || rounded === 0) return '0'
+  return rounded > 0 ? `+${rounded}` : String(rounded)
+}
+
+function TeamTargetSummary({ overview, fmtMonth, t }) {
+  const actualScore = Number(overview.actual_score) || 0
+  const targetScore = Number(overview.target_score) || 0
+  const gap = Math.round((actualScore - targetScore) * 100) / 100
+  const hasTarget = targetScore > 0
+  const direction = !hasTarget ? 'unavailable' : gap > 0 ? 'up' : gap < 0 ? 'down' : 'equal'
+  const comparisonLabel = !hasTarget
+    ? t('teamTargetUnavailable')
+    : gap > 0
+      ? t('teamTargetExceeded')
+      : gap < 0
+        ? t('teamTargetBehind')
+        : t('teamTargetMet')
 
   return (
     <section className={`team-performance-summary team-performance-${direction}`}>
       <div>
-        <strong>{t('teamEffectiveness')}</strong>
+        <strong>{t('teamTargetProgress')}</strong>
         <p>
-          {fmtMonth(comparisons.currentMonth)}: {t('teamScored')}{' '}
-          <b>{comparisons.currentScore} {t('points')}</b>.
+          {fmtMonth(overview.month)}: {t('teamScored')}{' '}
+          <b>{actualScore} {t('points')}</b>.
         </p>
       </div>
       <div className="team-performance-comparison">
-        {change !== null && (
-          <strong>{direction === 'up' ? '↑' : direction === 'down' ? '↓' : '—'} {Math.abs(change)}%</strong>
-        )}
+        <strong>{hasTarget ? `${formatSignedScore(gap)} ${t('points')}` : '—'}</strong>
         <span>{comparisonLabel}</span>
-        {comparisons.previousMonthCount > 0 && (
-          <span className="team-performance-baseline">
-            {t('previousAverage')}: {comparisons.baseline} {t('points')}
-          </span>
-        )}
+        <span className="team-performance-baseline">
+          {t('monthlyNorm')}: {hasTarget ? `${targetScore} ${t('points')}` : '—'}
+        </span>
+        <span className="team-performance-baseline">
+          {t('teamOnTarget')}: {overview.on_target_count} / {overview.officers_count}
+        </span>
       </div>
     </section>
   )
@@ -784,8 +790,8 @@ export default function Dashboard() {
       {officer && comparisons && (
         <PerformanceSummary comparisons={comparisons} t={t} />
       )}
-      {!officer && comparisons && (
-        <TeamPerformanceSummary comparisons={comparisons} fmtMonth={fmtMonth} t={t} />
+      {!officer && targetOverview && (
+        <TeamTargetSummary overview={targetOverview} fmtMonth={fmtMonth} t={t} />
       )}
 
       <div className="section-head">
