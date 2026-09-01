@@ -1,0 +1,79 @@
+name: AI task
+description: Create a backlog item that an implementation agent can pick up.
+title: "[AI Task]: "
+labels:
+  # Provisioned by .github/workflows/provision-ai-labels.yml.
+  - ai-ready
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What should be true when this task is complete?
+      placeholder: "Example: Add a monthly KPI filter to the head dashboard."
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Link relevant code, screens, docs, bugs, logs, or product decisions.
+      placeholder: "Relevant files, screenshots, user report, API route, design note..."
+    validations:
+      required: false
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: List observable requirements the implementation agent must satisfy.
+      placeholder: |
+        - The dashboard can filter by reporting month.
+        - Existing district and employee filters still work.
+        - Relevant frontend build/tests pass.
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Expected verification
+      description: Tell the agent which checks should pass.
+      placeholder: |
+        - cd frontend && npm run build
+        - cd backend-golang && go test ./...
+        - Manual check: head dashboard month filter
+    validations:
+      required: false
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Frontend
+        - Backend Go
+        - API contract
+        - Database/import
+        - Docker/deploy
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: size
+    attributes:
+      label: Size
+      options:
+        - Small
+        - Medium
+        - Large
+    validations:
+      required: true
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Risk
+      options:
+        - Low
+        - Medium
+        - High
+    validations:
+      required: true

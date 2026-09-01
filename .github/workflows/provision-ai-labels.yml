@@ -1,0 +1,48 @@
+name: Provision AI Labels
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/ISSUE_TEMPLATE/ai-task.yml"
+      - ".github/workflows/provision-ai-labels.yml"
+      - "docs/ai-agent-workflow.md"
+      - ".agents/skills/**"
+      - "AGENTS.md"
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  sync-ai-labels:
+    name: Sync AI workflow labels
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create or update labels
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          upsert_label() {
+            local name="$1"
+            local color="$2"
+            local description="$3"
+
+            if gh label view "$name" --repo "$REPO" >/dev/null 2>&1; then
+              gh label edit "$name" --repo "$REPO" --color "$color" --description "$description"
+            else
+              gh label create "$name" --repo "$REPO" --color "$color" --description "$description"
+            fi
+          }
+
+          upsert_label "ai-ready" "0e8a16" "Ready for an implementation agent to pick up"
+          upsert_label "ai-working" "1d76db" "Implementation agent is working on this issue"
+          upsert_label "ai-review" "fbca04" "Pull request is open and awaiting Codex review"
+          upsert_label "ai-needs-human" "d93f0b" "Blocked on human input, credentials, data, or permissions"
+          upsert_label "ai-done" "5319e7" "Implemented, reviewed, and accepted"
