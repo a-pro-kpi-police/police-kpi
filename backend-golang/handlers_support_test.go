@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -41,6 +43,20 @@ func TestSupportChatPersistsAndEnforcesPermissions(t *testing.T) {
 	response = supportJSONRequest(t, handler, http.MethodPost, "/api/support/messages", adminToken, map[string]string{"body": "admin attempt"})
 	if response.Code != http.StatusForbidden {
 		t.Fatalf("admin user-send status = %d, want %d", response.Code, http.StatusForbidden)
+	}
+
+	response = supportJSONRequest(t, handler, http.MethodPost, "/api/support/messages", officerToken, map[string]string{"body": "   "})
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("empty first message status = %d, want %d", response.Code, http.StatusBadRequest)
+	}
+	response = supportJSONRequest(t, handler, http.MethodGet, "/api/admin/support/conversations", adminToken, nil)
+	if response.Code != http.StatusOK {
+		t.Fatalf("admin conversations after empty status = %d, want %d", response.Code, http.StatusOK)
+	}
+	var emptyConversations []SupportConversationOut
+	decodeSupportResponse(t, response, &emptyConversations)
+	if len(emptyConversations) != 0 {
+		t.Fatalf("admin conversations after empty message length = %d, want 0", len(emptyConversations))
 	}
 
 	response = supportJSONRequest(t, handler, http.MethodPost, "/api/support/messages", officerToken, map[string]string{"body": "Нужна помощь"})
@@ -107,6 +123,23 @@ func TestSupportChatPersistsAndEnforcesPermissions(t *testing.T) {
 	decodeSupportResponse(t, response, &otherThread)
 	if otherThread.Conversation != nil || len(otherThread.Messages) != 0 {
 		t.Fatalf("other user thread = %#v, want isolated empty chat", otherThread)
+	}
+}
+
+func TestNormalizeSupportBodyCountsCharacters(t *testing.T) {
+	body := strings.Repeat("ә", supportMaxBodyLength)
+	normalized, err := normalizeSupportBody(body)
+	if err != nil {
+		t.Fatalf("normalize exact unicode limit: %v", err)
+	}
+	if normalized != body {
+		t.Fatalf("normalized exact unicode body changed")
+	}
+
+	_, err = normalizeSupportBody(body + "ә")
+	var hErr httpErr
+	if !errors.As(err, &hErr) || hErr.status != http.StatusBadRequest {
+		t.Fatalf("normalize over unicode limit error = %v, want bad request", err)
 	}
 }
 

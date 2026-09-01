@@ -53,12 +53,7 @@ func (a *App) handleSupportSendMessage(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "Некорректные данные сообщения")
 		return
 	}
-	conversation, err := a.ensureSupportConversation(r.Context(), user.ID)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	message, err := a.createSupportMessage(r.Context(), conversation.ID, user.ID, payload.Body)
+	message, err := a.createUserSupportMessage(r.Context(), user.ID, payload.Body)
 	if err != nil {
 		writeHTTPError(w, supportMessageHTTPError(err))
 		return
@@ -141,24 +136,6 @@ func requireSupportUser(a *App, w http.ResponseWriter, r *http.Request) (*User, 
 	return user, true
 }
 
-func (a *App) ensureSupportConversation(ctx context.Context, userID int) (SupportConversationOut, error) {
-	conversation, found, err := a.supportConversationForUser(ctx, userID)
-	if err != nil || found {
-		return conversation, err
-	}
-	now := nowDB()
-	var conversationID int
-	if err := a.db.QueryRowContext(ctx, `INSERT INTO support_conversations
-		(user_id, created_at, updated_at)
-		VALUES (?, ?, ?)
-		RETURNING id`,
-		userID, now, now,
-	).Scan(&conversationID); err != nil {
-		return SupportConversationOut{}, err
-	}
-	return a.supportConversationByID(ctx, conversationID)
-}
-
 func (a *App) supportConversations(ctx context.Context) ([]SupportConversationOut, error) {
 	rows, err := a.db.QueryContext(ctx, supportConversationSelect+`
 		ORDER BY COALESCE((
@@ -218,6 +195,41 @@ func (a *App) supportMessages(ctx context.Context, conversationID int) ([]suppor
 	return messages, rows.Err()
 }
 
+func (a *App) createUserSupportMessage(ctx context.Context, userID int, rawBody string) (supportMessageRecord, error) {
+	body, err := normalizeSupportBody(rawBody)
+	if err != nil {
+		return supportMessageRecord{}, err
+	}
+	tx, err := a.db.BeginTx(ctx, nil)
+	if err != nil {
+		return supportMessageRecord{}, err
+	}
+	defer tx.Rollback()
+
+	now := nowDB()
+	if _, err := tx.ExecContext(ctx, `INSERT INTO support_conversations
+		(user_id, created_at, updated_at)
+		VALUES (?, ?, ?)
+		ON CONFLICT(user_id) DO NOTHING`,
+		userID, now, now,
+	); err != nil {
+		return supportMessageRecord{}, err
+	}
+
+	var conversationID int
+	if err := tx.QueryRowContext(ctx, `SELECT id FROM support_conversations WHERE user_id = ?`, userID).Scan(&conversationID); err != nil {
+		return supportMessageRecord{}, err
+	}
+	messageID, err := insertSupportMessage(ctx, tx, conversationID, userID, body, now)
+	if err != nil {
+		return supportMessageRecord{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return supportMessageRecord{}, err
+	}
+	return a.supportMessageByID(ctx, messageID)
+}
+
 func (a *App) createSupportMessage(ctx context.Context, conversationID int, senderID int, rawBody string) (supportMessageRecord, error) {
 	body, err := normalizeSupportBody(rawBody)
 	if err != nil {
@@ -230,23 +242,31 @@ func (a *App) createSupportMessage(ctx context.Context, conversationID int, send
 	defer tx.Rollback()
 
 	now := nowDB()
-	var messageID int
-	err = tx.QueryRowContext(ctx, `INSERT INTO support_messages
-		(conversation_id, sender_id, body, created_at)
-		VALUES (?, ?, ?, ?)
-		RETURNING id`,
-		conversationID, senderID, body, now,
-	).Scan(&messageID)
+	messageID, err := insertSupportMessage(ctx, tx, conversationID, senderID, body, now)
 	if err != nil {
-		return supportMessageRecord{}, err
-	}
-	if _, err := tx.ExecContext(ctx, `UPDATE support_conversations SET updated_at = ? WHERE id = ?`, now, conversationID); err != nil {
 		return supportMessageRecord{}, err
 	}
 	if err := tx.Commit(); err != nil {
 		return supportMessageRecord{}, err
 	}
 	return a.supportMessageByID(ctx, messageID)
+}
+
+func insertSupportMessage(ctx context.Context, tx dbtx, conversationID int, senderID int, body string, createdAt string) (int, error) {
+	var messageID int
+	err := tx.QueryRowContext(ctx, `INSERT INTO support_messages
+		(conversation_id, sender_id, body, created_at)
+		VALUES (?, ?, ?, ?)
+		RETURNING id`,
+		conversationID, senderID, body, createdAt,
+	).Scan(&messageID)
+	if err != nil {
+		return 0, err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE support_conversations SET updated_at = ? WHERE id = ?`, createdAt, conversationID); err != nil {
+		return 0, err
+	}
+	return messageID, nil
 }
 
 func (a *App) supportMessageByID(ctx context.Context, messageID int) (supportMessageRecord, error) {
@@ -262,7 +282,7 @@ func normalizeSupportBody(raw string) (string, error) {
 	if body == "" {
 		return "", httpErr{status: http.StatusBadRequest, detail: "Сообщение не может быть пустым"}
 	}
-	if len(body) > supportMaxBodyLength {
+	if len([]rune(body)) > supportMaxBodyLength {
 		return "", httpErr{status: http.StatusBadRequest, detail: "Сообщение слишком длинное"}
 	}
 	return body, nil
