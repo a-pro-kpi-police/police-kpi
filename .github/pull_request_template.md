@@ -4,11 +4,11 @@ Closes #
 
 ## Summary
 
-- 
+<!-- Add summary bullets here. -->
 
 ## Changed Files
 
-- 
+<!-- Add changed files here. -->
 
 ## Verification
 
@@ -25,7 +25,7 @@ Commands / evidence:
 
 ## Risks / Follow-ups
 
-- 
+<!-- Add risks or follow-ups here. -->
 
 ## Agent Handoff
 
