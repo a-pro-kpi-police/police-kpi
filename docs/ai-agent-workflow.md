@@ -6,20 +6,23 @@ The repository contains the instructions, issue template, PR template, and skill
 
 ## Required External Setup
 
-Before relying on automatic issue pickup, configure a Codex scheduled automation for `amanzhank13/kpi-police` that:
+Before relying on automatic issue pickup:
 
-- searches open GitHub Issues with label `ai-ready` or title prefix `[AI Task]`;
-- selects at most one eligible issue per run;
-- invokes the issue implementation workflow;
-- opens a branch and pull request into `main`;
-- comments `@codex review` on the pull request.
+1. Run the `Provision AI Labels` GitHub Actions workflow on `main`, or wait for it to pass after the workflow is merged. GitHub issue forms can only apply labels that already exist, so this must happen before creating AI tasks from `.github/ISSUE_TEMPLATE/ai-task.yml`.
+2. Configure a Codex scheduled automation for `amanzhank13/kpi-police` that:
+
+   - searches open GitHub Issues with label `ai-ready` or title prefix `[AI Task]`;
+   - selects at most one eligible issue per run;
+   - invokes the issue implementation workflow;
+   - opens a branch and pull request into `main`;
+   - comments `@codex review` on the pull request.
 
 For this repository, the expected automation name is `KPI-POLICE Auto Issue Runner`.
 
 ## Workflow
 
 1. Create a GitHub Issue with the `AI task` template.
-2. Add label `ai-ready`.
+2. Confirm the issue has label `ai-ready`; the template applies it automatically after labels are provisioned.
 3. The external Codex scheduled automation selects one eligible issue.
 4. The implementation agent creates a branch named `codex/issue-<number>-<short-slug>`.
 5. The agent implements the issue and opens a pull request into `main`.
@@ -28,6 +31,8 @@ For this repository, the expected automation name is `KPI-POLICE Auto Issue Runn
 8. A human merges only after review and checks are acceptable.
 
 ## Labels
+
+The `Provision AI Labels` workflow creates and updates the full lifecycle label set:
 
 - `ai-ready`: ready for an agent to pick up.
 - `ai-working`: currently being implemented.

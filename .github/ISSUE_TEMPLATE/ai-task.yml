@@ -2,6 +2,7 @@ name: AI task
 description: Create a backlog item that an implementation agent can pick up.
 title: "[AI Task]: "
 labels:
+  # Provisioned by .github/workflows/provision-ai-labels.yml.
   - ai-ready
 body:
   - type: textarea
