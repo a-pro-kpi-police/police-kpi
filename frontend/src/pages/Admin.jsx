@@ -12,6 +12,7 @@ import {
 } from '../effectiveness.js'
 import { useI18n } from '../i18n.jsx'
 import { useNotify } from '../notifications.jsx'
+import AdminSupportChat from './AdminSupportChat.jsx'
 
 const RANKS = [
   'Сержант полиции',
@@ -662,6 +663,7 @@ export default function Admin({ initialTab = 'employees' }) {
       employees: '/admin',
       catalog: '/admin/catalog',
       rating: '/admin/rating',
+      support: '/admin/support',
     }[tab])
   }
 
@@ -710,6 +712,13 @@ export default function Admin({ initialTab = 'employees' }) {
             onClick={() => selectAdminTab('rating')}
           >
             {t('officers')}
+          </button>
+          <button
+            type="button"
+            className={`btn ${activeTab === 'support' ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => selectAdminTab('support')}
+          >
+            {t('supportChat')}
           </button>
         </div>
       </div>
@@ -1066,6 +1075,8 @@ export default function Admin({ initialTab = 'employees' }) {
           </div>
         </>
       )}
+
+      {activeTab === 'support' && <AdminSupportChat />}
 
       {showCreate && (
         <EmployeeModal

@@ -347,3 +347,44 @@ type MessageOut struct {
 	IsDeleted   bool               `json:"is_deleted"`
 	Entry       *MessengerEntryOut `json:"entry"`
 }
+
+type SupportConversationUserOut struct {
+	ID          int       `json:"id"`
+	Username    string    `json:"username"`
+	FullName    string    `json:"full_name"`
+	Rank        string    `json:"rank"`
+	Role        string    `json:"role"`
+	District    *District `json:"district"`
+	MonthlyNorm float64   `json:"monthly_norm"`
+}
+
+type SupportConversationOut struct {
+	ID            int                        `json:"id"`
+	User          SupportConversationUserOut `json:"user"`
+	LastMessage   string                     `json:"last_message"`
+	LastMessageAt *time.Time                 `json:"last_message_at"`
+	MessageCount  int                        `json:"message_count"`
+	CreatedAt     time.Time                  `json:"created_at"`
+	UpdatedAt     time.Time                  `json:"updated_at"`
+}
+
+type SupportThreadOut struct {
+	Conversation *SupportConversationOut `json:"conversation"`
+	Messages     []SupportMessageOut     `json:"messages"`
+}
+
+type SupportMessageCreate struct {
+	Body string `json:"body"`
+}
+
+type SupportMessageOut struct {
+	ID             int       `json:"id"`
+	ConversationID int       `json:"conversation_id"`
+	SenderID       int       `json:"sender_id"`
+	SenderName     string    `json:"sender_name"`
+	SenderRole     string    `json:"sender_role"`
+	Body           string    `json:"body"`
+	CreatedAt      time.Time `json:"created_at"`
+	SentByMe       bool      `json:"sent_by_me"`
+	SentByAdmin    bool      `json:"sent_by_admin"`
+}

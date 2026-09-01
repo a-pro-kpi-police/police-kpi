@@ -641,6 +641,8 @@ func ensureDistrict(ctx context.Context, q queryer, district string) (*int, bool
 
 func replaceOperationalData(ctx context.Context, q queryer) error {
 	statements := []string{
+		`DELETE FROM support_messages`,
+		`DELETE FROM support_conversations`,
 		`DELETE FROM direct_messages`,
 		`DELETE FROM app_notifications`,
 		`DELETE FROM kpi_entries`,

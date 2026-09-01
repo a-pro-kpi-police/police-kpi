@@ -226,6 +226,23 @@ func createSchema(db *Store) error {
 		`CREATE INDEX IF NOT EXISTS ix_direct_messages_recipient_read ON direct_messages(recipient_id, read_at, deleted_at)`,
 		`CREATE INDEX IF NOT EXISTS ix_direct_messages_recipient_unread ON direct_messages(recipient_id, read_at, deleted_at, id)`,
 		`CREATE INDEX IF NOT EXISTS ix_direct_messages_conversation_id ON direct_messages(sender_id, recipient_id, id)`,
+		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS support_conversations (
+			id %s,
+			user_id INTEGER NOT NULL UNIQUE REFERENCES users(id),
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL
+		)`, idType),
+		`CREATE INDEX IF NOT EXISTS ix_support_conversations_user_id ON support_conversations(user_id)`,
+		`CREATE INDEX IF NOT EXISTS ix_support_conversations_updated_at ON support_conversations(updated_at)`,
+		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS support_messages (
+			id %s,
+			conversation_id INTEGER NOT NULL REFERENCES support_conversations(id),
+			sender_id INTEGER NOT NULL REFERENCES users(id),
+			body TEXT NOT NULL,
+			created_at TEXT NOT NULL
+		)`, idType),
+		`CREATE INDEX IF NOT EXISTS ix_support_messages_conversation_id ON support_messages(conversation_id, created_at, id)`,
+		`CREATE INDEX IF NOT EXISTS ix_support_messages_sender_id ON support_messages(sender_id)`,
 	}
 	for _, stmt := range statements {
 		if _, err := db.ExecContext(context.Background(), stmt); err != nil {
