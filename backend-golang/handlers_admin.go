@@ -222,6 +222,17 @@ func (a *App) handleAdminDeleteUser(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	if _, err := tx.ExecContext(r.Context(), `DELETE FROM support_messages
+		WHERE sender_id = ? OR conversation_id IN (
+			SELECT id FROM support_conversations WHERE user_id = ?
+		)`, userID, userID); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if _, err := tx.ExecContext(r.Context(), `DELETE FROM support_conversations WHERE user_id = ?`, userID); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	if _, err := tx.ExecContext(r.Context(), `DELETE FROM app_notifications WHERE user_id = ?`, userID); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return

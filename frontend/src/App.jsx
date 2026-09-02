@@ -118,6 +118,14 @@ export default function App() {
             </AdminOnly>
           }
         />
+        <Route
+          path="admin/support"
+          element={
+            <AdminOnly>
+              <Admin initialTab="support" />
+            </AdminOnly>
+          }
+        />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

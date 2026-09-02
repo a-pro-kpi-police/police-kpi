@@ -114,6 +114,12 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("POST /api/messenger/messages", a.handleSendMessage)
 	mux.HandleFunc("DELETE /api/messenger/messages/{message_id}", a.handleDeleteMessage)
 
+	mux.HandleFunc("GET /api/support/conversation", a.handleSupportConversation)
+	mux.HandleFunc("POST /api/support/messages", a.handleSupportSendMessage)
+	mux.HandleFunc("GET /api/admin/support/conversations", a.handleAdminSupportConversations)
+	mux.HandleFunc("GET /api/admin/support/conversations/{conversation_id}/messages", a.handleAdminSupportMessages)
+	mux.HandleFunc("POST /api/admin/support/conversations/{conversation_id}/messages", a.handleAdminSupportSendMessage)
+
 	return corsMiddleware(loggingMiddleware(recoveryMiddleware(mux)))
 }
 

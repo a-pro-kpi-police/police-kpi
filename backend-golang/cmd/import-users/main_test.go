@@ -216,6 +216,19 @@ func TestRunReplaceDataPurgesOperationalTables(t *testing.T) {
 			monthly_norm REAL NOT NULL DEFAULT 100.0
 		)`,
 		`CREATE TABLE direct_messages (id INTEGER PRIMARY KEY AUTOINCREMENT)`,
+		`CREATE TABLE support_conversations (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id INTEGER NOT NULL REFERENCES users(id),
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL
+		)`,
+		`CREATE TABLE support_messages (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			conversation_id INTEGER NOT NULL REFERENCES support_conversations(id),
+			sender_id INTEGER NOT NULL REFERENCES users(id),
+			body TEXT NOT NULL,
+			created_at TEXT NOT NULL
+		)`,
 		`CREATE TABLE app_notifications (id INTEGER PRIMARY KEY AUTOINCREMENT)`,
 		`CREATE TABLE kpi_entries (id INTEGER PRIMARY KEY AUTOINCREMENT)`,
 		`CREATE TABLE kpi_targets (id INTEGER PRIMARY KEY AUTOINCREMENT)`,
@@ -224,6 +237,10 @@ func TestRunReplaceDataPurgesOperationalTables(t *testing.T) {
 		`INSERT INTO users(username, password_hash, full_name, rank, role, district_id, source_employee_number, monthly_norm)
 		 VALUES('old', 'hash', 'Old User', '', 'officer', 1, 'old-1', 100)`,
 		`INSERT INTO direct_messages DEFAULT VALUES`,
+		`INSERT INTO support_conversations(user_id, created_at, updated_at)
+		 VALUES(1, '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z')`,
+		`INSERT INTO support_messages(conversation_id, sender_id, body, created_at)
+		 VALUES(1, 1, 'old message', '2026-09-01T00:00:00Z')`,
 		`INSERT INTO app_notifications DEFAULT VALUES`,
 		`INSERT INTO kpi_entries DEFAULT VALUES`,
 		`INSERT INTO kpi_targets DEFAULT VALUES`,
@@ -263,13 +280,15 @@ func TestRunReplaceDataPurgesOperationalTables(t *testing.T) {
 	defer db.Close()
 
 	for table, want := range map[string]int{
-		"users":             1,
-		"districts":         1,
-		"direct_messages":   0,
-		"app_notifications": 0,
-		"kpi_entries":       0,
-		"kpi_targets":       0,
-		"import_batches":    0,
+		"users":                 1,
+		"districts":             1,
+		"direct_messages":       0,
+		"support_messages":      0,
+		"support_conversations": 0,
+		"app_notifications":     0,
+		"kpi_entries":           0,
+		"kpi_targets":           0,
+		"import_batches":        0,
 	} {
 		var count int
 		if err := db.QueryRow(`SELECT COUNT(*) FROM ` + table).Scan(&count); err != nil {
