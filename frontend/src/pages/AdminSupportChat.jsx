@@ -4,10 +4,7 @@ import { getApiErrorMessage } from '../apiError.js'
 import { districtName } from '../districtLocale.js'
 import { useI18n } from '../i18n.jsx'
 import { useNotify } from '../notifications.jsx'
-
-const parseApiTimestamp = (value) => new Date(
-  /(?:Z|[+-]\d{2}:\d{2})$/.test(value) ? value : `${value}Z`,
-)
+import { mergeSupportMessages, parseApiTimestamp } from '../supportMessages.js'
 
 function SendIcon() {
   return (
@@ -71,7 +68,10 @@ export default function AdminSupportChat() {
     try {
       const { data } = await api.get(`/admin/support/conversations/${conversationId}/messages`)
       if (String(activeIdRef.current) !== String(conversationId)) return
-      setMessages(Array.isArray(data.messages) ? data.messages : [])
+      setMessages((current) => mergeSupportMessages(
+        current.filter((message) => String(message.conversation_id) === String(conversationId)),
+        data.messages,
+      ))
     } catch (err) {
       if (!silent) {
         notify(getApiErrorMessage(err, t, 'supportMessagesLoadError'), 'error')
@@ -97,6 +97,7 @@ export default function AdminSupportChat() {
       setMessages([])
       return undefined
     }
+    setMessages([])
     loadMessages(activeId)
     const interval = window.setInterval(() => loadMessages(activeId, { silent: true }), 5000)
     window.requestAnimationFrame(() => textareaRef.current?.focus())
@@ -129,11 +130,19 @@ export default function AdminSupportChat() {
     event.preventDefault()
     const body = draft.trim()
     if (!body || !activeId || sending) return
+    const submittedConversationId = activeId
     setSending(true)
     try {
-      const { data } = await api.post(`/admin/support/conversations/${activeId}/messages`, { body })
-      setMessages((current) => [...current, data])
-      setDraft('')
+      const { data } = await api.post(`/admin/support/conversations/${submittedConversationId}/messages`, { body })
+      if (String(activeIdRef.current) === String(submittedConversationId)) {
+        setMessages((current) => mergeSupportMessages(
+          current.filter((message) => String(message.conversation_id) === String(submittedConversationId)),
+          [data],
+        ))
+        setDraft((current) => (current.trim() === body ? '' : current))
+      } else {
+        await loadMessages(activeIdRef.current, { silent: true })
+      }
       await loadConversations({ silent: true })
     } catch (err) {
       notify(getApiErrorMessage(err, t, 'supportSendError'), 'error')

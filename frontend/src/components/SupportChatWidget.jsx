@@ -3,10 +3,7 @@ import api from '../api'
 import { getApiErrorMessage } from '../apiError.js'
 import { useI18n } from '../i18n.jsx'
 import { useNotify } from '../notifications.jsx'
-
-const parseApiTimestamp = (value) => new Date(
-  /(?:Z|[+-]\d{2}:\d{2})$/.test(value) ? value : `${value}Z`,
-)
+import { mergeSupportMessages, parseApiTimestamp } from '../supportMessages.js'
 
 function SupportIcon() {
   return (
@@ -49,7 +46,7 @@ export default function SupportChatWidget() {
     if (!silent) setLoading(true)
     try {
       const { data } = await api.get('/support/conversation')
-      setMessages(Array.isArray(data.messages) ? data.messages : [])
+      setMessages((current) => mergeSupportMessages(current, data.messages))
       setError('')
     } catch (err) {
       const message = getApiErrorMessage(err, t, 'supportLoadError')
@@ -80,8 +77,8 @@ export default function SupportChatWidget() {
     setError('')
     try {
       const { data } = await api.post('/support/messages', { body })
-      setMessages((current) => [...current, data])
-      setDraft('')
+      setMessages((current) => mergeSupportMessages(current, [data]))
+      setDraft((current) => (current.trim() === body ? '' : current))
     } catch (err) {
       const message = getApiErrorMessage(err, t, 'supportSendError')
       setError(message)
