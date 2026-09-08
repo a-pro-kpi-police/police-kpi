@@ -192,6 +192,17 @@ func createSchema(db *Store) error {
 		`CREATE INDEX IF NOT EXISTS ix_kpi_entries_month_officer_status ON kpi_entries(month, officer_id, status)`,
 		`CREATE INDEX IF NOT EXISTS ix_kpi_entries_source_key ON kpi_entries(source_key)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS ux_kpi_entries_source_key ON kpi_entries(source_key)`,
+		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS entry_attachments (
+			id %s,
+			entry_id INTEGER NOT NULL REFERENCES kpi_entries(id) ON DELETE CASCADE,
+			name TEXT NOT NULL,
+			storage_name TEXT NOT NULL,
+			content_type TEXT NOT NULL,
+			size INTEGER NOT NULL,
+			created_at TEXT NOT NULL,
+			UNIQUE(entry_id, storage_name)
+		)`, idType),
+		`CREATE INDEX IF NOT EXISTS ix_entry_attachments_entry_id ON entry_attachments(entry_id, id)`,
 		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS kpi_targets (
 			id %s,
 			month TEXT NOT NULL,
@@ -249,7 +260,16 @@ func createSchema(db *Store) error {
 			return err
 		}
 	}
-	return ensureColumns(db)
+	if err := ensureColumns(db); err != nil {
+		return err
+	}
+	_, err := db.ExecContext(context.Background(), `INSERT INTO entry_attachments
+		(entry_id, name, storage_name, content_type, size, created_at)
+		SELECT id, attachment_name, attachment_storage_name, attachment_content_type, attachment_size, ?
+		FROM kpi_entries
+		WHERE attachment_storage_name <> ''
+		ON CONFLICT(entry_id, storage_name) DO NOTHING`, time.Now().UTC().Format(time.RFC3339Nano))
+	return err
 }
 
 func ensureColumns(db *Store) error {

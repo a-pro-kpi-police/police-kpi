@@ -110,6 +110,14 @@ func (r Repository) CreateEntry(ctx context.Context, actor domainentries.Actor, 
 		return domainentries.Entry{}, err
 	}
 	entry.ID = entryID
+	for _, attachment := range entry.Attachments {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO entry_attachments
+			(entry_id, name, storage_name, content_type, size, created_at)
+			VALUES (?, ?, ?, ?, ?, ?)`, entryID, attachment.Name, attachment.StorageName,
+			attachment.ContentType, attachment.Size, time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
+			return domainentries.Entry{}, err
+		}
+	}
 
 	if actor.Role == domainentries.RoleOfficer {
 		code := "KPI"

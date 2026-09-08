@@ -1376,6 +1376,7 @@ html.theme-root-animating #root {
   gap: 4px;
   margin-top: 6px;
 }
+.attachment-list { display: grid; gap: 2px; }
 .attachment-download-link { min-width: 0; margin-right: 8px; }
 .attachment-preview-link { flex: 0 0 auto; }
 .attachment-preview-overlay { z-index: 70; }
@@ -1433,6 +1434,28 @@ html.theme-root-animating #root {
   max-width: 100%;
   max-height: calc(92vh - 104px);
   object-fit: contain;
+}
+.attachment-preview-canvas video {
+  display: block;
+  width: 100%;
+  max-width: 900px;
+  max-height: calc(92vh - 104px);
+  background: #000;
+}
+.entry-attachment-add { margin-left: auto; cursor: pointer; }
+.entry-attachment-add.disabled { cursor: wait; opacity: .65; }
+.entry-attachment-add input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.entry-attachment-add:focus-within {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
 }
 .nowrap { white-space: nowrap; }
 .empty { text-align: center; color: var(--muted); padding: 30px; }

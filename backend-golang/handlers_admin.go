@@ -448,7 +448,12 @@ func nullableString(value string) any {
 func attachmentNamesForOfficer(ctx context.Context, q dbtx, officerID int) ([]string, error) {
 	rows, err := q.QueryContext(ctx, `SELECT attachment_storage_name
 		FROM kpi_entries
-		WHERE officer_id = ? AND attachment_storage_name <> ''`, officerID)
+		WHERE officer_id = ? AND attachment_storage_name <> ''
+		UNION
+		SELECT a.storage_name
+		FROM entry_attachments a
+		JOIN kpi_entries e ON e.id = a.entry_id
+		WHERE e.officer_id = ?`, officerID, officerID)
 	if err != nil {
 		return nil, err
 	}

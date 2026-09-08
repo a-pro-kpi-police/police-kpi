@@ -126,36 +126,48 @@ type CatalogItem struct {
 }
 
 type EntryOut struct {
-	ID                    int     `json:"id"`
-	Date                  string  `json:"date"`
-	Month                 string  `json:"month"`
-	OfficerID             int     `json:"officer_id"`
-	OfficerName           string  `json:"officer_name"`
-	Rank                  string  `json:"rank"`
-	DistrictName          string  `json:"district_name"`
-	Code                  string  `json:"code"`
-	Indicator             string  `json:"indicator"`
-	Block                 string  `json:"block"`
-	Subblock              string  `json:"subblock"`
-	NPA                   string  `json:"npa"`
-	SourceURL             string  `json:"source_url"`
-	Quantity              float64 `json:"quantity"`
-	CountedQuantity       float64 `json:"counted_quantity"`
-	MonthlyLimit          float64 `json:"monthly_limit"`
-	IsMass                bool    `json:"is_mass"`
-	IsCritical            bool    `json:"is_critical"`
-	PointsPerUnit         float64 `json:"points_per_unit"`
-	Coeff                 float64 `json:"coeff"`
-	RawScore              float64 `json:"raw_score"`
-	CappedScore           float64 `json:"capped_score"`
-	AntiCoeff             float64 `json:"anti_coeff"`
-	FinalScore            float64 `json:"final_score"`
-	Status                string  `json:"status"`
-	Comments              string  `json:"comments"`
-	HeadComment           string  `json:"head_comment"`
-	AttachmentName        string  `json:"attachment_name"`
-	AttachmentContentType string  `json:"attachment_content_type"`
-	AttachmentSize        int64   `json:"attachment_size"`
+	ID                    int             `json:"id"`
+	Date                  string          `json:"date"`
+	Month                 string          `json:"month"`
+	OfficerID             int             `json:"officer_id"`
+	OfficerName           string          `json:"officer_name"`
+	Rank                  string          `json:"rank"`
+	DistrictName          string          `json:"district_name"`
+	Code                  string          `json:"code"`
+	Indicator             string          `json:"indicator"`
+	Block                 string          `json:"block"`
+	Subblock              string          `json:"subblock"`
+	NPA                   string          `json:"npa"`
+	SourceURL             string          `json:"source_url"`
+	Quantity              float64         `json:"quantity"`
+	CountedQuantity       float64         `json:"counted_quantity"`
+	MonthlyLimit          float64         `json:"monthly_limit"`
+	IsMass                bool            `json:"is_mass"`
+	IsCritical            bool            `json:"is_critical"`
+	PointsPerUnit         float64         `json:"points_per_unit"`
+	Coeff                 float64         `json:"coeff"`
+	RawScore              float64         `json:"raw_score"`
+	CappedScore           float64         `json:"capped_score"`
+	AntiCoeff             float64         `json:"anti_coeff"`
+	FinalScore            float64         `json:"final_score"`
+	Status                string          `json:"status"`
+	Comments              string          `json:"comments"`
+	HeadComment           string          `json:"head_comment"`
+	AttachmentName        string          `json:"attachment_name"`
+	AttachmentContentType string          `json:"attachment_content_type"`
+	AttachmentSize        int64           `json:"attachment_size"`
+	Attachments           []AttachmentOut `json:"attachments"`
+}
+
+type AttachmentOut struct {
+	ID          int    `json:"id"`
+	Name        string `json:"name"`
+	ContentType string `json:"content_type"`
+	Size        int64  `json:"size"`
+}
+
+type AttachmentPlaybackOut struct {
+	URL string `json:"url"`
 }
 
 type TokenOut struct {
