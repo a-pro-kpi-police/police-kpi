@@ -88,7 +88,16 @@ func (r Repository) ListEntries(ctx context.Context, query domainentries.EntryQu
 		}
 		result = append(result, entry)
 	}
-	return result, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := r.loadAttachments(ctx, result); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func (r Repository) GetEntry(ctx context.Context, id int) (domainentries.ListedEntry, error) {
@@ -96,7 +105,44 @@ func (r Repository) GetEntry(ctx context.Context, id int) (domainentries.ListedE
 	if errors.Is(err, sql.ErrNoRows) {
 		return domainentries.ListedEntry{}, errors.Join(sql.ErrNoRows, domainentries.ErrEntryNotFound)
 	}
-	return entry, err
+	if err != nil {
+		return entry, err
+	}
+	entries := []domainentries.ListedEntry{entry}
+	if err := r.loadAttachments(ctx, entries); err != nil {
+		return domainentries.ListedEntry{}, err
+	}
+	return entries[0], nil
+}
+
+func (r Repository) loadAttachments(ctx context.Context, entries []domainentries.ListedEntry) error {
+	if len(entries) == 0 {
+		return nil
+	}
+	args := make([]any, 0, len(entries))
+	entryIndexes := make(map[int]int, len(entries))
+	for index := range entries {
+		args = append(args, entries[index].ID)
+		entryIndexes[entries[index].ID] = index
+		entries[index].Attachments = []domainentries.ListedAttachment{}
+	}
+	rows, err := r.q.QueryContext(ctx, `SELECT id, entry_id, name, storage_name, content_type, size
+		FROM entry_attachments WHERE entry_id IN (`+placeholders(len(entries))+`) ORDER BY entry_id, id`, args...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var entryID int
+		var attachment domainentries.ListedAttachment
+		if err := rows.Scan(&attachment.ID, &entryID, &attachment.Name, &attachment.StorageName, &attachment.ContentType, &attachment.Size); err != nil {
+			return err
+		}
+		if index, ok := entryIndexes[entryID]; ok {
+			entries[index].Attachments = append(entries[index].Attachments, attachment)
+		}
+	}
+	return rows.Err()
 }
 
 func scanListedEntry(scanner rowScanner) (domainentries.ListedEntry, error) {

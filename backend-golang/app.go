@@ -90,7 +90,12 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /api/entries", a.handleListEntries)
 	mux.HandleFunc("POST /api/entries", a.handleCreateEntry)
 	mux.HandleFunc("POST /api/entries/with-attachment", a.handleCreateEntryWithAttachment)
+	mux.HandleFunc("POST /api/entries/with-attachments", a.handleCreateEntryWithAttachment)
 	mux.HandleFunc("GET /api/entries/{entry_id}/attachment", a.handleDownloadAttachment)
+	mux.HandleFunc("POST /api/entries/{entry_id}/attachments", a.handleAddEntryAttachments)
+	mux.HandleFunc("GET /api/entries/{entry_id}/attachments/{attachment_id}", a.handleEntryAttachment)
+	mux.HandleFunc("GET /api/entries/{entry_id}/attachments/{attachment_id}/playback-url", a.handleAttachmentPlaybackURL)
+	mux.HandleFunc("GET /api/entries/{entry_id}/attachments/{attachment_id}/playback", a.handleAttachmentPlayback)
 	mux.HandleFunc("PATCH /api/entries/{entry_id}/status", a.handleUpdateEntryStatus)
 	mux.HandleFunc("DELETE /api/entries/{entry_id}", a.handleDeleteEntry)
 

@@ -10,10 +10,16 @@ import ProfileHoverCard from '../components/ProfileHoverCard.jsx'
 import { useI18n } from '../i18n.jsx'
 import { kpiIndicator } from '../kpiLocale.js'
 import { useNotify } from '../notifications.jsx'
-import { attachmentBlob, imageAttachmentType, isImageAttachment } from '../attachments.js'
+import {
+  attachmentBlob, attachmentPath, entryAttachments, imageAttachmentType,
+  isImageAttachment, isVideoAttachment,
+} from '../attachments.js'
 
 const NUMERIC_KEYS = ['quantity', 'points_per_unit', 'coeff', 'raw_score', 'final_score']
 const PAGE_SIZE = 20
+const MAX_ATTACHMENT_SIZE = 20 * 1024 * 1024
+const MAX_ATTACHMENTS = 5
+const ATTACHMENT_ACCEPT = '.pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip,.mp4,.webm,.ogv'
 const currentMonth = () => new Date().toISOString().slice(0, 7)
 const formatFileSize = (bytes) => {
   if (!bytes) return '0 KB'
@@ -95,19 +101,31 @@ function AttachmentPreview({ preview, onClose, onLoadError, t }) {
             type="button"
             className="attachment-preview-close"
             onClick={onClose}
-            aria-label={t('closeImagePreview')}
-            title={t('closeImagePreview')}
+            aria-label={t('closeAttachmentPreview')}
+            title={t('closeAttachmentPreview')}
             autoFocus
           >
             ×
           </button>
         </header>
         <div className="attachment-preview-canvas">
-          <img
-            src={preview.url}
-            alt={`${t('imagePreview')}: ${preview.name}`}
-            onError={onLoadError}
-          />
+          {preview.kind === 'video' ? (
+            <video
+              src={preview.url}
+              controls
+              autoPlay
+              preload="metadata"
+              onError={onLoadError}
+            >
+              {t('videoPlaybackUnsupported')}
+            </video>
+          ) : (
+            <img
+              src={preview.url}
+              alt={`${t('imagePreview')}: ${preview.name}`}
+              onError={onLoadError}
+            />
+          )}
         </div>
       </section>
     </div>
@@ -133,7 +151,8 @@ export default function Entries() {
   const [hasMore, setHasMore] = useState(true)
   const [targetProgress, setTargetProgress] = useState(null)
   const [attachmentPreview, setAttachmentPreview] = useState(null)
-  const [previewingEntryId, setPreviewingEntryId] = useState(null)
+  const [previewingAttachmentKey, setPreviewingAttachmentKey] = useState(null)
+  const [uploadingEntryId, setUploadingEntryId] = useState(null)
   const [sort, setSort] = useState({ key: 'date', dir: 'desc' })
   const loadMoreRef = useRef(null)
   const requestIdRef = useRef(0)
@@ -341,15 +360,15 @@ export default function Entries() {
     }
   }
 
-  const downloadAttachment = async (entry) => {
+  const downloadAttachment = async (entry, attachment) => {
     try {
-      const { data } = await api.get(`/entries/${entry.id}/attachment`, {
+      const { data } = await api.get(attachmentPath(entry.id, attachment), {
         responseType: 'blob',
       })
       const url = URL.createObjectURL(data)
       const link = document.createElement('a')
       link.href = url
-      link.download = entry.attachment_name
+      link.download = attachment.name
       document.body.appendChild(link)
       link.click()
       link.remove()
@@ -366,9 +385,9 @@ export default function Entries() {
   useEffect(() => {
     const url = attachmentPreview?.url
     return () => {
-      if (url) URL.revokeObjectURL(url)
+      if (url && attachmentPreview?.kind === 'image') URL.revokeObjectURL(url)
     }
-  }, [attachmentPreview?.url])
+  }, [attachmentPreview?.kind, attachmentPreview?.url])
 
   useEffect(() => () => {
     const controller = previewRequestRef.current
@@ -376,37 +395,83 @@ export default function Entries() {
     controller?.abort()
   }, [])
 
-  const previewAttachment = async (entry) => {
+  const previewAttachment = async (entry, attachment) => {
     previewRequestRef.current?.abort()
     const controller = new AbortController()
     previewRequestRef.current = controller
     const returnFocus = document.activeElement instanceof HTMLElement
       ? document.activeElement
       : null
-    setPreviewingEntryId(entry.id)
+    const attachmentKey = `${entry.id}-${attachment.id || 'legacy'}`
+    setPreviewingAttachmentKey(attachmentKey)
     try {
-      const { data } = await api.get(`/entries/${entry.id}/attachment`, {
+      const { data } = await api.get(attachmentPath(entry.id, attachment), {
         responseType: 'blob',
         signal: controller.signal,
       })
       if (controller.signal.aborted) return
-      const contentType = imageAttachmentType(entry)
+      const contentType = imageAttachmentType(attachment)
       const url = URL.createObjectURL(attachmentBlob(data, contentType))
-      setAttachmentPreview({ url, name: entry.attachment_name, returnFocus })
+      setAttachmentPreview({ url, name: attachment.name, kind: 'image', returnFocus })
     } catch {
       if (!controller.signal.aborted) notify(t('attachmentPreviewError'), 'error')
     } finally {
       if (previewRequestRef.current === controller) {
         previewRequestRef.current = null
-        setPreviewingEntryId(null)
+        setPreviewingAttachmentKey(null)
       }
     }
   }
 
+  const playAttachment = async (entry, attachment) => {
+    const returnFocus = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null
+    const attachmentKey = `${entry.id}-${attachment.id}`
+    setPreviewingAttachmentKey(attachmentKey)
+    try {
+      const { data } = await api.get(
+        `/entries/${entry.id}/attachments/${attachment.id}/playback-url`
+      )
+      setAttachmentPreview({ url: data.url, name: attachment.name, kind: 'video', returnFocus })
+    } catch {
+      notify(t('videoPlaybackError'), 'error')
+    } finally {
+      setPreviewingAttachmentKey(null)
+    }
+  }
+
+  const addAttachments = async (entry, files) => {
+    if (!files.length) return
+    if (files.length > MAX_ATTACHMENTS) {
+      notify(t('attachmentCountError'), 'error')
+      return
+    }
+    if (files.some((file) => file.size > MAX_ATTACHMENT_SIZE)) {
+      notify(t('attachmentTooLargeError'), 'error')
+      return
+    }
+    const formData = new FormData()
+    files.forEach((file) => formData.append('attachments', file))
+    setUploadingEntryId(entry.id)
+    try {
+      const { data } = await api.post(`/entries/${entry.id}/attachments`, formData)
+      setEntries((previous) => previous.map((item) => (item.id === entry.id ? data : item)))
+      notify(t('attachmentsAdded'))
+    } catch (err) {
+      notify(getApiErrorMessage(err, t, 'attachmentUploadError'), 'error')
+    } finally {
+      setUploadingEntryId(null)
+    }
+  }
+
   const handleAttachmentPreviewError = useCallback(() => {
+    const errorKey = attachmentPreview?.kind === 'video'
+      ? 'videoPlaybackError'
+      : 'attachmentPreviewError'
     closeAttachmentPreview()
-    notify(t('attachmentPreviewError'), 'error')
-  }, [closeAttachmentPreview, notify, t])
+    notify(t(errorKey), 'error')
+  }, [attachmentPreview?.kind, closeAttachmentPreview, notify, t])
 
   const filterByOfficer = (officerId) => {
     setOfficerFilter(String(officerId))
@@ -516,7 +581,9 @@ export default function Entries() {
       </div>
 
       <div className="entry-record-grid">
-        {sortedEntries.map((e) => (
+        {sortedEntries.map((e) => {
+          const attachments = entryAttachments(e)
+          return (
           <article className="entry-record-card" key={e.id}>
             <header className="entry-record-header">
               <div className="entry-record-heading">
@@ -585,7 +652,7 @@ export default function Entries() {
               </RecordField>
             </dl>
 
-            {(e.comments || e.attachment_name || e.head_comment) && (
+            {(e.comments || attachments.length || e.head_comment) && (
               <div className="entry-record-notes">
                 {e.comments && (
                   <div>
@@ -593,30 +660,48 @@ export default function Entries() {
                     <p>{e.comments}</p>
                   </div>
                 )}
-                {e.attachment_name && (
-                  <div className="attachment-details">
-                    <button
-                      type="button"
-                      className="attachment-link attachment-download-link"
-                      onClick={() => downloadAttachment(e)}
-                      title={e.attachment_name}
-                      aria-label={`${t('downloadAttachment')}: ${e.attachment_name}`}
-                    >
-                      <span aria-hidden="true">📎</span>
-                      <span className="attachment-name">{e.attachment_name}</span>
-                      <span className="attachment-size">({formatFileSize(e.attachment_size)})</span>
-                    </button>
-                    {isImageAttachment(e) && (
-                      <button
-                        type="button"
-                        className="attachment-link attachment-preview-link"
-                        onClick={() => previewAttachment(e)}
-                        disabled={previewingEntryId === e.id}
-                        aria-label={`${t('previewAttachment')}: ${e.attachment_name}`}
-                      >
-                        {previewingEntryId === e.id ? t('loadingPreview') : t('previewAttachment')}
-                      </button>
-                    )}
+                {attachments.length > 0 && (
+                  <div className="attachment-list">
+                    {attachments.map((attachment) => {
+                      const attachmentKey = `${e.id}-${attachment.id || 'legacy'}`
+                      return (
+                        <div className="attachment-details" key={attachmentKey}>
+                          <button
+                            type="button"
+                            className="attachment-link attachment-download-link"
+                            onClick={() => downloadAttachment(e, attachment)}
+                            title={attachment.name}
+                            aria-label={`${t('downloadAttachment')}: ${attachment.name}`}
+                          >
+                            <span aria-hidden="true">📎</span>
+                            <span className="attachment-name">{attachment.name}</span>
+                            <span className="attachment-size">({formatFileSize(attachment.size)})</span>
+                          </button>
+                          {isImageAttachment(attachment) && (
+                            <button
+                              type="button"
+                              className="attachment-link attachment-preview-link"
+                              onClick={() => previewAttachment(e, attachment)}
+                              disabled={previewingAttachmentKey === attachmentKey}
+                              aria-label={`${t('previewAttachment')}: ${attachment.name}`}
+                            >
+                              {previewingAttachmentKey === attachmentKey ? t('loadingPreview') : t('previewAttachment')}
+                            </button>
+                          )}
+                          {isVideoAttachment(attachment) && attachment.id && (
+                            <button
+                              type="button"
+                              className="attachment-link attachment-preview-link"
+                              onClick={() => playAttachment(e, attachment)}
+                              disabled={previewingAttachmentKey === attachmentKey}
+                              aria-label={`${t('playVideo')}: ${attachment.name}`}
+                            >
+                              {previewingAttachmentKey === attachmentKey ? t('loadingPreview') : t('playVideo')}
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
                 {e.head_comment && <div className="head-comment">↳ {e.head_comment}</div>}
@@ -666,9 +751,24 @@ export default function Entries() {
                   </button>
                 </div>
               )}
+              <label className={`btn btn-sm btn-ghost entry-attachment-add${uploadingEntryId === e.id ? ' disabled' : ''}`}>
+                {uploadingEntryId === e.id ? t('uploadingAttachments') : t('addAttachments')}
+                <input
+                  type="file"
+                  accept={ATTACHMENT_ACCEPT}
+                  multiple
+                  disabled={uploadingEntryId === e.id}
+                  onChange={(event) => {
+                    const files = Array.from(event.target.files || [])
+                    event.target.value = ''
+                    addAttachments(e, files)
+                  }}
+                />
+              </label>
             </footer>
           </article>
-        ))}
+          )
+        })}
       </div>
 
       <div

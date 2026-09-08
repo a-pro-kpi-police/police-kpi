@@ -18,6 +18,7 @@ const DETAIL_TO_KEY = {
   'Файл не прикреплён': 'attachmentMissingError',
   'Недопустимый тип файла': 'attachmentTypeError',
   'Файл слишком большой': 'attachmentTooLargeError',
+  'Слишком много вложений': 'attachmentCountError',
   'Вложение не найдено': 'attachmentNotFoundError',
   'Логин обязателен': 'usernameRequiredError',
   'Пароль обязателен': 'passwordRequiredError',

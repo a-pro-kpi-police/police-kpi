@@ -228,8 +228,10 @@ go run ./cmd/import-users \
 | `GET /api/officers` | Сотрудники и их рейтинг, только для начальника |
 | `GET /api/entries` | Записи KPI с фильтрацией, сортировкой и пагинацией |
 | `POST /api/entries` | Создать запись |
-| `POST /api/entries/with-attachment` | Создать запись с вложением |
-| `GET /api/entries/{id}/attachment` | Скачать вложение |
+| `POST /api/entries/with-attachments` | Создать запись с вложениями (до 5 файлов) |
+| `POST /api/entries/{id}/attachments` | Добавить вложения к существующей записи |
+| `GET /api/entries/{id}/attachments/{attachment_id}` | Скачать вложение |
+| `GET /api/entries/{id}/attachments/{attachment_id}/playback-url` | Получить временный URL для просмотра видео |
 | `PATCH /api/entries/{id}/status` | Изменить статус записи, только для начальника |
 | `GET/PUT /api/targets` | Индивидуальные цели |
 | `GET/PUT /api/group-targets` | Групповые цели участка |

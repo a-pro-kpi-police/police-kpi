@@ -11,6 +11,13 @@ func listedEntriesOut(entries []domainentries.ListedEntry) []EntryOut {
 }
 
 func listedEntryOut(entry domainentries.ListedEntry) EntryOut {
+	attachments := make([]AttachmentOut, 0, len(entry.Attachments))
+	for _, attachment := range entry.Attachments {
+		attachments = append(attachments, AttachmentOut{
+			ID: attachment.ID, Name: attachment.Name,
+			ContentType: attachment.ContentType, Size: attachment.Size,
+		})
+	}
 	return EntryOut{
 		ID:                    entry.ID,
 		Date:                  entry.Date,
@@ -42,5 +49,6 @@ func listedEntryOut(entry domainentries.ListedEntry) EntryOut {
 		AttachmentName:        entry.AttachmentName,
 		AttachmentContentType: entry.AttachmentContentType,
 		AttachmentSize:        entry.AttachmentSize,
+		Attachments:           attachments,
 	}
 }

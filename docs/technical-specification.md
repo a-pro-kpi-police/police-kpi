@@ -157,12 +157,14 @@
 
 ### 5.5 Вложения
 
-- Запись должна поддерживать одно вложение.
-- Максимальный размер файла: 20 МБ.
-- Разрешенные расширения: `.csv`, `.doc`, `.docx`, `.jpeg`, `.jpg`, `.pdf`, `.png`, `.txt`, `.webp`, `.xls`, `.xlsx`, `.zip`.
+- Запись должна поддерживать несколько вложений: до 5 файлов за один запрос.
+- Максимальный размер одного файла: 20 МБ.
+- Разрешенные расширения: `.csv`, `.doc`, `.docx`, `.jpeg`, `.jpg`, `.pdf`, `.png`, `.txt`, `.webp`, `.xls`, `.xlsx`, `.zip`, `.mp4`, `.webm`, `.ogv`.
 - Файл должен храниться на диске/volume, а в БД должны храниться оригинальное имя, внутреннее имя, MIME-тип и размер.
 - Скачать вложение может начальник/администратор с правом доступа к записи или сам сотрудник-владелец.
-- API скачивания должен отдавать файл как `application/octet-stream` с `Content-Disposition: attachment`.
+- API скачивания должен отдавать исходный MIME-тип с `Content-Disposition: attachment`.
+- Видео должно воспроизводиться встроенным HTML5-плеером через временный URL, ограниченный конкретными записью и вложением.
+- API воспроизведения должен поддерживать HTTP byte-range запросы и возвращать `206 Partial Content`, чтобы работала перемотка.
 
 ### 5.6 Расчет KPI
 
@@ -334,8 +336,11 @@
 |---|---|---|---|---|
 | `GET` | `/entries` | все | `officer_id`, `month`, `period_type`, `period_value`, `status`, `sort_key`, `sort_dir`, `limit`, `offset` | Список KPI-записей |
 | `POST` | `/entries` | все | JSON `catalog_id`, `officer_id`, `quantity`, `date`, `comments` | Создать запись без файла |
-| `POST` | `/entries/with-attachment` | все | multipart form с `attachment` | Создать запись с файлом |
-| `GET` | `/entries/{entry_id}/attachment` | владелец, `head`, `admin` | - | Скачать вложение |
+| `POST` | `/entries/with-attachments` | все | multipart form с `attachments` | Создать запись с файлами |
+| `POST` | `/entries/{entry_id}/attachments` | владелец, `head`, `admin` | multipart form с `attachments` | Добавить файлы к записи |
+| `GET` | `/entries/{entry_id}/attachments/{attachment_id}` | владелец, `head`, `admin` | - | Скачать вложение |
+| `GET` | `/entries/{entry_id}/attachments/{attachment_id}/playback-url` | владелец, `head`, `admin` | - | Получить временный URL воспроизведения |
+| `GET` | `/entries/{entry_id}/attachments/{attachment_id}/playback` | временный токен | `token` | Воспроизвести видео с поддержкой byte ranges |
 | `PATCH` | `/entries/{entry_id}/status` | `head`, `admin` | JSON `status`, `head_comment` | Изменить статус |
 | `DELETE` | `/entries/{entry_id}` | `head`, `admin` | - | Удалить запись |
 

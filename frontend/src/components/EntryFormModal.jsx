@@ -10,10 +10,15 @@ import { useNotify } from '../notifications.jsx'
 import { kpiIndicator } from '../kpiLocale.js'
 
 const MAX_ATTACHMENT_SIZE = 20 * 1024 * 1024
-const ATTACHMENT_ACCEPT = [
+const MAX_ATTACHMENTS = 5
+const ATTACHMENT_EXTENSIONS = [
   '.pdf', '.png', '.jpg', '.jpeg', '.webp', '.doc', '.docx',
-  '.xls', '.xlsx', '.csv', '.txt', '.zip',
-].join(',')
+  '.xls', '.xlsx', '.csv', '.txt', '.zip', '.mp4', '.webm', '.ogv',
+]
+const ATTACHMENT_ACCEPT = ATTACHMENT_EXTENSIONS.join(',')
+const supportedAttachment = (file) => ATTACHMENT_EXTENSIONS.some(
+  (extension) => file.name.toLowerCase().endsWith(extension)
+)
 
 export default function EntryFormModal({ catalog, officers, onClose, onCreated }) {
   const { t, lang } = useI18n()
@@ -24,7 +29,7 @@ export default function EntryFormModal({ catalog, officers, onClose, onCreated }
   const [quantity, setQuantity] = useState(1)
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
   const [comments, setComments] = useState('')
-  const [attachment, setAttachment] = useState(null)
+  const [attachments, setAttachments] = useState([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [targetProgress, setTargetProgress] = useState(null)
@@ -83,13 +88,13 @@ export default function EntryFormModal({ catalog, officers, onClose, onCreated }
         comments,
       }
       let response
-      if (attachment) {
+      if (attachments.length) {
         const formData = new FormData()
         Object.entries(payload).forEach(([key, value]) => {
           formData.append(key, String(value))
         })
-        formData.append('attachment', attachment)
-        response = await api.post('/entries/with-attachment', formData)
+        attachments.forEach((attachment) => formData.append('attachments', attachment))
+        response = await api.post('/entries/with-attachments', formData)
       } else {
         response = await api.post('/entries', payload)
       }
@@ -172,24 +177,37 @@ export default function EntryFormModal({ catalog, officers, onClose, onCreated }
                   className="file-picker-input"
                   type="file"
                   accept={ATTACHMENT_ACCEPT}
+                  multiple
                   aria-label={t('attachment')}
                   onChange={(event) => {
-                    const file = event.target.files?.[0] || null
-                    if (file && file.size > MAX_ATTACHMENT_SIZE) {
+                    const files = Array.from(event.target.files || [])
+                    if (files.length > MAX_ATTACHMENTS) {
                       event.target.value = ''
-                      setAttachment(null)
+                      setAttachments([])
+                      setError(t('attachmentCountError'))
+                      return
+                    }
+                    if (files.some((file) => file.size > MAX_ATTACHMENT_SIZE)) {
+                      event.target.value = ''
+                      setAttachments([])
                       setError(t('attachmentTooLargeError'))
                       return
                     }
-                    setAttachment(file)
+                    if (files.some((file) => !supportedAttachment(file))) {
+                      event.target.value = ''
+                      setAttachments([])
+                      setError(t('attachmentTypeError'))
+                      return
+                    }
+                    setAttachments(files)
                     setError('')
                   }}
                 />
                 <label className="file-picker-button" htmlFor="entry-attachment">
                   {t('chooseFile')}
                 </label>
-                <span className="file-picker-name" title={attachment?.name || ''}>
-                  {attachment?.name || t('noFileSelected')}
+                <span className="file-picker-name" title={attachments.map((file) => file.name).join(', ')}>
+                  {attachments.length ? `${t('filesSelected')}: ${attachments.length}` : t('noFileSelected')}
                 </span>
               </div>
               <div className="attachment-help">{t('attachmentHelp')}</div>

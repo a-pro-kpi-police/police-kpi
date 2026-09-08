@@ -56,12 +56,13 @@ type Attachment struct {
 }
 
 type CreateRequest struct {
-	CatalogID  int
-	OfficerID  *int
-	Quantity   *float64
-	Date       *string
-	Comments   string
-	Attachment Attachment
+	CatalogID   int
+	OfficerID   *int
+	Quantity    *float64
+	Date        *string
+	Comments    string
+	Attachment  Attachment
+	Attachments []Attachment
 }
 
 type StatusUpdateRequest struct {
@@ -92,6 +93,7 @@ type Entry struct {
 	AttachmentStorageName string
 	AttachmentContentType string
 	AttachmentSize        int64
+	Attachments           []Attachment
 }
 
 type StatusChange struct {
@@ -153,7 +155,14 @@ func (CreationPolicy) BuildPendingEntry(request CreateRequest, actor Actor, offi
 	}
 	raw := catalog.PointsPerUnit * quantity
 	capped := catalog.PointsPerUnit * counted
-	attachment := request.Attachment
+	attachments := request.Attachments
+	if len(attachments) == 0 && request.Attachment.StorageName != "" {
+		attachments = []Attachment{request.Attachment}
+	}
+	var attachment Attachment
+	if len(attachments) > 0 {
+		attachment = attachments[0]
+	}
 
 	return Entry{
 		Date:                  entryDate,
@@ -176,6 +185,7 @@ func (CreationPolicy) BuildPendingEntry(request CreateRequest, actor Actor, offi
 		AttachmentStorageName: attachment.StorageName,
 		AttachmentContentType: attachment.ContentType,
 		AttachmentSize:        attachment.Size,
+		Attachments:           attachments,
 	}, nil
 }
 

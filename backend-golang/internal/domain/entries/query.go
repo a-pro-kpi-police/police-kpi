@@ -54,6 +54,15 @@ type ListedEntry struct {
 	AttachmentStorageName string
 	AttachmentContentType string
 	AttachmentSize        int64
+	Attachments           []ListedAttachment
+}
+
+type ListedAttachment struct {
+	ID          int
+	Name        string
+	StorageName string
+	ContentType string
+	Size        int64
 }
 
 type QueryPolicy struct{}
