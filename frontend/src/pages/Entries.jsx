@@ -10,6 +10,7 @@ import ProfileHoverCard from '../components/ProfileHoverCard.jsx'
 import { useI18n } from '../i18n.jsx'
 import { kpiIndicator } from '../kpiLocale.js'
 import { useNotify } from '../notifications.jsx'
+import { attachmentBlob, imageAttachmentType, isImageAttachment } from '../attachments.js'
 
 const NUMERIC_KEYS = ['quantity', 'points_per_unit', 'coeff', 'raw_score', 'final_score']
 const PAGE_SIZE = 20
@@ -53,6 +54,66 @@ function MessageIcon() {
   )
 }
 
+function AttachmentPreview({ preview, onClose, onLoadError, t }) {
+  const closeButtonRef = useRef(null)
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') onClose()
+      if (event.key === 'Tab') {
+        event.preventDefault()
+        closeButtonRef.current?.focus()
+      }
+    }
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      document.body.style.overflow = previousOverflow
+      preview.returnFocus?.focus()
+    }
+  }, [onClose, preview.returnFocus])
+
+  return (
+    <div
+      className="modal-overlay attachment-preview-overlay"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose()
+      }}
+    >
+      <section
+        className="attachment-preview-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="attachment-preview-title"
+      >
+        <header>
+          <h2 id="attachment-preview-title">{preview.name}</h2>
+          <button
+            ref={closeButtonRef}
+            type="button"
+            className="attachment-preview-close"
+            onClick={onClose}
+            aria-label={t('closeImagePreview')}
+            title={t('closeImagePreview')}
+            autoFocus
+          >
+            ×
+          </button>
+        </header>
+        <div className="attachment-preview-canvas">
+          <img
+            src={preview.url}
+            alt={`${t('imagePreview')}: ${preview.name}`}
+            onError={onLoadError}
+          />
+        </div>
+      </section>
+    </div>
+  )
+}
+
 export default function Entries() {
   const { t, fmtMonth, fmtQuarter, lang } = useI18n()
   const { user, canManageEntries } = useAuth()
@@ -71,9 +132,12 @@ export default function Entries() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const [targetProgress, setTargetProgress] = useState(null)
+  const [attachmentPreview, setAttachmentPreview] = useState(null)
+  const [previewingEntryId, setPreviewingEntryId] = useState(null)
   const [sort, setSort] = useState({ key: 'date', dir: 'desc' })
   const loadMoreRef = useRef(null)
   const requestIdRef = useRef(0)
+  const previewRequestRef = useRef(null)
   const translationRef = useRef(t)
 
   useEffect(() => {
@@ -295,6 +359,55 @@ export default function Entries() {
     }
   }
 
+  const closeAttachmentPreview = useCallback(() => {
+    setAttachmentPreview(null)
+  }, [])
+
+  useEffect(() => {
+    const url = attachmentPreview?.url
+    return () => {
+      if (url) URL.revokeObjectURL(url)
+    }
+  }, [attachmentPreview?.url])
+
+  useEffect(() => () => {
+    const controller = previewRequestRef.current
+    previewRequestRef.current = null
+    controller?.abort()
+  }, [])
+
+  const previewAttachment = async (entry) => {
+    previewRequestRef.current?.abort()
+    const controller = new AbortController()
+    previewRequestRef.current = controller
+    const returnFocus = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null
+    setPreviewingEntryId(entry.id)
+    try {
+      const { data } = await api.get(`/entries/${entry.id}/attachment`, {
+        responseType: 'blob',
+        signal: controller.signal,
+      })
+      if (controller.signal.aborted) return
+      const contentType = imageAttachmentType(entry)
+      const url = URL.createObjectURL(attachmentBlob(data, contentType))
+      setAttachmentPreview({ url, name: entry.attachment_name, returnFocus })
+    } catch {
+      if (!controller.signal.aborted) notify(t('attachmentPreviewError'), 'error')
+    } finally {
+      if (previewRequestRef.current === controller) {
+        previewRequestRef.current = null
+        setPreviewingEntryId(null)
+      }
+    }
+  }
+
+  const handleAttachmentPreviewError = useCallback(() => {
+    closeAttachmentPreview()
+    notify(t('attachmentPreviewError'), 'error')
+  }, [closeAttachmentPreview, notify, t])
+
   const filterByOfficer = (officerId) => {
     setOfficerFilter(String(officerId))
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -481,17 +594,30 @@ export default function Entries() {
                   </div>
                 )}
                 {e.attachment_name && (
-                  <button
-                    type="button"
-                    className="attachment-link"
-                    onClick={() => downloadAttachment(e)}
-                    title={e.attachment_name}
-                    aria-label={`${t('downloadAttachment')}: ${e.attachment_name}`}
-                  >
-                    <span aria-hidden="true">📎</span>
-                    <span className="attachment-name">{e.attachment_name}</span>
-                    <span className="attachment-size">({formatFileSize(e.attachment_size)})</span>
-                  </button>
+                  <div className="attachment-details">
+                    <button
+                      type="button"
+                      className="attachment-link attachment-download-link"
+                      onClick={() => downloadAttachment(e)}
+                      title={e.attachment_name}
+                      aria-label={`${t('downloadAttachment')}: ${e.attachment_name}`}
+                    >
+                      <span aria-hidden="true">📎</span>
+                      <span className="attachment-name">{e.attachment_name}</span>
+                      <span className="attachment-size">({formatFileSize(e.attachment_size)})</span>
+                    </button>
+                    {isImageAttachment(e) && (
+                      <button
+                        type="button"
+                        className="attachment-link attachment-preview-link"
+                        onClick={() => previewAttachment(e)}
+                        disabled={previewingEntryId === e.id}
+                        aria-label={`${t('previewAttachment')}: ${e.attachment_name}`}
+                      >
+                        {previewingEntryId === e.id ? t('loadingPreview') : t('previewAttachment')}
+                      </button>
+                    )}
+                  </div>
                 )}
                 {e.head_comment && <div className="head-comment">↳ {e.head_comment}</div>}
               </div>
@@ -573,6 +699,15 @@ export default function Entries() {
                 .catch(() => setTargetProgress(null))
             }
           }}
+        />
+      )}
+
+      {attachmentPreview && (
+        <AttachmentPreview
+          preview={attachmentPreview}
+          onClose={closeAttachmentPreview}
+          onLoadError={handleAttachmentPreviewError}
+          t={t}
         />
       )}
     </div>
