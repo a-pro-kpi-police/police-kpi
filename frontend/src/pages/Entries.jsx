@@ -3,6 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import api from '../api'
 import { getApiErrorMessage } from '../apiError.js'
 import { useAuth } from '../auth.jsx'
+import {
+  defaultEntryStatusFilter,
+  entryMatchesStatus,
+  reconcileEntryStatus,
+} from '../entryReview.js'
 import StatusBadge from '../components/StatusBadge.jsx'
 import EntryFormModal from '../components/EntryFormModal.jsx'
 import NameFilterCombobox from '../components/NameFilterCombobox.jsx'
@@ -141,7 +146,9 @@ export default function Entries() {
   const [catalog, setCatalog] = useState([])
   const [officers, setOfficers] = useState([])
   const [months, setMonths] = useState([])
-  const [statusFilter, setStatusFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState(
+    () => defaultEntryStatusFilter(canManageEntries),
+  )
   const [periodType, setPeriodType] = useState('') // '' | 'month' | 'quarter' | 'year'
   const [periodValue, setPeriodValue] = useState('')
   const [officerFilter, setOfficerFilter] = useState('')
@@ -153,10 +160,13 @@ export default function Entries() {
   const [attachmentPreview, setAttachmentPreview] = useState(null)
   const [previewingAttachmentKey, setPreviewingAttachmentKey] = useState(null)
   const [uploadingEntryId, setUploadingEntryId] = useState(null)
+  const [updatingEntryIds, setUpdatingEntryIds] = useState(() => new Set())
   const [sort, setSort] = useState({ key: 'date', dir: 'desc' })
   const loadMoreRef = useRef(null)
   const requestIdRef = useRef(0)
+  const entryQueryRef = useRef(null)
   const previewRequestRef = useRef(null)
+  const statusUpdateIdsRef = useRef(new Set())
   const translationRef = useRef(t)
 
   useEffect(() => {
@@ -233,6 +243,7 @@ export default function Entries() {
     sort.key,
     statusFilter,
   ])
+  entryQueryRef.current = entryQuery
 
   const fetchEntryPage = useCallback(async (offset, append) => {
     const requestId = ++requestIdRef.current
@@ -244,7 +255,7 @@ export default function Entries() {
     }
     try {
       const { data } = await api.get('/entries', {
-        params: { ...entryQuery, offset },
+        params: { ...entryQueryRef.current, offset },
       })
       if (requestId !== requestIdRef.current) return
       setEntries((current) => (
@@ -269,13 +280,12 @@ export default function Entries() {
         setLoadingMore(false)
       }
     }
-  }, [entryQuery, notify])
+  }, [notify])
 
   useEffect(() => {
-    setEntries([])
     setHasMore(true)
     fetchEntryPage(0, false)
-  }, [fetchEntryPage])
+  }, [entryQuery, fetchEntryPage])
 
   const loadMore = useCallback(() => {
     if (loading || loadingMore || !hasMore) return
@@ -316,6 +326,7 @@ export default function Entries() {
   const filteredEntries = useMemo(() => {
     const periodActive = periodType && periodValue
     return entries.filter((e) => {
+      if (!entryMatchesStatus(e, statusFilter)) return false
       if (officerFilter && String(e.officer_id) !== String(officerFilter)) return false
       if (!periodActive) return true
       if (!e.month || !e.month.includes('-')) return false
@@ -324,7 +335,7 @@ export default function Entries() {
       if (periodType === 'year') return e.month.slice(0, 4) === periodValue
       return true
     })
-  }, [entries, officerFilter, periodType, periodValue])
+  }, [entries, officerFilter, periodType, periodValue, statusFilter])
 
   const sortedEntries = useMemo(() => {
     if (!sort.key) return filteredEntries
@@ -347,16 +358,26 @@ export default function Entries() {
   }, [filteredEntries, sort])
 
   const setStatus = async (id, status) => {
+    if (statusUpdateIdsRef.current.has(id)) return
+
     let head_comment = ''
     if (status === 'rejected') {
       head_comment = window.prompt(t('headResolution')) || ''
     }
+
+    statusUpdateIdsRef.current.add(id)
+    setUpdatingEntryIds(new Set(statusUpdateIdsRef.current))
     try {
       const { data } = await api.patch(`/entries/${id}/status`, { status, head_comment })
-      setEntries((prev) => prev.map((e) => (e.id === id ? data : e)))
+      const activeStatusFilter = entryQueryRef.current?.status || ''
+      setEntries((prev) => reconcileEntryStatus(prev, data, activeStatusFilter))
       notify(t(status === 'confirmed' ? 'entryConfirmed' : 'entryRejected'))
+      fetchEntryPage(0, false)
     } catch (err) {
       notify(getApiErrorMessage(err, t, 'statusUpdateError'), 'error')
+    } finally {
+      statusUpdateIdsRef.current.delete(id)
+      setUpdatingEntryIds(new Set(statusUpdateIdsRef.current))
     }
   }
 
@@ -583,6 +604,7 @@ export default function Entries() {
       <div className="entry-record-grid">
         {sortedEntries.map((e) => {
           const attachments = entryAttachments(e)
+          const statusUpdating = updatingEntryIds.has(e.id)
           return (
           <article className="entry-record-card" key={e.id}>
             <header className="entry-record-header">
@@ -725,7 +747,7 @@ export default function Entries() {
                 <div className="entry-record-review-actions">
                   <button
                     className="btn btn-sm btn-confirm"
-                    disabled={e.status === 'confirmed'}
+                    disabled={statusUpdating || e.status === 'confirmed'}
                     onClick={() => setStatus(e.id, 'confirmed')}
                     aria-label={t('confirm')}
                     title={t('confirm')}
@@ -734,7 +756,7 @@ export default function Entries() {
                   </button>
                   <button
                     className="btn btn-sm btn-reject"
-                    disabled={e.status === 'rejected'}
+                    disabled={statusUpdating || e.status === 'rejected'}
                     onClick={() => setStatus(e.id, 'rejected')}
                     aria-label={t('reject')}
                     title={t('reject')}
