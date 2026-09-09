@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { openAdminOfficerDashboard, openAdminRatingOfficerDashboard } from '../adminOfficerDashboard.js'
 import api from '../api'
 import { getApiErrorMessage } from '../apiError.js'
 import NameFilterCombobox from '../components/NameFilterCombobox.jsx'
@@ -787,7 +788,18 @@ export default function Admin({ initialTab = 'employees' }) {
                 <tbody>
                   {filteredEmployees.map((employee) => (
                     <tr key={employee.id}>
-                      <td className="strong">{employee.full_name}</td>
+                      <td className="strong">
+                        {employee.role === 'officer' ? (
+                          <button
+                            type="button"
+                            className="officer-dashboard-link"
+                            onClick={() => openAdminOfficerDashboard(employee, navigate)}
+                            aria-label={`${t('openOfficerDashboard')}: ${employee.full_name}`}
+                          >
+                            {employee.full_name}
+                          </button>
+                        ) : employee.full_name}
+                      </td>
                       <td>{employee.username}</td>
                       <td>{t(`role_${employee.role}`)}</td>
                       <td className="muted">{employee.rank || '—'}</td>
@@ -1045,7 +1057,16 @@ export default function Admin({ initialTab = 'employees' }) {
                           {officer.rankNum}
                         </span>
                       </td>
-                      <td className="strong">{officer.name}</td>
+                      <td className="strong">
+                        <button
+                          type="button"
+                          className="officer-dashboard-link"
+                          onClick={() => openAdminRatingOfficerDashboard(officer, navigate)}
+                          aria-label={`${t('openOfficerDashboard')}: ${officer.name}`}
+                        >
+                          {officer.name}
+                        </button>
+                      </td>
                       <td className="muted">{officer.rank || '—'}</td>
                       <td className="muted">{districtName(officer.district, lang) || '—'}</td>
                       <td className="num strong">{officer.final}</td>

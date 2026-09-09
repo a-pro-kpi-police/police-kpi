@@ -5,6 +5,8 @@ import {
   ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
 import api from '../api'
+import { getApiErrorMessage } from '../apiError.js'
+import { adminOfficerDashboardEndpoints } from '../adminOfficerDashboard.js'
 import { useAuth } from '../auth.jsx'
 import NameFilterCombobox from '../components/NameFilterCombobox.jsx'
 import ProfileHoverCard from '../components/ProfileHoverCard.jsx'
@@ -550,7 +552,7 @@ function ExceededLimitsPanel({ items, t, lang }) {
   )
 }
 
-export default function Dashboard() {
+export default function Dashboard({ adminMode = false }) {
   const { t, fmtMonth, lang } = useI18n()
   const { isHead } = useAuth()
   const navigate = useNavigate()
@@ -568,6 +570,8 @@ export default function Dashboard() {
   const [block, setBlock] = useState('')
   const [targetCategory, setTargetCategory] = useState('')
   const [ready, setReady] = useState(false)
+  const [loadError, setLoadError] = useState('')
+  const adminEndpoints = adminMode ? adminOfficerDashboardEndpoints(officerId) : null
   const officerOptions = useMemo(
     () => officers
       .filter((item) => !district || String(item.districtId) === String(district))
@@ -587,22 +591,33 @@ export default function Dashboard() {
     const targetParams = { ...params }
     const targetMonth = m || availableMonths[0] || ''
     if (targetMonth) targetParams.month = targetMonth
-    const [dashboardResponse, targetOverviewResponse] = await Promise.all([
-      api.get('/dashboard', { params }),
-      api.get('/target-overview', { params: targetParams }),
-    ])
-    const dashboardData = dashboardResponse.data
-    setData(dashboardData)
-    setComparisons(dashboardData.comparisons)
-    setBlocks((dashboardData.blocks || []).map((item) => item.block).filter(Boolean))
-    setTargetOverview(targetOverviewResponse.data)
+    if (adminMode && !adminEndpoints) {
+      setLoadError(t('officerDashboardNotFound'))
+      return
+    }
+    try {
+      setLoadError('')
+      const [dashboardResponse, targetOverviewResponse] = await Promise.all([
+        api.get(adminMode ? adminEndpoints.dashboard : '/dashboard', { params: adminMode ? { month: m } : params }),
+        api.get(adminMode ? adminEndpoints.targetOverview : '/target-overview', {
+          params: adminMode ? { month: targetMonth } : targetParams,
+        }),
+      ])
+      const dashboardData = dashboardResponse.data
+      setData(dashboardData)
+      setComparisons(dashboardData.comparisons)
+      setBlocks((dashboardData.blocks || []).map((item) => item.block).filter(Boolean))
+      setTargetOverview(targetOverviewResponse.data)
+    } catch (err) {
+      setLoadError(getApiErrorMessage(err, t, 'dashboardLoadError'))
+    }
   }
 
   useEffect(() => {
     Promise.all([
       api.get('/months'),
       api.get('/districts'),
-      isHead ? api.get('/officers') : Promise.resolve({ data: [] }),
+      isHead || adminMode ? api.get('/officers') : Promise.resolve({ data: [] }),
     ]).then(([monthsResponse, districtsResponse, officersResponse]) => {
       const monthItems = Array.isArray(monthsResponse.data) ? monthsResponse.data : []
       setMonths(monthItems)
@@ -622,6 +637,8 @@ export default function Dashboard() {
       }))
       setOfficers(directory)
       return load(initialMonth, officerId, '', monthItems)
+    }).catch((err) => {
+      setLoadError(getApiErrorMessage(err, t, 'dashboardLoadError'))
     }).finally(() => setReady(true))
   }, [])
 
@@ -664,6 +681,14 @@ export default function Dashboard() {
     window.scrollTo({ top: 0 })
   }
 
+  if (!data && loadError) {
+    return (
+      <div className="card dashboard-error-state">
+        <div className="error">{loadError}</div>
+        {adminMode && <Link className="btn btn-ghost" to="/admin">{t('backToEmployees')}</Link>}
+      </div>
+    )
+  }
   if (!data) return <div className="loading">Загрузка…</div>
 
   const statusTrend = data.status_trend || []
@@ -721,6 +746,7 @@ export default function Dashboard() {
               : t('dashboard')}
         </h1>
         <div className="page-head-actions">
+          {adminMode && <Link className="btn btn-ghost" to="/admin">{t('backToEmployees')}</Link>}
           {isHead && (
             <select
               className="select dashboard-district-select"

@@ -159,11 +159,30 @@ func (a *App) handleTargetOverview(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	overview, err := a.targetQueryService().Overview(r.Context(), domaintargets.OverviewFilter{
+	a.writeTargetOverview(w, r, domaintargets.OverviewFilter{
 		Month:      selectedMonth,
 		OfficerID:  officerID,
 		DistrictID: districtID,
 	})
+}
+
+func (a *App) handleAdminOfficerTargetOverview(w http.ResponseWriter, r *http.Request) {
+	officerID, ok := a.requireAdminOfficerPathID(w, r)
+	if !ok {
+		return
+	}
+	selectedMonth := r.URL.Query().Get("month")
+	if selectedMonth == "" {
+		selectedMonth = currentMonth()
+	}
+	a.writeTargetOverview(w, r, domaintargets.OverviewFilter{
+		Month:     selectedMonth,
+		OfficerID: &officerID,
+	})
+}
+
+func (a *App) writeTargetOverview(w http.ResponseWriter, r *http.Request, filter domaintargets.OverviewFilter) {
+	overview, err := a.targetQueryService().Overview(r.Context(), filter)
 	if err != nil {
 		writeHTTPError(w, targetQueryHTTPError(err))
 		return
