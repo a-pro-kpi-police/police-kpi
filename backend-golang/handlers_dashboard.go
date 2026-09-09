@@ -26,11 +26,26 @@ func (a *App) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		writeHTTPError(w, err)
 		return
 	}
-	report, err := a.dashboardService().BuildDashboard(r.Context(), domaindashboard.Filter{
+	a.writeDashboard(w, r, domaindashboard.Filter{
 		Month:      r.URL.Query().Get("month"),
 		OfficerID:  officerID,
 		DistrictID: districtID,
 	})
+}
+
+func (a *App) handleAdminOfficerDashboard(w http.ResponseWriter, r *http.Request) {
+	officerID, ok := a.requireAdminOfficerPathID(w, r)
+	if !ok {
+		return
+	}
+	a.writeDashboard(w, r, domaindashboard.Filter{
+		Month:     r.URL.Query().Get("month"),
+		OfficerID: &officerID,
+	})
+}
+
+func (a *App) writeDashboard(w http.ResponseWriter, r *http.Request, filter domaindashboard.Filter) {
+	report, err := a.dashboardService().BuildDashboard(r.Context(), filter)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return

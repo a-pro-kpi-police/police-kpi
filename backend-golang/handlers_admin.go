@@ -55,6 +55,27 @@ func (a *App) handleAdminListUsers(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, users)
 }
 
+func (a *App) requireAdminOfficerPathID(w http.ResponseWriter, r *http.Request) (int, bool) {
+	if _, ok := requireAdmin(a, w, r); !ok {
+		return 0, false
+	}
+	officerID, valid := parseIDPathValue(r, "officer_id")
+	if !valid {
+		writeError(w, http.StatusNotFound, "Сотрудник не найден")
+		return 0, false
+	}
+	officer, err := a.adminUserByID(r.Context(), officerID)
+	if err != nil {
+		writeHTTPError(w, err)
+		return 0, false
+	}
+	if officer.Role != roleOfficer {
+		writeError(w, http.StatusNotFound, "Сотрудник не найден")
+		return 0, false
+	}
+	return officerID, true
+}
+
 func (a *App) handleAdminCreateUser(w http.ResponseWriter, r *http.Request) {
 	if _, ok := requireAdmin(a, w, r); !ok {
 		return

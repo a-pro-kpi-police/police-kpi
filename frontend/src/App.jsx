@@ -103,6 +103,14 @@ export default function App() {
           }
         />
         <Route
+          path="admin/officers/:officerId"
+          element={
+            <AdminOnly>
+              <Dashboard adminMode />
+            </AdminOnly>
+          }
+        />
+        <Route
           path="admin/catalog"
           element={
             <AdminOnly>

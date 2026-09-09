@@ -500,6 +500,8 @@ html.theme-root-animating #root {
 .btn-delete { background: #7f2d3b; color: #fff; }
 .btn-delete:hover:not(:disabled) { background: #6d2431; }
 .error { color: var(--red); font-size: 13px; margin-top: 10px; }
+.dashboard-error-state { padding: 24px; }
+.dashboard-error-state .error { margin: 0 0 16px; }
 .toast-stack {
   position: fixed;
   right: 20px;
