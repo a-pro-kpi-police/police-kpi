@@ -1,11 +1,22 @@
 export function adminOfficerDashboardPath(employee) {
-  const id = Number(employee?.id)
-  if (employee?.role !== 'officer' || !Number.isInteger(id) || id <= 0) return null
+  if (employee?.role !== 'officer') return null
+  return adminOfficerDashboardPathByID(employee.id)
+}
+
+export function adminOfficerDashboardPathByID(officerId) {
+  const id = Number(officerId)
+  if (!Number.isInteger(id) || id <= 0) return null
   return `/admin/officers/${id}`
 }
 
 export function openAdminOfficerDashboard(employee, navigate) {
   const path = adminOfficerDashboardPath(employee)
+  if (path) navigate(path)
+  return path
+}
+
+export function openAdminRatingOfficerDashboard(officer, navigate) {
+  const path = adminOfficerDashboardPathByID(officer?.officer_id)
   if (path) navigate(path)
   return path
 }

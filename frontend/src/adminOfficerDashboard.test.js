@@ -5,6 +5,7 @@ import {
   adminOfficerDashboardEndpoints,
   adminOfficerDashboardPath,
   openAdminOfficerDashboard,
+  openAdminRatingOfficerDashboard,
 } from './adminOfficerDashboard.js'
 
 test('officer name click navigates to the protected admin dashboard route', () => {
@@ -28,4 +29,16 @@ test('non-officers and invalid ids do not create dashboard navigation', () => {
   assert.equal(openAdminOfficerDashboard({ id: 0, role: 'officer' }, (value) => visited.push(value)), null)
   assert.equal(adminOfficerDashboardEndpoints('abc'), null)
   assert.deepEqual(visited, [])
+})
+
+test('officer name in admin rating opens the same personal dashboard', () => {
+  const visited = []
+
+  const path = openAdminRatingOfficerDashboard(
+    { officer_id: 17, name: 'Рейтинговый Сотрудник' },
+    (value) => visited.push(value),
+  )
+
+  assert.equal(path, '/admin/officers/17')
+  assert.deepEqual(visited, ['/admin/officers/17'])
 })
