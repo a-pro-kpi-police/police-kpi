@@ -11,6 +11,7 @@ import { useAuth } from '../auth.jsx'
 import {
   blockScoreDomain,
   blockScoreLabelPosition,
+  blockScoreRows,
   formatBlockScore,
 } from '../blockScoreChart.js'
 import NameFilterCombobox from '../components/NameFilterCombobox.jsx'
@@ -779,6 +780,7 @@ export default function Dashboard({ adminMode = false }) {
   if (block) {
     officerChart = officerChart.filter((o) => o.final !== 0).sort((a, b) => b.final - a.final)
   }
+  const blockChartRows = blockScoreRows(data, officer)
 
   return (
     <div>
@@ -1039,41 +1041,6 @@ export default function Dashboard({ adminMode = false }) {
           <KpiBlockProgress blocks={targetOverview.blocks} t={t} />
         )}
 
-        <div className="card chart-card chart-wide block-chart-card">
-          <h3>{t('byBlock')}</h3>
-          <ResponsiveContainer width="100%" height={Math.min(280, Math.max(210, data.blocks.length * 30))}>
-            <BarChart
-              data={data.blocks}
-              layout="vertical"
-              margin={{ top: 5, right: compactBlockChart ? 10 : 30, bottom: 5, left: 0 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-              <XAxis type="number" domain={blockScoreDomain} />
-              <YAxis
-                type="category"
-                dataKey="block"
-                width={compactBlockChart ? 112 : 220}
-                tick={<BlockAxisTick maxLength={compactBlockChart ? 14 : null} />}
-                tickLine={false}
-              />
-              <Tooltip cursor={CHART_CURSOR} formatter={(value) => [value, t('points')]} />
-              <ReferenceLine x={0} stroke="#6b7785" />
-              <Bar dataKey="final" name={t('colFinal')} radius={[0, 4, 4, 0]} maxBarSize={28}>
-                {data.blocks.map((item, i) => (
-                  <Cell
-                    key={item.block}
-                    fill={item.final < 0 ? STATUS_COLORS.rejected : BLOCK_COLORS[i % BLOCK_COLORS.length]}
-                  />
-                ))}
-                <LabelList
-                  dataKey="final"
-                  content={<BlockScoreLabel pointsLabel={t('points')} />}
-                />
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
         {!month && (
           <div className="card chart-card chart-wide">
             <h3>{t('trend')}</h3>
@@ -1090,6 +1057,41 @@ export default function Dashboard({ adminMode = false }) {
         )}
 
         </>}
+
+        <div className="card chart-card chart-wide block-chart-card">
+          <h3>{t('byBlock')}</h3>
+          <ResponsiveContainer width="100%" height={Math.min(280, Math.max(210, blockChartRows.length * 30))}>
+            <BarChart
+              data={blockChartRows}
+              layout="vertical"
+              margin={{ top: 5, right: compactBlockChart ? 10 : 30, bottom: 5, left: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+              <XAxis type="number" domain={blockScoreDomain} />
+              <YAxis
+                type="category"
+                dataKey="block"
+                width={compactBlockChart ? 112 : 220}
+                tick={<BlockAxisTick maxLength={compactBlockChart ? 14 : null} />}
+                tickLine={false}
+              />
+              <Tooltip cursor={CHART_CURSOR} formatter={(value) => [value, t('points')]} />
+              <ReferenceLine x={0} stroke="#6b7785" />
+              <Bar dataKey="final" name={t('colFinal')} radius={[0, 4, 4, 0]} maxBarSize={28}>
+                {blockChartRows.map((item, i) => (
+                  <Cell
+                    key={item.block}
+                    fill={item.final < 0 ? STATUS_COLORS.rejected : BLOCK_COLORS[i % BLOCK_COLORS.length]}
+                  />
+                ))}
+                <LabelList
+                  dataKey="final"
+                  content={<BlockScoreLabel pointsLabel={t('points')} />}
+                />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
 
         {!month && (
           <div className="card chart-card chart-wide">

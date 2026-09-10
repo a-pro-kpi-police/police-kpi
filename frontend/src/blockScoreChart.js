@@ -4,6 +4,21 @@ export function formatBlockScore(value, pointsLabel) {
   return `${value ?? 0} ${pointsLabel}`
 }
 
+export function blockScoreRows(dashboard, officerId) {
+  const rows = Array.isArray(dashboard?.blocks) ? dashboard.blocks : []
+  if (!officerId) return rows
+
+  const selectedOfficer = dashboard?.officers?.find((item) => (
+    String(item.officer_id) === String(officerId)
+  ))
+  if (!selectedOfficer) return []
+
+  return rows.map((item) => ({
+    ...item,
+    final: selectedOfficer.blocks?.[item.block] ?? 0,
+  }))
+}
+
 export function blockScoreDomain([dataMin, dataMax]) {
   const minimum = Number.isFinite(dataMin) ? Math.min(0, dataMin) : 0
   const maximum = Number.isFinite(dataMax) ? Math.max(0, dataMax) : 0
