@@ -1,13 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
-  Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart,
+  Bar, BarChart, CartesianGrid, Cell, LabelList, Legend, Line, LineChart,
   ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
 import api from '../api'
 import { getApiErrorMessage } from '../apiError.js'
 import { adminOfficerDashboardEndpoints } from '../adminOfficerDashboard.js'
 import { useAuth } from '../auth.jsx'
+import {
+  blockScoreDomain,
+  blockScoreLabelPosition,
+  formatBlockScore,
+} from '../blockScoreChart.js'
 import NameFilterCombobox from '../components/NameFilterCombobox.jsx'
 import ProfileHoverCard from '../components/ProfileHoverCard.jsx'
 import { districtName } from '../districtLocale.js'
@@ -42,7 +47,12 @@ function StatCard({ label, value, accent }) {
   )
 }
 
-function BlockAxisTick({ y, payload }) {
+function BlockAxisTick({ y, payload, maxLength }) {
+  const value = String(payload.value)
+  const displayValue = maxLength && value.length > maxLength
+    ? `${value.slice(0, maxLength - 1)}…`
+    : value
+
   return (
     <text
       className="block-axis-label"
@@ -53,7 +63,41 @@ function BlockAxisTick({ y, payload }) {
       fontSize={11}
       textAnchor="start"
     >
-      {payload.value}
+      <title>{value}</title>
+      {displayValue}
+    </text>
+  )
+}
+
+function useCompactChartLayout() {
+  const [compact, setCompact] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 620px)').matches,
+  )
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 620px)')
+    const update = () => setCompact(media.matches)
+    update()
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
+
+  return compact
+}
+
+function BlockScoreLabel({ x, y, width, height, value, pointsLabel }) {
+  const label = formatBlockScore(value, pointsLabel)
+  const position = blockScoreLabelPosition({ x, width, value, label })
+
+  return (
+    <text
+      className={`block-score-label${position.inside ? ' block-score-label-inside' : ''}`}
+      x={position.x}
+      y={y + height / 2}
+      dy="0.35em"
+      textAnchor={position.textAnchor}
+    >
+      {label}
     </text>
   )
 }
@@ -571,6 +615,7 @@ export default function Dashboard({ adminMode = false }) {
   const [targetCategory, setTargetCategory] = useState('')
   const [ready, setReady] = useState(false)
   const [loadError, setLoadError] = useState('')
+  const compactBlockChart = useCompactChartLayout()
   const adminEndpoints = adminMode ? adminOfficerDashboardEndpoints(officerId) : null
   const officerOptions = useMemo(
     () => officers
@@ -1000,15 +1045,15 @@ export default function Dashboard({ adminMode = false }) {
             <BarChart
               data={data.blocks}
               layout="vertical"
-              margin={{ top: 5, right: 30, bottom: 5, left: 0 }}
+              margin={{ top: 5, right: compactBlockChart ? 10 : 30, bottom: 5, left: 0 }}
             >
               <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-              <XAxis type="number" domain={['auto', 'auto']} />
+              <XAxis type="number" domain={blockScoreDomain} />
               <YAxis
                 type="category"
                 dataKey="block"
-                width={220}
-                tick={<BlockAxisTick />}
+                width={compactBlockChart ? 112 : 220}
+                tick={<BlockAxisTick maxLength={compactBlockChart ? 14 : null} />}
                 tickLine={false}
               />
               <Tooltip cursor={CHART_CURSOR} formatter={(value) => [value, t('points')]} />
@@ -1020,6 +1065,10 @@ export default function Dashboard({ adminMode = false }) {
                     fill={item.final < 0 ? STATUS_COLORS.rejected : BLOCK_COLORS[i % BLOCK_COLORS.length]}
                   />
                 ))}
+                <LabelList
+                  dataKey="final"
+                  content={<BlockScoreLabel pointsLabel={t('points')} />}
+                />
               </Bar>
             </BarChart>
           </ResponsiveContainer>

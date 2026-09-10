@@ -969,6 +969,16 @@ html.theme-root-animating #root {
   font-variant-numeric: tabular-nums;
 }
 .block-axis-label { pointer-events: none; }
+.block-score-label {
+  fill: var(--text);
+  stroke: var(--card);
+  stroke-width: 3px;
+  paint-order: stroke;
+  pointer-events: none;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
 .indicator-volume-tooltip {
   width: min(300px, calc(100vw - 48px));
   padding: 10px 12px;
@@ -1037,6 +1047,7 @@ html.theme-root-animating #root {
 }
 @media (max-width: 900px) { .chart-grid { grid-template-columns: 1fr; } }
 @media (max-width: 620px) {
+  .block-score-label { font-size: 10px; }
   .dashboard-impact-grid { grid-template-columns: 1fr; }
   .dashboard-impact-panel dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .critical-indicator-impact dl { grid-template-columns: repeat(3, minmax(0, 1fr)); }
