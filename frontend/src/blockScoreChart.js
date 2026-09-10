@@ -1,5 +1,4 @@
 const LABEL_EDGE_PADDING = 6
-const APPROXIMATE_CHARACTER_WIDTH = 6.5
 
 export function formatBlockScore(value, pointsLabel) {
   return `${value ?? 0} ${pointsLabel}`
@@ -19,18 +18,10 @@ export function blockScoreDomain([dataMin, dataMax]) {
   ]
 }
 
-export function blockScoreLabelPosition({ x, width, value, label }) {
+export function blockScoreLabelPosition({ x, width, value }) {
   const isNegative = Number(value) < 0
-  const estimatedLabelWidth = label.length * APPROXIMATE_CHARACTER_WIDTH
-  const fitsInside = width >= estimatedLabelWidth + LABEL_EDGE_PADDING * 2
-
-  if (fitsInside) {
-    return isNegative
-      ? { x: x + LABEL_EDGE_PADDING, textAnchor: 'start', inside: true }
-      : { x: x + width - LABEL_EDGE_PADDING, textAnchor: 'end', inside: true }
-  }
 
   return isNegative
-    ? { x: x - LABEL_EDGE_PADDING, textAnchor: 'end', inside: false }
-    : { x: x + width + LABEL_EDGE_PADDING, textAnchor: 'start', inside: false }
+    ? { x: x - LABEL_EDGE_PADDING, textAnchor: 'end' }
+    : { x: x + width + LABEL_EDGE_PADDING, textAnchor: 'start' }
 }

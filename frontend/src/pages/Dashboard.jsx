@@ -87,11 +87,11 @@ function useCompactChartLayout() {
 
 function BlockScoreLabel({ x, y, width, height, value, pointsLabel }) {
   const label = formatBlockScore(value, pointsLabel)
-  const position = blockScoreLabelPosition({ x, width, value, label })
+  const position = blockScoreLabelPosition({ x, width, value })
 
   return (
     <text
-      className={`block-score-label${position.inside ? ' block-score-label-inside' : ''}`}
+      className="block-score-label"
       x={position.x}
       y={y + height / 2}
       dy="0.35em"
