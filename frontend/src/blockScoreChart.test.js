@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   blockScoreDomain,
   blockScoreLabelPosition,
+  blockScoreRows,
   formatBlockScore,
 } from './blockScoreChart.js'
 
@@ -32,4 +33,45 @@ test('places labels outside at the value end of positive, negative, and zero bar
     blockScoreLabelPosition({ x: 100, width: 0, value: 0 }),
     { x: 106, textAnchor: 'start' },
   )
+})
+
+test('uses the selected officer block scores and updates them between officers', () => {
+  const dashboard = {
+    blocks: [
+      { block: 'Профилактика', final: 99 },
+      { block: 'Раскрытие', final: 88 },
+      { block: 'Качество', final: 77 },
+    ],
+    officers: [
+      {
+        officer_id: 7,
+        blocks: { Профилактика: 12.5, Раскрытие: -4 },
+      },
+      {
+        officer_id: 8,
+        blocks: { Профилактика: 3, Раскрытие: 6.75, Качество: 0 },
+      },
+    ],
+  }
+
+  assert.deepEqual(blockScoreRows(dashboard, '7'), [
+    { block: 'Профилактика', final: 12.5 },
+    { block: 'Раскрытие', final: -4 },
+    { block: 'Качество', final: 0 },
+  ])
+  assert.deepEqual(blockScoreRows(dashboard, '8'), [
+    { block: 'Профилактика', final: 3 },
+    { block: 'Раскрытие', final: 6.75 },
+    { block: 'Качество', final: 0 },
+  ])
+})
+
+test('keeps summary rows on the main dashboard and hides stale personal rows', () => {
+  const dashboard = {
+    blocks: [{ block: 'Профилактика', final: 21 }],
+    officers: [{ officer_id: 7, blocks: { Профилактика: 12 } }],
+  }
+
+  assert.deepEqual(blockScoreRows(dashboard, ''), dashboard.blocks)
+  assert.deepEqual(blockScoreRows(dashboard, '8'), [])
 })
