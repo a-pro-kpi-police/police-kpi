@@ -8,7 +8,7 @@ import { districtName } from '../districtLocale.js'
 import {
   EFFECTIVENESS_CATEGORIES,
   effectivenessCategory,
-  maxEffectivenessScore,
+  averageEffectivenessScore,
   relativeScorePercent,
 } from '../effectiveness.js'
 import { useI18n } from '../i18n.jsx'
@@ -590,11 +590,11 @@ export default function Admin({ initialTab = 'employees' }) {
   ), [lang, ratingRows])
 
   const categorizedRatingRows = useMemo(() => {
-    const maxScore = maxEffectivenessScore(ratingRows)
+    const averageScore = averageEffectivenessScore(ratingRows)
     return ratingRows.map((officer) => ({
       ...officer,
-      achievement_percent: relativeScorePercent(officer.final, maxScore),
-      effectivenessCategory: effectivenessCategory(officer, maxScore),
+      achievement_percent: relativeScorePercent(officer.final, averageScore),
+      effectivenessCategory: effectivenessCategory(officer, averageScore),
     }))
   }, [ratingRows])
 

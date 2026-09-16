@@ -4,29 +4,28 @@ export const EFFECTIVENESS_CATEGORIES = [
   'little_effective',
 ]
 
-const HIGH_EFFECTIVENESS_THRESHOLD = 75
-const EFFECTIVE_THRESHOLD = 50
+const HIGH_EFFECTIVENESS_THRESHOLD = 66
+const EFFECTIVE_THRESHOLD = 33
 
 function numericScore(value) {
   const score = Number(typeof value === 'string' ? value.replace(',', '.') : value)
   return Number.isFinite(score) ? score : 0
 }
 
-function rawRelativePercent(score, maxScore) {
-  const max = numericScore(maxScore)
-  if (max <= 0) return 0
-  const percent = (numericScore(score) / max) * 100
-  return Math.min(100, Math.max(0, percent))
+function rawRelativePercent(score, averageScore) {
+  const average = numericScore(averageScore)
+  if (average === 0) return 0
+  return (numericScore(score) / average) * 50
 }
 
-export function relativeScorePercent(score, maxScore) {
-  const percent = rawRelativePercent(score, maxScore)
+export function relativeScorePercent(score, averageScore) {
+  const percent = rawRelativePercent(score, averageScore)
   return Math.round(Math.min(100, Math.max(0, percent)) * 10) / 10
 }
 
-export function maxEffectivenessScore(scores) {
+export function averageEffectivenessScore(scores) {
   if (!scores.length) return 0
-  return Math.max(...scores.map((score) => effectivenessScore(score)), 0)
+  return scores.reduce((sum, score) => sum + effectivenessScore(score), 0) / scores.length
 }
 
 export function effectivenessScore(value) {
@@ -44,11 +43,11 @@ export function effectivenessScore(value) {
   )
 }
 
-export function effectivenessCategory(score, maxScore = 100) {
-  const relativePercent = rawRelativePercent(effectivenessScore(score), maxScore)
+export function effectivenessCategory(score, averageScore = 50) {
+  const relativePercent = rawRelativePercent(effectivenessScore(score), averageScore)
 
-  if (relativePercent >= HIGH_EFFECTIVENESS_THRESHOLD) return 'very_effective'
-  if (relativePercent >= EFFECTIVE_THRESHOLD) return 'effective'
+  if (relativePercent > HIGH_EFFECTIVENESS_THRESHOLD) return 'very_effective'
+  if (relativePercent > EFFECTIVE_THRESHOLD) return 'effective'
   return 'little_effective'
 }
 

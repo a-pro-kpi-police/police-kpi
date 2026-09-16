@@ -7,7 +7,7 @@ import { districtName } from '../districtLocale.js'
 import {
   EFFECTIVENESS_CATEGORIES,
   effectivenessCategory,
-  maxEffectivenessScore,
+  averageEffectivenessScore,
   relativeScorePercent,
 } from '../effectiveness.js'
 import { useI18n } from '../i18n.jsx'
@@ -137,11 +137,11 @@ export default function Officers() {
     const ratingScope = officers.filter((officer) => (
       !districtFilter || String(officer.district_id) === String(districtFilter)
     ))
-    const maxScore = maxEffectivenessScore(ratingScope)
+    const averageScore = averageEffectivenessScore(ratingScope)
     return officers.map((officer) => ({
       ...officer,
-      achievement_percent: relativeScorePercent(officer.final, maxScore),
-      effectivenessCategory: effectivenessCategory(officer, maxScore),
+      achievement_percent: relativeScorePercent(officer.final, averageScore),
+      effectivenessCategory: effectivenessCategory(officer, averageScore),
     }))
   }, [districtFilter, officers])
 
