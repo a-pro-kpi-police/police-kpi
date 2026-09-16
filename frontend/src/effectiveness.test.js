@@ -88,3 +88,16 @@ test('uses the formula for a nonzero negative average and keeps display nonnegat
   assert.equal(relativeScorePercent(-10, 100), 0)
   assert.equal(effectivenessCategory(-10, 100), 'little_effective')
 })
+
+test('weights every employee equally across companies of different sizes (#20)', () => {
+  for (const scoreKey of ['final', 'actual_score', 'category_score']) {
+    const officers = [
+      ...Array.from({ length: 10 }, () => ({ district_id: 1, [scoreKey]: 100 })),
+      ...Array.from({ length: 30 }, () => ({ district_id: 2, [scoreKey]: 60 })),
+    ]
+    assert.equal(averageEffectivenessScore(officers), 70)
+    assert.equal(averageEffectivenessScore(officers.filter((row) => row.district_id === 1)), 100)
+    assert.equal(averageEffectivenessScore(officers.filter((row) => row.district_id === 2)), 60)
+    assert.equal(averageEffectivenessScore([...officers, { district_id: 3, [scoreKey]: 0 }]), 2800 / 41)
+  }
+})
