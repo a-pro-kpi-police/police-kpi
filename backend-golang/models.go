@@ -95,18 +95,19 @@ type AdminCatalogSavePayload struct {
 }
 
 type RatingOfficerOut struct {
-	OfficerID       int     `json:"officer_id"`
-	Name            string  `json:"name"`
-	Rank            string  `json:"rank"`
-	District        string  `json:"district"`
-	DistrictID      int     `json:"district_id"`
-	Final           float64 `json:"final"`
-	Confirmed       int     `json:"confirmed"`
-	Pending         int     `json:"pending"`
-	CategoryScore   float64 `json:"category_score"`
-	EfficiencyRank  int     `json:"efficiency_rank"`
-	EfficiencyTotal int     `json:"efficiency_total"`
-	EfficiencyScore float64 `json:"efficiency_score"`
+	GlobalAverageScore float64 `json:"global_average_score"`
+	OfficerID          int     `json:"officer_id"`
+	Name               string  `json:"name"`
+	Rank               string  `json:"rank"`
+	District           string  `json:"district"`
+	DistrictID         int     `json:"district_id"`
+	Final              float64 `json:"final"`
+	Confirmed          int     `json:"confirmed"`
+	Pending            int     `json:"pending"`
+	CategoryScore      float64 `json:"category_score"`
+	EfficiencyRank     int     `json:"efficiency_rank"`
+	EfficiencyTotal    int     `json:"efficiency_total"`
+	EfficiencyScore    float64 `json:"efficiency_score"`
 }
 
 type CatalogItem struct {

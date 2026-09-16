@@ -23,6 +23,15 @@ export function relativeScorePercent(score, averageScore) {
   return Math.round(Math.min(100, Math.max(0, percent)) * 10) / 10
 }
 
+// The server aggregate includes employees outside the visible list.
+export function withRelativeEffectiveness(officer, averageScore = officer.global_average_score) {
+  return {
+    ...officer,
+    achievement_percent: relativeScorePercent(effectivenessScore(officer), averageScore),
+    effectivenessCategory: effectivenessCategory(officer, averageScore),
+  }
+}
+
 export function averageEffectivenessScore(scores) {
   if (!scores.length) return 0
   return scores.reduce((sum, score) => sum + effectivenessScore(score), 0) / scores.length

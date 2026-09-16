@@ -3,6 +3,7 @@ import test from 'node:test'
 
 import {
   averageEffectivenessScore,
+  withRelativeEffectiveness,
   effectivenessCategory,
   relativeScorePercent,
 } from './effectiveness.js'
@@ -69,16 +70,22 @@ test('uses period category scores and supports API score shapes', () => {
   assert.equal(averageEffectivenessScore(['10,5', '20.5']), 15.5)
 })
 
-test('recalculates from the selected district and period, including inactive officers', () => {
-  const july = [
-    { district_id: 1, final: 100 }, { district_id: 1, final: 0 },
-    { district_id: 2, final: 500 },
+test('uses the server average regardless of district, employee, name or category filters', () => {
+  const rows = [
+    ...Array.from({ length: 10 }, (_, id) => ({ officer_id: id, name: 'First ' + id, district_id: 1, final: 100, global_average_score: 70 })),
+    ...Array.from({ length: 30 }, (_, id) => ({ officer_id: id + 10, name: 'Second ' + id, district_id: 2, final: 60, global_average_score: 70 })),
   ]
-  const august = [{ district_id: 1, final: 200 }, { district_id: 1, final: 200 }]
-  const districtJuly = july.filter((row) => row.district_id === 1)
-  assert.equal(relativeScorePercent(100, averageEffectivenessScore(july)), 25)
-  assert.equal(relativeScorePercent(100, averageEffectivenessScore(districtJuly)), 100)
-  assert.equal(relativeScorePercent(200, averageEffectivenessScore(august)), 50)
+  for (const filter of [() => true, row => row.district_id === 1, row => row.officer_id === 0, row => row.name === 'First 0']) {
+    const visible = rows.filter(filter).map(row => withRelativeEffectiveness(row))
+    assert.equal(visible[0].achievement_percent, 71.4)
+    assert.equal(visible[0].effectivenessCategory, 'very_effective')
+    assert.equal(visible.filter(row => row.effectivenessCategory === 'very_effective')[0].achievement_percent, 71.4)
+  }
+  assert.deepEqual(rows.filter(() => false).map(row => withRelativeEffectiveness(row)), [])
+  assert.equal(withRelativeEffectiveness({ final: 0, global_average_score: 0 }).achievement_percent, 0)
+  assert.equal(withRelativeEffectiveness({ final: 200, global_average_score: 5 }).achievement_percent, 100)
+  // Dashboard all-month scores and average must describe the same period.
+  assert.equal(withRelativeEffectiveness({ final: 300 }, 75).achievement_percent, 100)
 })
 
 test('uses the formula for a nonzero negative average and keeps display nonnegative', () => {

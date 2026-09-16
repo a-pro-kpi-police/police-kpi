@@ -21,8 +21,7 @@ import {
   compareEffectiveness,
   EFFECTIVENESS_CATEGORIES,
   effectivenessCategory,
-  averageEffectivenessScore,
-  relativeScorePercent,
+  withRelativeEffectiveness,
 } from '../effectiveness.js'
 import { useI18n } from '../i18n.jsx'
 import { kpiIndicator } from '../kpiLocale.js'
@@ -211,8 +210,7 @@ function StatusDonut({
   )
 }
 
-function EffectivenessOverviewChart({ officers, t }) {
-  const averageScore = averageEffectivenessScore(officers)
+function EffectivenessOverviewChart({ officers, averageScore, t }) {
   const counts = Object.fromEntries(
     EFFECTIVENESS_CATEGORIES.map((category) => [category, 0]),
   )
@@ -750,14 +748,14 @@ export default function Dashboard({ adminMode = false }) {
   const targetKpiItems = officer
     ? (targetOverview?.items || []).filter((item) => Number(item.confirmed_quantity) > 0)
     : []
-  const targetOfficerAverageScore = averageEffectivenessScore(targetOverview?.officers || [])
+  const targetOfficerAverageScore = data.global_average_score
   const targetOfficerRows = !officer
-    ? (targetOverview?.officers || [])
-      .map((item) => ({
+    ? (data.officers || [])
+      .map((item) => withRelativeEffectiveness({
+        ...(month ? targetOverview?.officers?.find((row) => row.officer_id === item.officer_id) : {}),
         ...item,
-        achievement_percent: relativeScorePercent(item.actual_score, targetOfficerAverageScore),
-        effectivenessCategory: effectivenessCategory(item, targetOfficerAverageScore),
-      }))
+        actual_score: item.final,
+      }, targetOfficerAverageScore))
       .filter((item) => (
         !targetCategory || item.effectivenessCategory === targetCategory
       ))
@@ -881,7 +879,7 @@ export default function Dashboard({ adminMode = false }) {
       )}
 
       {targetOverview && !officer && (
-        <EffectivenessOverviewChart officers={targetOverview.officers || []} t={t} />
+        <EffectivenessOverviewChart officers={data.officers || []} averageScore={data.global_average_score} t={t} />
       )}
 
       {targetOverview && officer && (
@@ -899,14 +897,14 @@ export default function Dashboard({ adminMode = false }) {
             {!officer && (
               <TargetOfficerToolbar
                 category={targetCategory}
-                month={targetOverview.month}
+                month={month}
                 district={district}
                 onCategory={setTargetCategory}
                 t={t}
               />
             )}
           </div>
-          {!officer && (
+          {!officer && month && (
             <PenaltyPanel
               score={targetOverview.penalty_score}
               count={targetOverview.penalty_count}
@@ -932,10 +930,10 @@ export default function Dashboard({ adminMode = false }) {
                   <tr>
                     <th>{t('colOfficer')}</th>
                     <th className="num">{t('actualScore')}</th>
-                    <th className="num">{t('monthlyNorm')}</th>
+                    {month && <th className="num">{t('monthlyNorm')}</th>}
                     <th className="num">{t('colAchievement')}</th>
-                    <th className="num">{t('colGap')}</th>
-                    <th className="num">{t('penaltyPoints')}</th>
+                    {month && <th className="num">{t('colGap')}</th>}
+                    {month && <th className="num">{t('penaltyPoints')}</th>}
                     <th>{t('effectivenessCategory')}</th>
                   </tr>
                 )}
@@ -980,14 +978,14 @@ export default function Dashboard({ adminMode = false }) {
                         </ProfileHoverCard>
                       </td>
                       <td className="num strong">{item.actual_score}</td>
-                      <td className="num">{item.target_score}</td>
+                      {month && <td className="num">{item.target_score}</td>}
                       <td className="num">{item.achievement_percent}%</td>
-                      <td className={`num ${item.gap < 0 ? 'target-gap-negative' : 'target-gap-positive'}`}>
+                      {month && <td className={`num ${item.gap < 0 ? 'target-gap-negative' : 'target-gap-positive'}`}>
                         {item.gap > 0 ? `+${item.gap}` : item.gap}
-                      </td>
-                      <td className={`num ${item.penalty_score < 0 ? 'penalty-score' : ''}`}>
+                      </td>}
+                      {month && <td className={`num ${item.penalty_score < 0 ? 'penalty-score' : ''}`}>
                         {item.penalty_score || 0}
-                      </td>
+                      </td>}
                       <td>
                         <EffectivenessBadge category={item.effectivenessCategory} t={t} />
                       </td>
@@ -995,7 +993,7 @@ export default function Dashboard({ adminMode = false }) {
                   )
                 })}
                 {((officer && targetKpiItems.length === 0) || (!officer && targetOfficerRows.length === 0)) && (
-                  <tr><td colSpan={officer ? 7 : 7} className="empty">{t('nothingFound')}</td></tr>
+                  <tr><td colSpan={officer ? 9 : (month ? 7 : 4)} className="empty">{t('nothingFound')}</td></tr>
                 )}
               </tbody>
             </table>
