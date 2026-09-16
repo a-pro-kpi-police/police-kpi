@@ -21,7 +21,7 @@ import {
   compareEffectiveness,
   EFFECTIVENESS_CATEGORIES,
   effectivenessCategory,
-  maxEffectivenessScore,
+  averageEffectivenessScore,
   relativeScorePercent,
 } from '../effectiveness.js'
 import { useI18n } from '../i18n.jsx'
@@ -212,12 +212,12 @@ function StatusDonut({
 }
 
 function EffectivenessOverviewChart({ officers, t }) {
-  const maxScore = maxEffectivenessScore(officers)
+  const averageScore = averageEffectivenessScore(officers)
   const counts = Object.fromEntries(
     EFFECTIVENESS_CATEGORIES.map((category) => [category, 0]),
   )
   for (const officer of officers) {
-    counts[effectivenessCategory(officer, maxScore)] += 1
+    counts[effectivenessCategory(officer, averageScore)] += 1
   }
   const labels = {
     very_effective: t('categoryVeryEffective'),
@@ -750,13 +750,13 @@ export default function Dashboard({ adminMode = false }) {
   const targetKpiItems = officer
     ? (targetOverview?.items || []).filter((item) => Number(item.confirmed_quantity) > 0)
     : []
-  const targetOfficerMaxScore = maxEffectivenessScore(targetOverview?.officers || [])
+  const targetOfficerAverageScore = averageEffectivenessScore(targetOverview?.officers || [])
   const targetOfficerRows = !officer
     ? (targetOverview?.officers || [])
       .map((item) => ({
         ...item,
-        achievement_percent: relativeScorePercent(item.actual_score, targetOfficerMaxScore),
-        effectivenessCategory: effectivenessCategory(item, targetOfficerMaxScore),
+        achievement_percent: relativeScorePercent(item.actual_score, targetOfficerAverageScore),
+        effectivenessCategory: effectivenessCategory(item, targetOfficerAverageScore),
       }))
       .filter((item) => (
         !targetCategory || item.effectivenessCategory === targetCategory
