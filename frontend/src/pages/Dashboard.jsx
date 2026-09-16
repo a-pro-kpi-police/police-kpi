@@ -5,6 +5,7 @@ import {
   ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
 import api from '../api'
+import { loadMonthlyTargetOverview, selectedMonthOverview } from '../dashboardPeriod.js'
 import { getApiErrorMessage } from '../apiError.js'
 import { adminOfficerDashboardEndpoints } from '../adminOfficerDashboard.js'
 import { useAuth } from '../auth.jsx'
@@ -21,8 +22,7 @@ import {
   compareEffectiveness,
   EFFECTIVENESS_CATEGORIES,
   effectivenessCategory,
-  averageEffectivenessScore,
-  relativeScorePercent,
+  dashboardOfficerEffectiveness,
 } from '../effectiveness.js'
 import { useI18n } from '../i18n.jsx'
 import { kpiIndicator } from '../kpiLocale.js'
@@ -211,8 +211,7 @@ function StatusDonut({
   )
 }
 
-function EffectivenessOverviewChart({ officers, t }) {
-  const averageScore = averageEffectivenessScore(officers)
+function EffectivenessOverviewChart({ officers, averageScore, t }) {
   const counts = Object.fromEntries(
     EFFECTIVENESS_CATEGORIES.map((category) => [category, 0]),
   )
@@ -604,9 +603,10 @@ export default function Dashboard({ adminMode = false }) {
   const { officerId = '' } = useParams()
   const [data, setData] = useState(null)
   const [comparisons, setComparisons] = useState(null)
-  const [targetOverview, setTargetOverview] = useState(null)
+  const [loadedTargetOverview, setTargetOverview] = useState(null)
   const [months, setMonths] = useState([])
   const [month, setMonth] = useState('')
+  const targetOverview = selectedMonthOverview(loadedTargetOverview, month)
   const [officers, setOfficers] = useState([])
   const [officer, setOfficer] = useState(officerId)
   const [districts, setDistricts] = useState([])
@@ -629,14 +629,11 @@ export default function Dashboard({ adminMode = false }) {
     [district, lang, officers]
   )
 
-  const load = async (m, oid, did, availableMonths = months) => {
+  const load = async (m, oid, did) => {
     const params = {}
     if (m) params.month = m
     if (oid) params.officer_id = oid
     if (did) params.district_id = did
-    const targetParams = { ...params }
-    const targetMonth = m || availableMonths[0] || ''
-    if (targetMonth) targetParams.month = targetMonth
     if (adminMode && !adminEndpoints) {
       setLoadError(t('officerDashboardNotFound'))
       return
@@ -645,9 +642,8 @@ export default function Dashboard({ adminMode = false }) {
       setLoadError('')
       const [dashboardResponse, targetOverviewResponse] = await Promise.all([
         api.get(adminMode ? adminEndpoints.dashboard : '/dashboard', { params: adminMode ? { month: m } : params }),
-        api.get(adminMode ? adminEndpoints.targetOverview : '/target-overview', {
-          params: adminMode ? { month: targetMonth } : targetParams,
-        }),
+        loadMonthlyTargetOverview(api, adminMode ? adminEndpoints.targetOverview : '/target-overview',
+          adminMode ? { month: m } : { ...params, month: m }),
       ])
       const dashboardData = dashboardResponse.data
       setData(dashboardData)
@@ -682,7 +678,7 @@ export default function Dashboard({ adminMode = false }) {
         totalScore: item.efficiency_score,
       }))
       setOfficers(directory)
-      return load(initialMonth, officerId, '', monthItems)
+      return load(initialMonth, officerId, '')
     }).catch((err) => {
       setLoadError(getApiErrorMessage(err, t, 'dashboardLoadError'))
     }).finally(() => setReady(true))
@@ -750,14 +746,14 @@ export default function Dashboard({ adminMode = false }) {
   const targetKpiItems = officer
     ? (targetOverview?.items || []).filter((item) => Number(item.confirmed_quantity) > 0)
     : []
-  const targetOfficerAverageScore = averageEffectivenessScore(targetOverview?.officers || [])
+  const targetOfficerAverageScore = data.global_average_score
   const targetOfficerRows = !officer
-    ? (targetOverview?.officers || [])
-      .map((item) => ({
-        ...item,
-        achievement_percent: relativeScorePercent(item.actual_score, targetOfficerAverageScore),
-        effectivenessCategory: effectivenessCategory(item, targetOfficerAverageScore),
-      }))
+    ? (data.officers || [])
+      .map((item) => dashboardOfficerEffectiveness(
+        item,
+        month ? targetOverview?.officers?.find((row) => row.officer_id === item.officer_id) : undefined,
+        targetOfficerAverageScore,
+      ))
       .filter((item) => (
         !targetCategory || item.effectivenessCategory === targetCategory
       ))
@@ -854,34 +850,34 @@ export default function Dashboard({ adminMode = false }) {
               />
             )}
           </div>
-          <div className="dashboard-impact-grid">
-            <ImpactPanel
-              className="monthly-limit-impact"
-              title={t('monthlyLimitImpact')}
-              hint={t('monthlyLimitImpactHint')}
-              items={[
-                { label: t('reportedIncidents'), value: monthlyLimitImpact.reported || 0 },
-                { label: t('countedIncidents'), value: monthlyLimitImpact.counted || 0 },
-                { label: t('excludedByLimits'), value: monthlyLimitImpact.excluded || 0 },
-                { label: t('recordsOverLimit'), value: monthlyLimitImpact.affected_records || 0 },
-              ]}
-            />
-            <ImpactPanel
-              className="critical-indicator-impact"
-              title={t('criticalIndicatorImpact')}
-              hint={t('criticalIndicatorImpactHint')}
-              items={[
-                { label: t('criticalRecords'), value: criticalIndicatorImpact.records || 0 },
-                { label: t('criticalOfficers'), value: criticalIndicatorImpact.officers || 0 },
-                { label: t('criticalIncidents'), value: criticalIndicatorImpact.quantity || 0 },
-              ]}
-            />
-          </div>
         </>
       )}
 
-      {targetOverview && !officer && (
-        <EffectivenessOverviewChart officers={targetOverview.officers || []} t={t} />
+      <div className="dashboard-impact-grid">
+        <ImpactPanel
+          className="monthly-limit-impact"
+          title={t('monthlyLimitImpact')}
+          hint={t('monthlyLimitImpactHint')}
+          items={[
+            { label: t('reportedIncidents'), value: monthlyLimitImpact.reported || 0 },
+            { label: t('countedIncidents'), value: monthlyLimitImpact.counted || 0 },
+            { label: t('excludedByLimits'), value: monthlyLimitImpact.excluded || 0 },
+            { label: t('recordsOverLimit'), value: monthlyLimitImpact.affected_records || 0 },
+          ]}
+        />
+        <ImpactPanel
+          className="critical-indicator-impact"
+          title={t('criticalIndicatorImpact')}
+          hint={t('criticalIndicatorImpactHint')}
+          items={[
+            { label: t('criticalRecords'), value: criticalIndicatorImpact.records || 0 },
+            { label: t('criticalOfficers'), value: criticalIndicatorImpact.officers || 0 },
+            { label: t('criticalIncidents'), value: criticalIndicatorImpact.quantity || 0 },
+          ]}
+        />
+      </div>
+      {!officer && (
+        <EffectivenessOverviewChart officers={data.officers || []} averageScore={data.global_average_score} t={t} />
       )}
 
       {targetOverview && officer && (
@@ -892,21 +888,21 @@ export default function Dashboard({ adminMode = false }) {
         />
       )}
 
-      {targetOverview && (
+      {(!officer || targetOverview) && (
         <div className="card table-card target-overview-card">
           <div className="chart-head target-overview-head">
             <h3>{officer ? t('targetKpiBreakdown') : t('targetOfficerOverview')}</h3>
             {!officer && (
               <TargetOfficerToolbar
                 category={targetCategory}
-                month={targetOverview.month}
+                month={month}
                 district={district}
                 onCategory={setTargetCategory}
                 t={t}
               />
             )}
           </div>
-          {!officer && (
+          {!officer && targetOverview && (
             <PenaltyPanel
               score={targetOverview.penalty_score}
               count={targetOverview.penalty_count}
@@ -932,10 +928,10 @@ export default function Dashboard({ adminMode = false }) {
                   <tr>
                     <th>{t('colOfficer')}</th>
                     <th className="num">{t('actualScore')}</th>
-                    <th className="num">{t('monthlyNorm')}</th>
+                    {month && <th className="num">{t('monthlyNorm')}</th>}
                     <th className="num">{t('colAchievement')}</th>
-                    <th className="num">{t('colGap')}</th>
-                    <th className="num">{t('penaltyPoints')}</th>
+                    {month && <th className="num">{t('colGap')}</th>}
+                    {month && <th className="num">{t('penaltyPoints')}</th>}
                     <th>{t('effectivenessCategory')}</th>
                   </tr>
                 )}
@@ -980,14 +976,14 @@ export default function Dashboard({ adminMode = false }) {
                         </ProfileHoverCard>
                       </td>
                       <td className="num strong">{item.actual_score}</td>
-                      <td className="num">{item.target_score}</td>
+                      {month && <td className="num">{item.target_score}</td>}
                       <td className="num">{item.achievement_percent}%</td>
-                      <td className={`num ${item.gap < 0 ? 'target-gap-negative' : 'target-gap-positive'}`}>
+                      {month && <td className={`num ${item.gap < 0 ? 'target-gap-negative' : 'target-gap-positive'}`}>
                         {item.gap > 0 ? `+${item.gap}` : item.gap}
-                      </td>
-                      <td className={`num ${item.penalty_score < 0 ? 'penalty-score' : ''}`}>
+                      </td>}
+                      {month && <td className={`num ${item.penalty_score < 0 ? 'penalty-score' : ''}`}>
                         {item.penalty_score || 0}
-                      </td>
+                      </td>}
                       <td>
                         <EffectivenessBadge category={item.effectivenessCategory} t={t} />
                       </td>
@@ -995,7 +991,7 @@ export default function Dashboard({ adminMode = false }) {
                   )
                 })}
                 {((officer && targetKpiItems.length === 0) || (!officer && targetOfficerRows.length === 0)) && (
-                  <tr><td colSpan={officer ? 7 : 7} className="empty">{t('nothingFound')}</td></tr>
+                  <tr><td colSpan={officer ? 9 : (month ? 7 : 4)} className="empty">{t('nothingFound')}</td></tr>
                 )}
               </tbody>
             </table>
@@ -1003,9 +999,7 @@ export default function Dashboard({ adminMode = false }) {
         </div>
       )}
 
-      {targetOverview && (
-        <ExceededLimitsPanel items={exceededLimits} t={t} lang={lang} />
-      )}
+      <ExceededLimitsPanel items={exceededLimits} t={t} lang={lang} />
 
       {officer && !month && comparisons && (
         <div className="chart-grid comparison-grid dashboard-chart-grid">

@@ -3,9 +3,28 @@ import test from 'node:test'
 
 import {
   averageEffectivenessScore,
+  withRelativeEffectiveness,
+  dashboardOfficerEffectiveness,
   effectivenessCategory,
   relativeScorePercent,
 } from './effectiveness.js'
+
+test('dashboard fact, gap and percentage use the same KPI including penalties', () => {
+  const row = dashboardOfficerEffectiveness(
+    { officer_id: 1, final: 80 },
+    { actual_score: 100, target_score: 100, gap: 0, penalty_score: -20 },
+    70,
+  )
+  assert.equal(row.actual_score, 80)
+  assert.equal(row.gap, -20)
+  assert.equal(row.achievement_percent, 57.1)
+  assert.equal(row.effectivenessCategory, 'effective')
+  assert.equal(row.penalty_score, -20)
+  const allMonths = dashboardOfficerEffectiveness({ final: 160 }, undefined, 100)
+  assert.equal(allMonths.achievement_percent, 80)
+  assert.equal(allMonths.gap, undefined)
+  assert.equal(allMonths.target_score, undefined)
+})
 
 test('maps the average score to 50 percent, including zero-score employees', () => {
   const average = averageEffectivenessScore([0, 100, 200])
@@ -69,16 +88,22 @@ test('uses period category scores and supports API score shapes', () => {
   assert.equal(averageEffectivenessScore(['10,5', '20.5']), 15.5)
 })
 
-test('recalculates from the selected district and period, including inactive officers', () => {
-  const july = [
-    { district_id: 1, final: 100 }, { district_id: 1, final: 0 },
-    { district_id: 2, final: 500 },
+test('uses the server average regardless of district, employee, name or category filters', () => {
+  const rows = [
+    ...Array.from({ length: 10 }, (_, id) => ({ officer_id: id, name: 'First ' + id, district_id: 1, final: 100, global_average_score: 70 })),
+    ...Array.from({ length: 30 }, (_, id) => ({ officer_id: id + 10, name: 'Second ' + id, district_id: 2, final: 60, global_average_score: 70 })),
   ]
-  const august = [{ district_id: 1, final: 200 }, { district_id: 1, final: 200 }]
-  const districtJuly = july.filter((row) => row.district_id === 1)
-  assert.equal(relativeScorePercent(100, averageEffectivenessScore(july)), 25)
-  assert.equal(relativeScorePercent(100, averageEffectivenessScore(districtJuly)), 100)
-  assert.equal(relativeScorePercent(200, averageEffectivenessScore(august)), 50)
+  for (const filter of [() => true, row => row.district_id === 1, row => row.officer_id === 0, row => row.name === 'First 0']) {
+    const visible = rows.filter(filter).map(row => withRelativeEffectiveness(row))
+    assert.equal(visible[0].achievement_percent, 71.4)
+    assert.equal(visible[0].effectivenessCategory, 'very_effective')
+    assert.equal(visible.filter(row => row.effectivenessCategory === 'very_effective')[0].achievement_percent, 71.4)
+  }
+  assert.deepEqual(rows.filter(() => false).map(row => withRelativeEffectiveness(row)), [])
+  assert.equal(withRelativeEffectiveness({ final: 0, global_average_score: 0 }).achievement_percent, 0)
+  assert.equal(withRelativeEffectiveness({ final: 200, global_average_score: 5 }).achievement_percent, 100)
+  // Dashboard all-month scores and average must describe the same period.
+  assert.equal(withRelativeEffectiveness({ final: 300 }, 75).achievement_percent, 100)
 })
 
 test('uses the formula for a nonzero negative average and keeps display nonnegative', () => {

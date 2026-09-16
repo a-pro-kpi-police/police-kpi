@@ -7,9 +7,7 @@ import NameFilterCombobox from '../components/NameFilterCombobox.jsx'
 import { districtName } from '../districtLocale.js'
 import {
   EFFECTIVENESS_CATEGORIES,
-  effectivenessCategory,
-  averageEffectivenessScore,
-  relativeScorePercent,
+  withRelativeEffectiveness,
 } from '../effectiveness.js'
 import { useI18n } from '../i18n.jsx'
 import { useNotify } from '../notifications.jsx'
@@ -509,6 +507,7 @@ export default function Admin({ initialTab = 'employees' }) {
             confirmed: Number(officer.confirmed) || 0,
             pending: Number(officer.pending) || 0,
             category_score: finalScore,
+            global_average_score: officer.global_average_score,
             efficiency_rank: officer.efficiency_rank,
             efficiency_total: officer.efficiency_total,
             efficiency_score: officer.efficiency_score,
@@ -590,12 +589,7 @@ export default function Admin({ initialTab = 'employees' }) {
   ), [lang, ratingRows])
 
   const categorizedRatingRows = useMemo(() => {
-    const averageScore = averageEffectivenessScore(ratingRows)
-    return ratingRows.map((officer) => ({
-      ...officer,
-      achievement_percent: relativeScorePercent(officer.final, averageScore),
-      effectivenessCategory: effectivenessCategory(officer, averageScore),
-    }))
+    return ratingRows.map((officer) => withRelativeEffectiveness(officer))
   }, [ratingRows])
 
   const filteredRatingRows = useMemo(() => {

@@ -55,7 +55,16 @@ func (a *App) writeRating(w http.ResponseWriter, r *http.Request, scope int) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, ratingOfficersOut(officers, scores))
+	average, err := a.globalKPIAverage(r.Context(), month)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	rows := ratingOfficersOut(officers, scores)
+	for i := range rows {
+		rows[i].GlobalAverageScore = average
+	}
+	writeJSON(w, http.StatusOK, rows)
 }
 
 func (a *App) ratingScores(ctx context.Context, month string, districtID int) (map[int]ratingScore, error) {

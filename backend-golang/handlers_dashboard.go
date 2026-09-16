@@ -50,7 +50,14 @@ func (a *App) writeDashboard(w http.ResponseWriter, r *http.Request, filter doma
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, dashboardOut(report))
+	average, err := a.globalKPIAverage(r.Context(), filter.Month)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	response := dashboardOut(report)
+	response["global_average_score"] = average
+	writeJSON(w, http.StatusOK, response)
 }
 
 func dashboardOut(report domaindashboard.Report) map[string]any {

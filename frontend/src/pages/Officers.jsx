@@ -6,9 +6,7 @@ import ProfileHoverCard from '../components/ProfileHoverCard.jsx'
 import { districtName } from '../districtLocale.js'
 import {
   EFFECTIVENESS_CATEGORIES,
-  effectivenessCategory,
-  averageEffectivenessScore,
-  relativeScorePercent,
+  withRelativeEffectiveness,
 } from '../effectiveness.js'
 import { useI18n } from '../i18n.jsx'
 
@@ -105,6 +103,7 @@ export default function Officers() {
             confirmed: Number(officer.confirmed) || 0,
             pending: Number(officer.pending) || 0,
             category_score: finalScore,
+            global_average_score: officer.global_average_score,
           }
         })
       setOfficers(officerRows.sort(
@@ -134,16 +133,8 @@ export default function Officers() {
   )
 
   const categorizedOfficers = useMemo(() => {
-    const ratingScope = officers.filter((officer) => (
-      !districtFilter || String(officer.district_id) === String(districtFilter)
-    ))
-    const averageScore = averageEffectivenessScore(ratingScope)
-    return officers.map((officer) => ({
-      ...officer,
-      achievement_percent: relativeScorePercent(officer.final, averageScore),
-      effectivenessCategory: effectivenessCategory(officer, averageScore),
-    }))
-  }, [districtFilter, officers])
+    return officers.map((officer) => withRelativeEffectiveness(officer))
+  }, [officers])
 
   // Номер сохраняется по исходному рейтингу, независимо от выбранной сортировки.
   const filtered = useMemo(() => {
