@@ -21,7 +21,7 @@ import {
   compareEffectiveness,
   EFFECTIVENESS_CATEGORIES,
   effectivenessCategory,
-  withRelativeEffectiveness,
+  dashboardOfficerEffectiveness,
 } from '../effectiveness.js'
 import { useI18n } from '../i18n.jsx'
 import { kpiIndicator } from '../kpiLocale.js'
@@ -751,11 +751,11 @@ export default function Dashboard({ adminMode = false }) {
   const targetOfficerAverageScore = data.global_average_score
   const targetOfficerRows = !officer
     ? (data.officers || [])
-      .map((item) => withRelativeEffectiveness({
-        ...(month ? targetOverview?.officers?.find((row) => row.officer_id === item.officer_id) : {}),
-        ...item,
-        actual_score: item.final,
-      }, targetOfficerAverageScore))
+      .map((item) => dashboardOfficerEffectiveness(
+        item,
+        month ? targetOverview?.officers?.find((row) => row.officer_id === item.officer_id) : undefined,
+        targetOfficerAverageScore,
+      ))
       .filter((item) => (
         !targetCategory || item.effectivenessCategory === targetCategory
       ))

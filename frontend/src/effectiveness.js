@@ -32,6 +32,16 @@ export function withRelativeEffectiveness(officer, averageScore = officer.global
   }
 }
 
+export function dashboardOfficerEffectiveness(officer, monthlyTarget, averageScore) {
+  const score = numericScore(officer.final)
+  return withRelativeEffectiveness({
+    ...monthlyTarget,
+    ...officer,
+    actual_score: score,
+    gap: monthlyTarget ? Math.round((score - numericScore(monthlyTarget.target_score)) * 100) / 100 : undefined,
+  }, averageScore)
+}
+
 export function averageEffectivenessScore(scores) {
   if (!scores.length) return 0
   return scores.reduce((sum, score) => sum + effectivenessScore(score), 0) / scores.length

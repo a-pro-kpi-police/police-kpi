@@ -4,9 +4,27 @@ import test from 'node:test'
 import {
   averageEffectivenessScore,
   withRelativeEffectiveness,
+  dashboardOfficerEffectiveness,
   effectivenessCategory,
   relativeScorePercent,
 } from './effectiveness.js'
+
+test('dashboard fact, gap and percentage use the same KPI including penalties', () => {
+  const row = dashboardOfficerEffectiveness(
+    { officer_id: 1, final: 80 },
+    { actual_score: 100, target_score: 100, gap: 0, penalty_score: -20 },
+    70,
+  )
+  assert.equal(row.actual_score, 80)
+  assert.equal(row.gap, -20)
+  assert.equal(row.achievement_percent, 57.1)
+  assert.equal(row.effectivenessCategory, 'effective')
+  assert.equal(row.penalty_score, -20)
+  const allMonths = dashboardOfficerEffectiveness({ final: 160 }, undefined, 100)
+  assert.equal(allMonths.achievement_percent, 80)
+  assert.equal(allMonths.gap, undefined)
+  assert.equal(allMonths.target_score, undefined)
+})
 
 test('maps the average score to 50 percent, including zero-score employees', () => {
   const average = averageEffectivenessScore([0, 100, 200])
