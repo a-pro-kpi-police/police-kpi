@@ -7,7 +7,6 @@ import { districtName } from '../districtLocale.js'
 import { useI18n } from '../i18n.jsx'
 import LanguageSwitch from './LanguageSwitch.jsx'
 import NotificationCenter from './NotificationCenter.jsx'
-import SupportChatWidget from './SupportChatWidget.jsx'
 
 function ThemeIcon({ dark }) {
   return dark ? (
@@ -117,6 +116,7 @@ export default function Layout() {
               {messageUnread > 0 && <span className="nav-unread-count">{messageUnread}</span>}
             </NavLink>
           )}
+          {!isAdmin && <NavLink to="/support" className="nav-link">{t('supportChat')}</NavLink>}
           {isHead && <NavLink to="/targets" className="nav-link">{t('targets')}</NavLink>}
           {isHead && <NavLink to="/officers" className="nav-link">{t('officers')}</NavLink>}
           {isAdmin && <NavLink to="/admin" end className="nav-link">{t('adminPanel')}</NavLink>}
@@ -154,7 +154,6 @@ export default function Layout() {
           <Outlet />
         </div>
       </main>
-      {!isAdmin && <SupportChatWidget />}
     </div>
   )
 }
