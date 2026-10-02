@@ -3,6 +3,7 @@ import { useAuth } from './auth.jsx'
 import Layout from './components/Layout.jsx'
 import Login from './pages/Login.jsx'
 import Messenger from './pages/Messenger.jsx'
+import SupportChat from './pages/SupportChat.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Entries from './pages/Entries.jsx'
 import Officers from './pages/Officers.jsx'
@@ -31,6 +32,12 @@ function AdminOnly({ children }) {
 function MessengerOnly({ children }) {
   const { user } = useAuth()
   if (user?.role === 'admin') return <Navigate to="/admin" replace />
+  return children
+}
+
+function SupportOnly({ children }) {
+  const { user } = useAuth()
+  if (user?.role === 'admin') return <Navigate to="/admin/support" replace />
   return children
 }
 
@@ -76,6 +83,14 @@ export default function App() {
             <MessengerOnly>
               <Messenger />
             </MessengerOnly>
+          }
+        />
+        <Route
+          path="support"
+          element={
+            <SupportOnly>
+              <SupportChat />
+            </SupportOnly>
           }
         />
         <Route
