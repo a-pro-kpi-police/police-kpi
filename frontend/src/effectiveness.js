@@ -32,6 +32,27 @@ export function withRelativeEffectiveness(officer, averageScore = officer.global
   }
 }
 
+// Determine categories first; the display scale must not change group membership.
+export function adminRatingEffectiveness(officers) {
+  const rows = officers.map((officer) => withRelativeEffectiveness(officer))
+  const highScores = rows
+    .filter((officer) => officer.effectivenessCategory === 'very_effective')
+    .map(effectivenessScore)
+  if (!highScores.length) return rows
+
+  const minScore = Math.min(...highScores)
+  const maxScore = Math.max(...highScores)
+  return rows.map((officer) => {
+    if (officer.effectivenessCategory !== 'very_effective') return officer
+    const percent = maxScore === minScore
+      ? 100
+      : HIGH_EFFECTIVENESS_THRESHOLD
+        + ((effectivenessScore(officer) - minScore) / (maxScore - minScore))
+          * (100 - HIGH_EFFECTIVENESS_THRESHOLD)
+    return { ...officer, achievement_percent: Math.round(percent * 10) / 10 }
+  })
+}
+
 export function dashboardOfficerEffectiveness(officer, monthlyTarget, averageScore) {
   const score = numericScore(officer.final)
   return withRelativeEffectiveness({
