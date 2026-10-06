@@ -6,6 +6,7 @@ export const EFFECTIVENESS_CATEGORIES = [
 
 const HIGH_EFFECTIVENESS_THRESHOLD = 66
 const EFFECTIVE_THRESHOLD = 33
+const ADMIN_HIGH_PERCENT_MIN = 66.6
 
 function numericScore(value) {
   const score = Number(typeof value === 'string' ? value.replace(',', '.') : value)
@@ -46,9 +47,9 @@ export function adminRatingEffectiveness(officers) {
     if (officer.effectivenessCategory !== 'very_effective') return officer
     const percent = maxScore === minScore
       ? 100
-      : HIGH_EFFECTIVENESS_THRESHOLD
+      : ADMIN_HIGH_PERCENT_MIN
         + ((effectivenessScore(officer) - minScore) / (maxScore - minScore))
-          * (100 - HIGH_EFFECTIVENESS_THRESHOLD)
+          * (100 - ADMIN_HIGH_PERCENT_MIN)
     return { ...officer, achievement_percent: Math.round(percent * 10) / 10 }
   })
 }

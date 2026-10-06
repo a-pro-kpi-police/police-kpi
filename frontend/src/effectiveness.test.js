@@ -20,7 +20,7 @@ test('admin rating scales high performers by score while preserving categories a
   const original = structuredClone(officers)
   const rows = adminRatingEffectiveness(officers)
 
-  assert.deepEqual(rows.slice(0, 3).map((row) => row.achievement_percent), [100, 83, 66])
+  assert.deepEqual(rows.slice(0, 3).map((row) => row.achievement_percent), [100, 83.3, 66.6])
   assert.deepEqual(rows.map((row) => row.effectivenessCategory),
     officers.map((officer) => withRelativeEffectiveness(officer).effectivenessCategory))
   assert.equal(rows[2].effectivenessCategory, 'very_effective')
@@ -43,7 +43,7 @@ test('admin rating handles empty, no high performers, single and tied high score
 test('admin rating gives equal high scores equal percentages and rounds to one decimal', () => {
   const scores = [240, 140, 240, 170, 440]
   const rows = adminRatingEffectiveness(scores.map((final) => ({ final, global_average_score: 100 })))
-  assert.deepEqual(rows.map((row) => row.achievement_percent), [77.3, 66, 77.3, 69.4, 100])
+  assert.deepEqual(rows.map((row) => row.achievement_percent), [77.7, 66.6, 77.7, 69.9, 100])
   assert.deepEqual(rows.map((row) => row.final), scores)
 })
 
