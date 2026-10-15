@@ -8,9 +8,10 @@ import (
 )
 
 const (
-	RoleAdmin   = "admin"
-	RoleHead    = "head"
-	RoleOfficer = "officer"
+	RoleLeadership = "leadership"
+	RoleAdmin      = "admin"
+	RoleHead       = "head"
+	RoleOfficer    = "officer"
 
 	StatusPending   = "pending"
 	StatusConfirmed = "confirmed"

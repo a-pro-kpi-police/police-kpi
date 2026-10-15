@@ -6,9 +6,10 @@ import (
 )
 
 const (
-	roleAdmin   = "admin"
-	roleHead    = "head"
-	roleOfficer = "officer"
+	roleLeadership = "leadership"
+	roleAdmin      = "admin"
+	roleHead       = "head"
+	roleOfficer    = "officer"
 
 	statusPending   = "pending"
 	statusConfirmed = "confirmed"

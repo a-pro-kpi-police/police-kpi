@@ -225,7 +225,7 @@ go run ./cmd/import-users \
 | `GET /api/catalog` | Активный справочник KPI |
 | `GET /api/districts` | Список участков |
 | `GET /api/months` | Доступные отчётные месяцы |
-| `GET /api/officers` | Сотрудники и их рейтинг, только для начальника |
+| `GET /api/officers` | Сотрудники и их рейтинг, для начальника, администратора и руководства |
 | `GET /api/entries` | Записи KPI с фильтрацией, сортировкой и пагинацией |
 | `POST /api/entries` | Создать запись |
 | `POST /api/entries/with-attachments` | Создать запись с вложениями (до 5 файлов) |

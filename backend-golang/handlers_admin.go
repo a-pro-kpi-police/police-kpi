@@ -163,7 +163,7 @@ func (a *App) handleAdminUpdateUser(w http.ResponseWriter, r *http.Request) {
 		_, err = a.db.ExecContext(r.Context(), `UPDATE users
 			SET username = ?, password_hash = ?, full_name = ?, rank = ?, role = ?, district_id = ?,
 				source_employee_number = ?, monthly_norm = ?
-			WHERE id = ? AND role IN (?, ?)`,
+			WHERE id = ? AND role IN (?, ?, ?)`,
 			fields.Username,
 			passwordHash,
 			fields.FullName,
@@ -175,6 +175,7 @@ func (a *App) handleAdminUpdateUser(w http.ResponseWriter, r *http.Request) {
 			userID,
 			roleHead,
 			roleOfficer,
+			roleLeadership,
 		)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
@@ -184,7 +185,7 @@ func (a *App) handleAdminUpdateUser(w http.ResponseWriter, r *http.Request) {
 		_, err = a.db.ExecContext(r.Context(), `UPDATE users
 			SET username = ?, full_name = ?, rank = ?, role = ?, district_id = ?,
 				source_employee_number = ?, monthly_norm = ?
-			WHERE id = ? AND role IN (?, ?)`,
+			WHERE id = ? AND role IN (?, ?, ?)`,
 			fields.Username,
 			fields.FullName,
 			fields.Rank,
@@ -195,6 +196,7 @@ func (a *App) handleAdminUpdateUser(w http.ResponseWriter, r *http.Request) {
 			userID,
 			roleHead,
 			roleOfficer,
+			roleLeadership,
 		)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
@@ -266,7 +268,7 @@ func (a *App) handleAdminDeleteUser(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	result, err := tx.ExecContext(r.Context(), `DELETE FROM users WHERE id = ? AND role IN (?, ?)`, userID, roleHead, roleOfficer)
+	result, err := tx.ExecContext(r.Context(), `DELETE FROM users WHERE id = ? AND role IN (?, ?, ?)`, userID, roleHead, roleOfficer, roleLeadership)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -284,8 +286,8 @@ func (a *App) handleAdminDeleteUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) listAdminUsers(ctx context.Context, districtID *int) ([]AdminUserOut, error) {
-	sqlText := adminUserSelect + ` WHERE u.role IN (?, ?)`
-	args := []any{roleHead, roleOfficer}
+	sqlText := adminUserSelect + ` WHERE u.role IN (?, ?, ?)`
+	args := []any{roleHead, roleOfficer, roleLeadership}
 	if districtID != nil {
 		sqlText += ` AND u.district_id = ?`
 		args = append(args, *districtID)
@@ -310,7 +312,7 @@ func (a *App) listAdminUsers(ctx context.Context, districtID *int) ([]AdminUserO
 }
 
 func (a *App) adminUserByID(ctx context.Context, id int) (AdminUserOut, error) {
-	user, err := scanAdminUser(a.db.QueryRowContext(ctx, adminUserSelect+` WHERE u.id = ? AND u.role IN (?, ?)`, id, roleHead, roleOfficer))
+	user, err := scanAdminUser(a.db.QueryRowContext(ctx, adminUserSelect+` WHERE u.id = ? AND u.role IN (?, ?, ?)`, id, roleHead, roleOfficer, roleLeadership))
 	if errors.Is(err, sql.ErrNoRows) {
 		return AdminUserOut{}, httpErr{status: http.StatusNotFound, detail: "Сотрудник не найден"}
 	}
@@ -374,7 +376,7 @@ func (a *App) prepareAdminUserFields(ctx context.Context, payload AdminUserSaveP
 	if role == "" {
 		role = roleOfficer
 	}
-	if role != roleHead && role != roleOfficer {
+	if role != roleHead && role != roleOfficer && role != roleLeadership {
 		return adminUserFields{}, httpErr{status: http.StatusBadRequest, detail: "Недопустимая роль пользователя"}
 	}
 	districtID := payload.DistrictID

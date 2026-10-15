@@ -7,7 +7,7 @@ import (
 )
 
 func scopedHeadDistrictID(user *User, requested *int) (*int, error) {
-	if user == nil || user.Role != roleHead || !user.DistrictID.Valid {
+	if user == nil || (user.Role != roleHead && user.Role != roleLeadership) || !user.DistrictID.Valid {
 		return requested, nil
 	}
 	scope := int(user.DistrictID.Int64)
@@ -18,7 +18,7 @@ func scopedHeadDistrictID(user *User, requested *int) (*int, error) {
 }
 
 func headScopeDistrictValue(user *User) (int, bool) {
-	if user == nil || user.Role != roleHead || !user.DistrictID.Valid {
+	if user == nil || (user.Role != roleHead && user.Role != roleLeadership) || !user.DistrictID.Valid {
 		return 0, false
 	}
 	return int(user.DistrictID.Int64), true

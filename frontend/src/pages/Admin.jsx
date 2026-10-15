@@ -224,6 +224,7 @@ function EmployeeModal({ employee, districts, onClose, onSaved }) {
               >
                 <option value="officer">{t('role_officer')}</option>
                 <option value="head">{t('role_head')}</option>
+                <option value="leadership">{t('role_leadership')}</option>
               </select>
             </div>
           </div>
@@ -236,7 +237,7 @@ function EmployeeModal({ employee, districts, onClose, onSaved }) {
                 onChange={(event) => updateField('district_id', event.target.value)}
                 required={form.role === 'officer'}
               >
-                <option value="">{form.role === 'head' ? t('allGroups') : t('selectGroup')}</option>
+                <option value="">{form.role !== 'officer' ? t('allGroups') : t('selectGroup')}</option>
                 {districts.map((district) => (
                   <option key={district.id} value={district.id}>
                     {districtName(district, lang)}

@@ -31,6 +31,7 @@ const DICT = {
     headContact: 'Начальник отдела',
     role_admin: 'Администратор',
     role_head: 'Начальник отдела',
+    role_leadership: 'Руководство',
     role_officer: 'Сотрудник',
     // дашборд
     totalFinal: 'Итоговые баллы (подтв.)',
@@ -373,6 +374,7 @@ const DICT = {
     headContact: 'Бөлім бастығы',
     role_admin: 'Әкімші',
     role_head: 'Бөлім бастығы',
+    role_leadership: 'Басшылық',
     role_officer: 'Қызметкер',
     totalFinal: 'Қорытынды баллдар (раст.)',
     confirmedCount: 'Расталды',

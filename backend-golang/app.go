@@ -127,7 +127,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /api/admin/support/conversations/{conversation_id}/messages", a.handleAdminSupportMessages)
 	mux.HandleFunc("POST /api/admin/support/conversations/{conversation_id}/messages", a.handleAdminSupportSendMessage)
 
-	return corsMiddleware(loggingMiddleware(recoveryMiddleware(mux)))
+	return corsMiddleware(loggingMiddleware(recoveryMiddleware(a.leadershipPermissions(mux))))
 }
 
 func corsMiddleware(next http.Handler) http.Handler {

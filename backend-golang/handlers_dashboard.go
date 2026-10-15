@@ -7,7 +7,7 @@ import (
 )
 
 func (a *App) handleDashboard(w http.ResponseWriter, r *http.Request) {
-	user, ok := requireHead(a, w, r)
+	user, ok := requireHeadViewer(a, w, r)
 	if !ok {
 		return
 	}
@@ -26,11 +26,17 @@ func (a *App) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		writeHTTPError(w, err)
 		return
 	}
+	if user.Role == roleLeadership && officerID != nil {
+		if err := a.ensureOfficerInHeadScope(r.Context(), user, *officerID); err != nil {
+			writeHTTPError(w, err)
+			return
+		}
+	}
 	a.writeDashboard(w, r, domaindashboard.Filter{
 		Month:      r.URL.Query().Get("month"),
 		OfficerID:  officerID,
 		DistrictID: districtID,
-	})
+	}, leadershipAverageScope(user))
 }
 
 func (a *App) handleAdminOfficerDashboard(w http.ResponseWriter, r *http.Request) {
@@ -41,16 +47,16 @@ func (a *App) handleAdminOfficerDashboard(w http.ResponseWriter, r *http.Request
 	a.writeDashboard(w, r, domaindashboard.Filter{
 		Month:     r.URL.Query().Get("month"),
 		OfficerID: &officerID,
-	})
+	}, 0)
 }
 
-func (a *App) writeDashboard(w http.ResponseWriter, r *http.Request, filter domaindashboard.Filter) {
+func (a *App) writeDashboard(w http.ResponseWriter, r *http.Request, filter domaindashboard.Filter, averageScope int) {
 	report, err := a.dashboardService().BuildDashboard(r.Context(), filter)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	average, err := a.globalKPIAverage(r.Context(), filter.Month)
+	average, err := a.globalKPIAverage(r.Context(), filter.Month, averageScope)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return

@@ -22,7 +22,7 @@ function ThemeIcon({ dark }) {
 }
 
 export default function Layout() {
-  const { user, logout, isAdmin, isHead, canManageEntries } = useAuth()
+  const { user, logout, isAdmin, canViewOverview, canViewEntries, canUseCommunication, isLeadership } = useAuth()
   const { t, lang } = useI18n()
   const navigate = useNavigate()
   const [messageUnread, setMessageUnread] = useState(0)
@@ -33,7 +33,7 @@ export default function Layout() {
   const themeSwitchFrame = useRef(null)
 
   const loadMessageUnread = useCallback(async () => {
-    if (isAdmin) {
+    if (!canUseCommunication) {
       setMessageUnread(0)
       return
     }
@@ -43,7 +43,7 @@ export default function Layout() {
     } catch {
       setMessageUnread(0)
     }
-  }, [isAdmin])
+  }, [canUseCommunication])
 
   useEffect(() => {
     loadMessageUnread()
@@ -106,19 +106,19 @@ export default function Layout() {
           </div>
         </div>
         <nav>
-          {isHead && <NavLink to="/dashboard" className="nav-link">{t('dashboard')}</NavLink>}
+          {canViewOverview && <NavLink to="/dashboard" className="nav-link">{t('dashboard')}</NavLink>}
           <NavLink to="/entries" className="nav-link">
-            {canManageEntries ? t('entries') : t('myEntries')}
+            {canViewEntries ? t('entries') : t('myEntries')}
           </NavLink>
-          {!isAdmin && (
+          {canUseCommunication && (
             <NavLink to="/messenger" className="nav-link nav-link-with-count">
               <span>{t('messenger')}</span>
               {messageUnread > 0 && <span className="nav-unread-count">{messageUnread}</span>}
             </NavLink>
           )}
-          {!isAdmin && <NavLink to="/support" className="nav-link">{t('supportChat')}</NavLink>}
-          {isHead && <NavLink to="/targets" className="nav-link">{t('targets')}</NavLink>}
-          {isHead && <NavLink to="/officers" className="nav-link">{t('officers')}</NavLink>}
+          {canUseCommunication && <NavLink to="/support" className="nav-link">{t('supportChat')}</NavLink>}
+          {canViewOverview && <NavLink to="/targets" className="nav-link">{t('targets')}</NavLink>}
+          {canViewOverview && <NavLink to="/officers" className="nav-link">{t('officers')}</NavLink>}
           {isAdmin && <NavLink to="/admin" end className="nav-link">{t('adminPanel')}</NavLink>}
           {isAdmin && <NavLink to="/admin/catalog" className="nav-link">{t('targets')}</NavLink>}
           {isAdmin && <NavLink to="/admin/rating" className="nav-link">{t('officers')}</NavLink>}
@@ -135,7 +135,7 @@ export default function Layout() {
             </div>
           </div>
           <div className="topbar-actions">
-            <NotificationCenter />
+            {!isLeadership && <NotificationCenter />}
             <button
               type="button"
               className="theme-toggle"

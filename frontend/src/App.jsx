@@ -19,32 +19,34 @@ function Protected({ children }) {
 
 function HeadOnly({ children }) {
   const { user } = useAuth()
-  if (user?.role !== 'head') return <Navigate to={user?.role === 'admin' ? '/admin' : '/entries'} replace />
+  if (!['head', 'leadership'].includes(user?.role)) return <Navigate to={user?.role === 'admin' ? '/admin' : '/entries'} replace />
   return children
 }
 
 function AdminOnly({ children }) {
   const { user } = useAuth()
-  if (user?.role !== 'admin') return <Navigate to={user?.role === 'head' ? '/dashboard' : '/entries'} replace />
+  if (user?.role !== 'admin') return <Navigate to={['head', 'leadership'].includes(user?.role) ? '/dashboard' : '/entries'} replace />
   return children
 }
 
 function MessengerOnly({ children }) {
   const { user } = useAuth()
   if (user?.role === 'admin') return <Navigate to="/admin" replace />
+  if (user?.role === 'leadership') return <Navigate to="/dashboard" replace />
   return children
 }
 
 function SupportOnly({ children }) {
   const { user } = useAuth()
   if (user?.role === 'admin') return <Navigate to="/admin/support" replace />
+  if (user?.role === 'leadership') return <Navigate to="/dashboard" replace />
   return children
 }
 
 function HomeRedirect() {
   const { user } = useAuth()
   if (user?.role === 'admin') return <Navigate to="/admin" replace />
-  return <Navigate to={user?.role === 'head' ? '/dashboard' : '/entries'} replace />
+  return <Navigate to={['head', 'leadership'].includes(user?.role) ? '/dashboard' : '/entries'} replace />
 }
 
 export default function App() {
