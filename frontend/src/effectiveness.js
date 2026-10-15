@@ -6,6 +6,7 @@ export const EFFECTIVENESS_CATEGORIES = [
 
 const HIGH_EFFECTIVENESS_THRESHOLD = 66
 const EFFECTIVE_THRESHOLD = 33
+const ADMIN_HIGH_PERCENT_MIN = 66.6
 
 function numericScore(value) {
   const score = Number(typeof value === 'string' ? value.replace(',', '.') : value)
@@ -30,6 +31,27 @@ export function withRelativeEffectiveness(officer, averageScore = officer.global
     achievement_percent: relativeScorePercent(effectivenessScore(officer), averageScore),
     effectivenessCategory: effectivenessCategory(officer, averageScore),
   }
+}
+
+// Determine categories first; the display scale must not change group membership.
+export function adminRatingEffectiveness(officers) {
+  const rows = officers.map((officer) => withRelativeEffectiveness(officer))
+  const highScores = rows
+    .filter((officer) => officer.effectivenessCategory === 'very_effective')
+    .map(effectivenessScore)
+  if (!highScores.length) return rows
+
+  const minScore = Math.min(...highScores)
+  const maxScore = Math.max(...highScores)
+  return rows.map((officer) => {
+    if (officer.effectivenessCategory !== 'very_effective') return officer
+    const percent = maxScore === minScore
+      ? 100
+      : ADMIN_HIGH_PERCENT_MIN
+        + ((effectivenessScore(officer) - minScore) / (maxScore - minScore))
+          * (100 - ADMIN_HIGH_PERCENT_MIN)
+    return { ...officer, achievement_percent: Math.round(percent * 10) / 10 }
+  })
 }
 
 export function dashboardOfficerEffectiveness(officer, monthlyTarget, averageScore) {

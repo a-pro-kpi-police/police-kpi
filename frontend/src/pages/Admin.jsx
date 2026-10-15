@@ -7,7 +7,7 @@ import NameFilterCombobox from '../components/NameFilterCombobox.jsx'
 import { districtName } from '../districtLocale.js'
 import {
   EFFECTIVENESS_CATEGORIES,
-  withRelativeEffectiveness,
+  adminRatingEffectiveness,
 } from '../effectiveness.js'
 import { useI18n } from '../i18n.jsx'
 import { useNotify } from '../notifications.jsx'
@@ -589,7 +589,7 @@ export default function Admin({ initialTab = 'employees' }) {
   ), [lang, ratingRows])
 
   const categorizedRatingRows = useMemo(() => {
-    return ratingRows.map((officer) => withRelativeEffectiveness(officer))
+    return adminRatingEffectiveness(ratingRows)
   }, [ratingRows])
 
   const filteredRatingRows = useMemo(() => {

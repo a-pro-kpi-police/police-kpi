@@ -2,12 +2,50 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
+  adminRatingEffectiveness,
   averageEffectivenessScore,
   withRelativeEffectiveness,
   dashboardOfficerEffectiveness,
   effectivenessCategory,
   relativeScorePercent,
 } from './effectiveness.js'
+
+test('admin rating scales high performers by score while preserving categories and other groups', () => {
+  const officers = [400, 300, 200, 132, 100, 66, 0, -20].map((final, index) => ({
+    officer_id: index + 1,
+    final,
+    category_score: final,
+    global_average_score: 100,
+  }))
+  const original = structuredClone(officers)
+  const rows = adminRatingEffectiveness(officers)
+
+  assert.deepEqual(rows.slice(0, 3).map((row) => row.achievement_percent), [100, 83.3, 66.6])
+  assert.deepEqual(rows.map((row) => row.effectivenessCategory),
+    officers.map((officer) => withRelativeEffectiveness(officer).effectivenessCategory))
+  assert.equal(rows[2].effectivenessCategory, 'very_effective')
+  assert.deepEqual(rows.slice(3), officers.slice(3).map((officer) => withRelativeEffectiveness(officer)))
+  assert.deepEqual(rows.map((row) => row.final), officers.map((officer) => officer.final))
+  assert.deepEqual(officers, original)
+})
+
+test('admin rating handles empty, no high performers, single and tied high scores', () => {
+  assert.deepEqual(adminRatingEffectiveness([]), [])
+  const low = [{ final: 0, global_average_score: 0 }, { final: 100, global_average_score: 100 }]
+  assert.deepEqual(adminRatingEffectiveness(low), low.map((officer) => withRelativeEffectiveness(officer)))
+  for (const scores of [[150], [200, 200]]) {
+    const rows = adminRatingEffectiveness(scores.map((final) => ({ final, global_average_score: 100 })))
+    assert.ok(rows.every((row) => row.achievement_percent === 100))
+    assert.ok(rows.every((row) => row.effectivenessCategory === 'very_effective'))
+  }
+})
+
+test('admin rating gives equal high scores equal percentages and rounds to one decimal', () => {
+  const scores = [240, 140, 240, 170, 440]
+  const rows = adminRatingEffectiveness(scores.map((final) => ({ final, global_average_score: 100 })))
+  assert.deepEqual(rows.map((row) => row.achievement_percent), [77.7, 66.6, 77.7, 69.9, 100])
+  assert.deepEqual(rows.map((row) => row.final), scores)
+})
 
 test('dashboard fact, gap and percentage use the same KPI including penalties', () => {
   const row = dashboardOfficerEffectiveness(
