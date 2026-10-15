@@ -17,12 +17,12 @@ type ratingScore struct {
 }
 
 func (a *App) handleRating(w http.ResponseWriter, r *http.Request) {
-	user, ok := requireHead(a, w, r)
+	user, ok := requireHeadViewer(a, w, r)
 	if !ok {
 		return
 	}
 	scope, _ := headScopeDistrictValue(user)
-	a.writeRating(w, r, scope)
+	a.writeRating(w, r, scope, leadershipAverageScope(user))
 }
 
 func (a *App) handleAdminRating(w http.ResponseWriter, r *http.Request) {
@@ -40,10 +40,10 @@ func (a *App) handleAdminRating(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	a.writeRating(w, r, optionalIntValue(districtID))
+	a.writeRating(w, r, optionalIntValue(districtID), 0)
 }
 
-func (a *App) writeRating(w http.ResponseWriter, r *http.Request, scope int) {
+func (a *App) writeRating(w http.ResponseWriter, r *http.Request, scope, averageScope int) {
 	month := r.URL.Query().Get("month")
 	officers, err := a.userQueryService().ListOfficersWithEfficiency(r.Context(), scope)
 	if err != nil {
@@ -55,7 +55,7 @@ func (a *App) writeRating(w http.ResponseWriter, r *http.Request, scope int) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	average, err := a.globalKPIAverage(r.Context(), month)
+	average, err := a.globalKPIAverage(r.Context(), month, averageScope)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return

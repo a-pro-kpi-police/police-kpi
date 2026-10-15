@@ -139,7 +139,7 @@ function AttachmentPreview({ preview, onClose, onLoadError, t }) {
 
 export default function Entries() {
   const { t, fmtMonth, fmtQuarter, lang } = useI18n()
-  const { user, canManageEntries } = useAuth()
+  const { user, canViewEntries, canManageEntries, isLeadership, canUseCommunication } = useAuth()
   const { notify } = useNotify()
   const navigate = useNavigate()
   const [entries, setEntries] = useState([])
@@ -178,7 +178,7 @@ export default function Entries() {
       api.get('/catalog'),
       api.get('/months'),
     ]
-    if (canManageEntries) requests.push(api.get('/officers'))
+    if (canViewEntries) requests.push(api.get('/officers'))
     Promise.all(requests).then(([catalogResponse, monthsResponse, officersResponse]) => {
       setCatalog(Array.isArray(catalogResponse.data) ? catalogResponse.data : [])
       setMonths(Array.isArray(monthsResponse.data) ? monthsResponse.data : [])
@@ -186,7 +186,7 @@ export default function Entries() {
         setOfficers(Array.isArray(officersResponse.data) ? officersResponse.data : [])
       }
     })
-  }, [canManageEntries])
+  }, [canViewEntries])
 
   // Периоды загружаются отдельно, поэтому серверная пагинация не обрезает фильтры.
   const periodOptions = useMemo(() => {
@@ -229,13 +229,13 @@ export default function Entries() {
   const entryQuery = useMemo(() => ({
     limit: PAGE_SIZE,
     status: statusFilter || undefined,
-    officer_id: canManageEntries && officerFilter ? Number(officerFilter) : undefined,
+    officer_id: canViewEntries && officerFilter ? Number(officerFilter) : undefined,
     period_type: periodType && periodValue ? periodType : undefined,
     period_value: periodType && periodValue ? periodValue : undefined,
     sort_key: sort.key,
     sort_dir: sort.dir,
   }), [
-    canManageEntries,
+    canViewEntries,
     officerFilter,
     periodType,
     periodValue,
@@ -308,11 +308,11 @@ export default function Entries() {
   const summaryMonth = periodType === 'month' && periodValue ? periodValue : currentMonth()
 
   useEffect(() => {
-    if (canManageEntries) return
+    if (canViewEntries) return
     api.get('/target-progress', { params: { month: summaryMonth } })
       .then((r) => setTargetProgress(r.data))
       .catch(() => setTargetProgress(null))
-  }, [canManageEntries, summaryMonth])
+  }, [canViewEntries, summaryMonth])
 
   const periodLabel = (type, val) => {
     if (type === 'month') return fmtMonth(val)
@@ -519,9 +519,9 @@ export default function Entries() {
   return (
     <div>
       <div className="page-head entries-page-head">
-        <h1>{canManageEntries ? t('entries') : t('myEntries')}</h1>
+        <h1>{canViewEntries ? t('entries') : t('myEntries')}</h1>
         <div className={`page-head-actions entries-filters${periodType ? ' has-period-value' : ''}`}>
-          {canManageEntries && (
+          {canViewEntries && (
             <NameFilterCombobox
               items={officerOptions}
               value={officerFilter}
@@ -547,17 +547,17 @@ export default function Entries() {
             <option value="confirmed">{t('confirmed')}</option>
             <option value="rejected">{t('rejected')}</option>
           </select>
-          <button
+          {!isLeadership && <button
             className="btn btn-primary"
-            disabled={!catalog.length || (canManageEntries && !officers.length)}
+            disabled={!catalog.length || (canViewEntries && !officers.length)}
             onClick={() => setShowModal(true)}
           >
             + {t('addEntry')}
-          </button>
+          </button>}
         </div>
       </div>
 
-      {!canManageEntries && targetProgress && (
+      {!canViewEntries && targetProgress && (
         <>
           <div className="summary-note">{t('summaryForMonth')} {fmtMonth(summaryMonth)}</div>
           <div className="stat-grid">
@@ -582,7 +582,7 @@ export default function Entries() {
         >
           <option value="date">{t('colDate')}</option>
           <option value="month">{t('colMonth')}</option>
-          {canManageEntries && <option value="officer_name">{t('colOfficer')}</option>}
+          {canViewEntries && <option value="officer_name">{t('colOfficer')}</option>}
           <option value="code">{t('colCode')}</option>
           <option value="final_score">{t('colFinal')}</option>
           <option value="status">{t('colStatus')}</option>
@@ -615,7 +615,7 @@ export default function Entries() {
                   <span aria-hidden="true">·</span>
                   <time dateTime={e.date}>{e.date}</time>
                 </div>
-                {canManageEntries && (
+                {canViewEntries && (
                   <ProfileHoverCard profile={{
                     id: e.officer_id,
                     name: e.officer_name,
@@ -731,7 +731,7 @@ export default function Entries() {
             )}
 
             <footer className="entry-record-actions">
-              {user?.role !== 'admin' && (
+              {canUseCommunication && (
                 <button
                   type="button"
                   className="btn btn-sm btn-ghost entry-record-message"
@@ -773,7 +773,7 @@ export default function Entries() {
                   </button>
                 </div>
               )}
-              <label className={`btn btn-sm btn-ghost entry-attachment-add${uploadingEntryId === e.id ? ' disabled' : ''}`}>
+              {!isLeadership && <label className={`btn btn-sm btn-ghost entry-attachment-add${uploadingEntryId === e.id ? ' disabled' : ''}`}>
                 {uploadingEntryId === e.id ? t('uploadingAttachments') : t('addAttachments')}
                 <input
                   type="file"
@@ -786,7 +786,7 @@ export default function Entries() {
                     addAttachments(e, files)
                   }}
                 />
-              </label>
+              </label>}
             </footer>
           </article>
           )
@@ -808,14 +808,14 @@ export default function Entries() {
         </div>
       )}
 
-      {showModal && (
+      {!isLeadership && showModal && (
         <EntryFormModal
           catalog={catalog}
           officers={officers}
           onClose={() => setShowModal(false)}
           onCreated={(entry) => {
             setEntries((prev) => [entry, ...prev])
-            if (!canManageEntries) {
+            if (!canViewEntries) {
               api.get('/target-progress', { params: { month: summaryMonth } })
                 .then((r) => setTargetProgress(r.data))
                 .catch(() => setTargetProgress(null))

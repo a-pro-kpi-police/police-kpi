@@ -3,9 +3,10 @@ package users
 import "errors"
 
 const (
-	RoleAdmin   = "admin"
-	RoleHead    = "head"
-	RoleOfficer = "officer"
+	RoleLeadership = "leadership"
+	RoleAdmin      = "admin"
+	RoleHead       = "head"
+	RoleOfficer    = "officer"
 )
 
 var ErrNotFound = errors.New("user not found")

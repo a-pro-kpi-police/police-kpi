@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import api from './api'
+import { rolePermissions } from './permissions.js'
 
 const AuthContext = createContext(null)
 
@@ -42,8 +43,7 @@ export function AuthProvider({ children }) {
     setUser(null)
   }
 
-  const isAdmin = user?.role === 'admin'
-  const isHead = user?.role === 'head'
+  const permissions = rolePermissions(user?.role)
 
   return (
     <AuthContext.Provider
@@ -52,9 +52,7 @@ export function AuthProvider({ children }) {
         loading,
         login,
         logout,
-        isAdmin,
-        isHead,
-        canManageEntries: isHead || isAdmin,
+        ...permissions,
       }}
     >
       {children}

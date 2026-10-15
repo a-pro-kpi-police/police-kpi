@@ -53,7 +53,7 @@ func (a *App) handleSaveTargets(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleGetGroupTargets(w http.ResponseWriter, r *http.Request) {
-	user, ok := requireHead(a, w, r)
+	user, ok := requireHeadViewer(a, w, r)
 	if !ok {
 		return
 	}
@@ -130,7 +130,7 @@ func (a *App) handleTargetProgress(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleTargetOverview(w http.ResponseWriter, r *http.Request) {
-	user, ok := requireHead(a, w, r)
+	user, ok := requireHeadViewer(a, w, r)
 	if !ok {
 		return
 	}
@@ -191,7 +191,7 @@ func (a *App) writeTargetOverview(w http.ResponseWriter, r *http.Request, filter
 }
 
 func (a *App) resolveTargetOfficerID(w http.ResponseWriter, r *http.Request, user *User, requireHeadParam bool) (int, bool) {
-	if isEntryManagerRole(user.Role) {
+	if isEntryViewerRole(user.Role) {
 		officerID, err := parseInt(r.URL.Query().Get("officer_id"))
 		if err != nil || officerID <= 0 {
 			writeError(w, http.StatusBadRequest, "Сотрудник не указан")

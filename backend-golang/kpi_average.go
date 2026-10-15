@@ -4,7 +4,7 @@ import "context"
 
 // globalKPIAverage returns only an aggregate, never an unrestricted officer list.
 // LEFT JOIN keeps officers without confirmed activity in the denominator.
-func (a *App) globalKPIAverage(ctx context.Context, month string) (float64, error) {
+func (a *App) globalKPIAverage(ctx context.Context, month string, districtIDs ...int) (float64, error) {
 	query := `SELECT COALESCE(AVG(score), 0) FROM (
 		SELECT u.id, ROUND(CAST(COALESCE(SUM(e.final_score), 0) AS NUMERIC), 2) AS score
 		FROM users u
@@ -15,8 +15,13 @@ func (a *App) globalKPIAverage(ctx context.Context, month string) (float64, erro
 		query += ` AND e.month = ?`
 		args = append(args, month)
 	}
-	query += ` WHERE u.role = ? GROUP BY u.id) officer_scores`
+	query += ` WHERE u.role = ?`
 	args = append(args, roleOfficer)
+	if len(districtIDs) > 0 && districtIDs[0] > 0 {
+		query += ` AND u.district_id = ?`
+		args = append(args, districtIDs[0])
+	}
+	query += ` GROUP BY u.id) officer_scores`
 	var average float64
 	err := a.db.QueryRowContext(ctx, query, args...).Scan(&average)
 	return average, err

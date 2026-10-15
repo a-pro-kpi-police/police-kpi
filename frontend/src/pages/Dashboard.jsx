@@ -598,7 +598,7 @@ function ExceededLimitsPanel({ items, t, lang }) {
 
 export default function Dashboard({ adminMode = false }) {
   const { t, fmtMonth, lang } = useI18n()
-  const { isHead } = useAuth()
+  const { canViewOverview } = useAuth()
   const navigate = useNavigate()
   const { officerId = '' } = useParams()
   const [data, setData] = useState(null)
@@ -659,7 +659,7 @@ export default function Dashboard({ adminMode = false }) {
     Promise.all([
       api.get('/months'),
       api.get('/districts'),
-      isHead || adminMode ? api.get('/officers') : Promise.resolve({ data: [] }),
+      canViewOverview || adminMode ? api.get('/officers') : Promise.resolve({ data: [] }),
     ]).then(([monthsResponse, districtsResponse, officersResponse]) => {
       const monthItems = Array.isArray(monthsResponse.data) ? monthsResponse.data : []
       setMonths(monthItems)
@@ -790,7 +790,7 @@ export default function Dashboard({ adminMode = false }) {
         </h1>
         <div className="page-head-actions">
           {adminMode && <Link className="btn btn-ghost" to="/admin">{t('backToEmployees')}</Link>}
-          {isHead && (
+          {canViewOverview && (
             <select
               className="select dashboard-district-select"
               value={district}
@@ -803,7 +803,7 @@ export default function Dashboard({ adminMode = false }) {
               ))}
             </select>
           )}
-          {isHead && (
+          {canViewOverview && (
             <NameFilterCombobox
               items={officerOptions}
               value={officer}

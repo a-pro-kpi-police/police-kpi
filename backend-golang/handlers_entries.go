@@ -47,7 +47,7 @@ func (a *App) handleListEntries(w http.ResponseWriter, r *http.Request) {
 	}
 	queryValues := r.URL.Query()
 	entryQuery := domainentries.EntryQuery{Actor: entryActor(user)}
-	if isEntryManagerRole(user.Role) {
+	if isEntryViewerRole(user.Role) {
 		if officerText := queryValues.Get("officer_id"); officerText != "" {
 			officerID, err := parseInt(officerText)
 			if err != nil {
@@ -55,6 +55,12 @@ func (a *App) handleListEntries(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			entryQuery.OfficerID = &officerID
+			if user.Role == roleLeadership {
+				if err := a.ensureOfficerInHeadScope(r.Context(), user, officerID); err != nil {
+					writeHTTPError(w, err)
+					return
+				}
+			}
 		}
 		if scope, scoped := headScopeDistrictValue(user); scoped {
 			entryQuery.DistrictID = &scope
@@ -221,7 +227,7 @@ func (a *App) handleDownloadAttachment(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	if !isEntryManagerRole(user.Role) && entry.OfficerID != user.ID {
+	if !isEntryViewerRole(user.Role) && entry.OfficerID != user.ID {
 		writeError(w, http.StatusForbidden, "Недостаточно прав")
 		return
 	}
@@ -360,7 +366,7 @@ func (a *App) authorizedEntry(r *http.Request, user *User, entryID int) (domaine
 	if err != nil {
 		return domainentries.ListedEntry{}, err
 	}
-	if !isEntryManagerRole(user.Role) && entry.OfficerID != user.ID {
+	if !isEntryViewerRole(user.Role) && entry.OfficerID != user.ID {
 		return domainentries.ListedEntry{}, httpErr{status: http.StatusForbidden, detail: "Недостаточно прав"}
 	}
 	if err := a.ensureOfficerInHeadScope(r.Context(), user, entry.OfficerID); err != nil {
