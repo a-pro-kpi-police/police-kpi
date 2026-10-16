@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	domainusers "kpi-police/backend-golang/internal/domain/users"
+	"kpi-police/backend-golang/internal/infrastructure/viewingscope"
 )
 
 type ratingScore struct {
@@ -22,7 +23,7 @@ func (a *App) handleRating(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	scope, _ := headScopeDistrictValue(user)
-	a.writeRating(w, r, scope, leadershipAverageScope(user))
+	a.writeRating(w, r, scope, 0)
 }
 
 func (a *App) handleAdminRating(w http.ResponseWriter, r *http.Request) {
@@ -74,7 +75,7 @@ func (a *App) ratingScores(ctx context.Context, month string, districtID int) (m
 		COALESCE(SUM(CASE WHEN status = ? AND quantity > 0 THEN 1 ELSE 0 END), 0)
 	FROM kpi_entries`
 	args := []any{"confirmed", "confirmed", "pending"}
-	where := []string{}
+	where := []string{`officer_id IN (SELECT u.id FROM users u WHERE ` + viewingscope.Predicate(ctx, "u.district_id", &args) + `)`}
 	if month != "" {
 		where = append(where, "month = ?")
 		args = append(args, month)

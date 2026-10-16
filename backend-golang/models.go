@@ -29,6 +29,7 @@ type User struct {
 	FullName             string
 	Rank                 string
 	Role                 string
+	LeadershipScope      *LeadershipScope
 	DistrictID           sql.NullInt64
 	SourceEmployeeNumber sql.NullString
 	MonthlyNorm          float64
@@ -36,13 +37,14 @@ type User struct {
 }
 
 type UserOut struct {
-	ID          int       `json:"id"`
-	Username    string    `json:"username"`
-	FullName    string    `json:"full_name"`
-	Rank        string    `json:"rank"`
-	Role        string    `json:"role"`
-	MonthlyNorm float64   `json:"monthly_norm"`
-	District    *District `json:"district"`
+	LeadershipScope *LeadershipScope `json:"leadership_scope,omitempty"`
+	ID              int              `json:"id"`
+	Username        string           `json:"username"`
+	FullName        string           `json:"full_name"`
+	Rank            string           `json:"rank"`
+	Role            string           `json:"role"`
+	MonthlyNorm     float64          `json:"monthly_norm"`
+	District        *District        `json:"district"`
 }
 
 type OfficerOut struct {
@@ -59,26 +61,28 @@ type OfficerOut struct {
 }
 
 type AdminUserOut struct {
-	ID                   int       `json:"id"`
-	Username             string    `json:"username"`
-	FullName             string    `json:"full_name"`
-	Rank                 string    `json:"rank"`
-	Role                 string    `json:"role"`
-	MonthlyNorm          float64   `json:"monthly_norm"`
-	District             *District `json:"district"`
-	SourceEmployeeNumber string    `json:"source_employee_number"`
-	EntriesCount         int       `json:"entries_count"`
+	LeadershipScope      *LeadershipScope `json:"leadership_scope,omitempty"`
+	ID                   int              `json:"id"`
+	Username             string           `json:"username"`
+	FullName             string           `json:"full_name"`
+	Rank                 string           `json:"rank"`
+	Role                 string           `json:"role"`
+	MonthlyNorm          float64          `json:"monthly_norm"`
+	District             *District        `json:"district"`
+	SourceEmployeeNumber string           `json:"source_employee_number"`
+	EntriesCount         int              `json:"entries_count"`
 }
 
 type AdminUserSavePayload struct {
-	Username             string   `json:"username"`
-	Password             string   `json:"password"`
-	FullName             string   `json:"full_name"`
-	Rank                 string   `json:"rank"`
-	Role                 string   `json:"role"`
-	DistrictID           *int     `json:"district_id"`
-	SourceEmployeeNumber string   `json:"source_employee_number"`
-	MonthlyNorm          *float64 `json:"monthly_norm"`
+	LeadershipScope      *LeadershipScope `json:"leadership_scope,omitempty"`
+	Username             string           `json:"username"`
+	Password             string           `json:"password"`
+	FullName             string           `json:"full_name"`
+	Rank                 string           `json:"rank"`
+	Role                 string           `json:"role"`
+	DistrictID           *int             `json:"district_id"`
+	SourceEmployeeNumber string           `json:"source_employee_number"`
+	MonthlyNorm          *float64         `json:"monthly_norm"`
 }
 
 type AdminCatalogSavePayload struct {

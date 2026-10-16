@@ -290,6 +290,9 @@ func isEntryManagerRole(role string) bool {
 }
 
 func (a *App) currentUser(r *http.Request) (*User, error) {
+	if user, ok := r.Context().Value(currentUserKey{}).(*User); ok {
+		return user, nil
+	}
 	header := r.Header.Get("Authorization")
 	token := strings.TrimSpace(strings.TrimPrefix(header, "Bearer "))
 	if token == "" || token == header {

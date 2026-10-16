@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	domainusers "kpi-police/backend-golang/internal/domain/users"
+	"kpi-police/backend-golang/internal/infrastructure/viewingscope"
 )
 
 type Queryer interface {
@@ -54,7 +55,9 @@ func (r Repository) GetDistrict(ctx context.Context, id int) (domainusers.Distri
 }
 
 func (r Repository) ListDistricts(ctx context.Context) ([]domainusers.District, error) {
-	rows, err := r.q.QueryContext(ctx, `SELECT id, name, coeff FROM districts ORDER BY id`)
+	args := []any{}
+	query := `SELECT id, name, coeff FROM districts WHERE ` + viewingscope.Predicate(ctx, "id", &args) + ` ORDER BY id`
+	rows, err := r.q.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -82,6 +85,7 @@ func (r Repository) ListOfficers(ctx context.Context, districtID int) ([]domainu
 		sqlText += ` AND u.district_id = ?`
 		args = append(args, districtID)
 	}
+	sqlText += ` AND ` + viewingscope.Predicate(ctx, "u.district_id", &args)
 	sqlText += ` ORDER BY u.full_name`
 	return r.queryUsers(ctx, sqlText, args...)
 }
@@ -133,6 +137,15 @@ func (r Repository) ListMonths(ctx context.Context, officerID *int, districtID *
 			WHERE u.district_id = ?
 		) AS months ORDER BY month DESC`
 		args = append(args, *districtID, *districtID)
+	}
+	scopeArgs := []any{}
+	boundary := viewingscope.Predicate(ctx, "u.district_id", &scopeArgs)
+	if boundary != "1=1" {
+		sqlText = `SELECT month FROM (
+        SELECT DISTINCT e.month FROM kpi_entries e JOIN users u ON u.id=e.officer_id WHERE ` + boundary + `
+        UNION SELECT DISTINCT t.month FROM kpi_targets t JOIN users u ON u.id=t.officer_id WHERE ` + boundary + `
+        ) AS months ORDER BY month DESC`
+		args = append(scopeArgs, scopeArgs...)
 	}
 	rows, err := r.q.QueryContext(ctx, sqlText, args...)
 	if err != nil {

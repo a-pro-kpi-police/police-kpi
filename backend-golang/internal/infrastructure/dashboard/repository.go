@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	domaindashboard "kpi-police/backend-golang/internal/domain/dashboard"
+	"kpi-police/backend-golang/internal/infrastructure/viewingscope"
 )
 
 type Queryer interface {
@@ -21,8 +22,8 @@ func NewRepository(q Queryer) Repository {
 }
 
 func (r Repository) ListEntries(ctx context.Context, filter domaindashboard.Filter) ([]domaindashboard.Entry, error) {
-	where := []string{}
 	args := []any{}
+	where := []string{viewingscope.Predicate(ctx, "u.district_id", &args)}
 	if filter.OfficerID != nil {
 		where = append(where, "e.officer_id = ?")
 		args = append(args, *filter.OfficerID)

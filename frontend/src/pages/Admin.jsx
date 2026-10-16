@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { openAdminOfficerDashboard, openAdminRatingOfficerDashboard } from '../adminOfficerDashboard.js'
 import api from '../api'
+import { leadershipScopeForm, validLeadershipScope, leadershipScopePayload } from '../leadershipScope.js'
 import { getApiErrorMessage } from '../apiError.js'
 import NameFilterCombobox from '../components/NameFilterCombobox.jsx'
 import { districtName } from '../districtLocale.js'
@@ -64,6 +65,7 @@ const newEmployeeForm = (districts) => ({
   full_name: '',
   rank: '',
   role: 'officer',
+  leadership_scope: leadershipScopeForm(),
   district_id: districts[0]?.id ? String(districts[0].id) : '',
   source_employee_number: '',
   monthly_norm: 100,
@@ -77,6 +79,7 @@ const employeeForm = (employee, districts) => {
     full_name: employee.full_name || '',
     rank: employee.rank || '',
     role: employee.role || 'officer',
+    leadership_scope: leadershipScopeForm(employee),
     district_id: employee.district?.id ? String(employee.district.id) : '',
     source_employee_number: employee.source_employee_number || '',
     monthly_norm: employee.monthly_norm || 100,
@@ -130,7 +133,7 @@ function EmployeeModal({ employee, districts, onClose, onSaved }) {
 
   useEffect(() => {
     setForm((current) => (
-      current.district_id || !districts[0]?.id
+      current.role === 'leadership' || current.district_id || !districts[0]?.id
         ? current
         : { ...current, district_id: String(districts[0].id) }
     ))
@@ -142,6 +145,10 @@ function EmployeeModal({ employee, districts, onClose, onSaved }) {
 
   const submit = async (event) => {
     event.preventDefault()
+    if (!validLeadershipScope(form.role, form.leadership_scope)) {
+      setError(t('selectAtLeastOneCompany'))
+      return
+    }
     setSaving(true)
     setError('')
     try {
@@ -151,6 +158,7 @@ function EmployeeModal({ employee, districts, onClose, onSaved }) {
         full_name: form.full_name.trim(),
         rank: form.rank.trim(),
         role: form.role,
+        leadership_scope: leadershipScopePayload(form.role, form.leadership_scope),
         district_id: form.district_id ? Number(form.district_id) : null,
         source_employee_number: form.source_employee_number.trim(),
         monthly_norm: Number(form.monthly_norm),
@@ -237,7 +245,7 @@ function EmployeeModal({ employee, districts, onClose, onSaved }) {
                 onChange={(event) => updateField('district_id', event.target.value)}
                 required={form.role === 'officer'}
               >
-                <option value="">{form.role !== 'officer' ? t('allGroups') : t('selectGroup')}</option>
+                <option value="">{form.role === 'leadership' ? t('noAffiliation') : form.role !== 'officer' ? t('allGroups') : t('selectGroup')}</option>
                 {districts.map((district) => (
                   <option key={district.id} value={district.id}>
                     {districtName(district, lang)}
@@ -265,11 +273,49 @@ function EmployeeModal({ employee, districts, onClose, onSaved }) {
             </div>
           </div>
 
+          {form.role === 'leadership' && (
+            <fieldset className="leadership-scope">
+              <legend>{t('companyAccess')}</legend>
+              <label>
+                <input type="radio" name="company-access" value="selected"
+                  checked={form.leadership_scope.mode === 'selected'}
+                  onChange={() => updateField('leadership_scope', { ...form.leadership_scope, mode: 'selected' })} />
+                {t('selectedCompanies')}
+              </label>
+              <label>
+                <input type="radio" name="company-access" value="all"
+                  checked={form.leadership_scope.mode === 'all'}
+                  onChange={() => updateField('leadership_scope', { ...form.leadership_scope, mode: 'all' })} />
+                {t('allCompanies')}
+              </label>
+              {form.leadership_scope.mode === 'all' ? <p className="muted">{t('allCompaniesHint')}</p> : (
+                <div className="leadership-company-list">
+                  {districts.map((district) => (
+                    <label key={district.id}>
+                      <input type="checkbox"
+                        checked={form.leadership_scope.district_ids.includes(district.id)}
+                        onChange={(event) => updateField('leadership_scope', {
+                          ...form.leadership_scope,
+                          district_ids: event.target.checked
+                            ? [...form.leadership_scope.district_ids, district.id]
+                            : form.leadership_scope.district_ids.filter((id) => id !== district.id),
+                        })} />
+                      {districtName(district, lang)}
+                    </label>
+                  ))}
+                  {!validLeadershipScope(form.role, form.leadership_scope) && (
+                    <p className="muted" role="status">{t('selectAtLeastOneCompany')}</p>
+                  )}
+                </div>
+              )}
+            </fieldset>
+          )}
+
           {error && <div className="error">{error}</div>}
 
           <div className="modal-actions">
             <button type="button" className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
-            <button type="submit" className="btn btn-primary" disabled={saving}>
+            <button type="submit" className="btn btn-primary" disabled={saving || !validLeadershipScope(form.role, form.leadership_scope)}>
               {t('save')}
             </button>
           </div>

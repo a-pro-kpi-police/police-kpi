@@ -36,7 +36,7 @@ func (a *App) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		Month:      r.URL.Query().Get("month"),
 		OfficerID:  officerID,
 		DistrictID: districtID,
-	}, leadershipAverageScope(user))
+	}, 0)
 }
 
 func (a *App) handleAdminOfficerDashboard(w http.ResponseWriter, r *http.Request) {

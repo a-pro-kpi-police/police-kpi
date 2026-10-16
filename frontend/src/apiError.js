@@ -1,4 +1,7 @@
 const DETAIL_TO_KEY = {
+  'Выберите хотя бы одну роту': 'selectAtLeastOneCompany',
+  'Укажите доступ к ротам': 'companyAccessRequiredError',
+  'Рота указана неверно': 'companyInvalidError',
   'Показатель KPI не найден': 'catalogNotFoundError',
   'Код KPI обязателен': 'kpiCodeRequiredError',
   'Показатель KPI обязателен': 'kpiIndicatorRequiredError',

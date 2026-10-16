@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"os"
@@ -11,6 +12,7 @@ import (
 )
 
 type adminUserFields struct {
+	LeadershipScope      *LeadershipScope
 	Username             string
 	Password             string
 	FullName             string
@@ -27,7 +29,7 @@ type sqlScanner interface {
 
 const adminUserSelect = `SELECT
 	u.id, u.username, u.full_name, u.rank, u.role,
-	u.district_id, u.source_employee_number, u.monthly_norm,
+	u.district_id, u.source_employee_number, u.monthly_norm, u.leadership_scope,
 	d.id, d.name, d.coeff,
 	COALESCE(e.entries_count, 0)
 FROM users u
@@ -101,8 +103,8 @@ func (a *App) handleAdminCreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	var createdID int
 	err = a.db.QueryRowContext(r.Context(), `INSERT INTO users
-		(username, password_hash, full_name, rank, role, district_id, source_employee_number, monthly_norm)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		(username, password_hash, full_name, rank, role, district_id, source_employee_number, monthly_norm, leadership_scope)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		RETURNING id`,
 		fields.Username,
 		passwordHash,
@@ -112,6 +114,7 @@ func (a *App) handleAdminCreateUser(w http.ResponseWriter, r *http.Request) {
 		nullableInt(fields.DistrictID),
 		nullableString(fields.SourceEmployeeNumber),
 		fields.MonthlyNorm,
+		scopeJSON(fields.LeadershipScope),
 	).Scan(&createdID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
@@ -162,7 +165,7 @@ func (a *App) handleAdminUpdateUser(w http.ResponseWriter, r *http.Request) {
 		}
 		_, err = a.db.ExecContext(r.Context(), `UPDATE users
 			SET username = ?, password_hash = ?, full_name = ?, rank = ?, role = ?, district_id = ?,
-				source_employee_number = ?, monthly_norm = ?
+				source_employee_number = ?, monthly_norm = ?, leadership_scope = ?
 			WHERE id = ? AND role IN (?, ?, ?)`,
 			fields.Username,
 			passwordHash,
@@ -172,6 +175,7 @@ func (a *App) handleAdminUpdateUser(w http.ResponseWriter, r *http.Request) {
 			nullableInt(fields.DistrictID),
 			nullableString(fields.SourceEmployeeNumber),
 			fields.MonthlyNorm,
+			scopeJSON(fields.LeadershipScope),
 			userID,
 			roleHead,
 			roleOfficer,
@@ -184,7 +188,7 @@ func (a *App) handleAdminUpdateUser(w http.ResponseWriter, r *http.Request) {
 	} else {
 		_, err = a.db.ExecContext(r.Context(), `UPDATE users
 			SET username = ?, full_name = ?, rank = ?, role = ?, district_id = ?,
-				source_employee_number = ?, monthly_norm = ?
+				source_employee_number = ?, monthly_norm = ?, leadership_scope = ?
 			WHERE id = ? AND role IN (?, ?, ?)`,
 			fields.Username,
 			fields.FullName,
@@ -193,6 +197,7 @@ func (a *App) handleAdminUpdateUser(w http.ResponseWriter, r *http.Request) {
 			nullableInt(fields.DistrictID),
 			nullableString(fields.SourceEmployeeNumber),
 			fields.MonthlyNorm,
+			scopeJSON(fields.LeadershipScope),
 			userID,
 			roleHead,
 			roleOfficer,
@@ -321,6 +326,7 @@ func (a *App) adminUserByID(ctx context.Context, id int) (AdminUserOut, error) {
 
 func scanAdminUser(scanner sqlScanner) (AdminUserOut, error) {
 	var user AdminUserOut
+	var rawScope string
 	var districtID sql.NullInt64
 	var sourceEmployeeNumber sql.NullString
 	var joinedDistrictID sql.NullInt64
@@ -335,12 +341,19 @@ func scanAdminUser(scanner sqlScanner) (AdminUserOut, error) {
 		&districtID,
 		&sourceEmployeeNumber,
 		&user.MonthlyNorm,
+		&rawScope,
 		&joinedDistrictID,
 		&districtName,
 		&districtCoeff,
 		&user.EntriesCount,
 	); err != nil {
 		return AdminUserOut{}, err
+	}
+	if user.Role == roleLeadership {
+		user.LeadershipScope = &LeadershipScope{}
+		if err := json.Unmarshal([]byte(rawScope), user.LeadershipScope); err != nil {
+			return AdminUserOut{}, err
+		}
 	}
 	user.MonthlyNorm = round2(user.MonthlyNorm)
 	if sourceEmployeeNumber.Valid {
@@ -392,6 +405,10 @@ func (a *App) prepareAdminUserFields(ctx context.Context, payload AdminUserSaveP
 		}
 	}
 
+	scope, err := a.prepareLeadershipScope(ctx, role, payload.LeadershipScope)
+	if err != nil {
+		return adminUserFields{}, err
+	}
 	monthlyNorm := 100.0
 	if existing != nil {
 		monthlyNorm = existing.MonthlyNorm
@@ -404,6 +421,7 @@ func (a *App) prepareAdminUserFields(ctx context.Context, payload AdminUserSaveP
 	}
 
 	return adminUserFields{
+		LeadershipScope:      scope,
 		Username:             username,
 		Password:             password,
 		FullName:             fullName,

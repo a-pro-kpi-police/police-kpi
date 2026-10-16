@@ -322,7 +322,7 @@ func (a *App) handleAttachmentPlaybackURL(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusBadRequest, "Недопустимый тип файла")
 		return
 	}
-	token := a.createAttachmentPlaybackToken(entry.ID, attachment.ID)
+	token := a.createAttachmentPlaybackToken(entry.ID, attachment.ID, user.ID)
 	writeJSON(w, http.StatusOK, AttachmentPlaybackOut{URL: fmt.Sprintf(
 		"/api/entries/%d/attachments/%d/playback?token=%s", entry.ID, attachment.ID, token,
 	)})
@@ -334,6 +334,27 @@ func (a *App) handleAttachmentPlayback(w http.ResponseWriter, r *http.Request) {
 	if !validEntry || !validAttachment || !a.verifyAttachmentPlaybackToken(r.URL.Query().Get("token"), entryID, attachmentID) {
 		writeError(w, http.StatusUnauthorized, "Не удалось проверить учётные данные")
 		return
+	}
+	// Video URLs are bound to their issuer, so scope revocation also
+	// applies to subsequent media/range requests without an Authorization header.
+	tokenParts := strings.Split(r.URL.Query().Get("token"), ".")
+	payload, _ := base64.RawURLEncoding.DecodeString(tokenParts[0])
+	values := strings.Split(string(payload), ":")
+	if len(values) == 4 {
+		issuerID, err := strconv.Atoi(values[3])
+		if err != nil || issuerID <= 0 {
+			writeError(w, 401, "Не удалось проверить учётные данные")
+			return
+		}
+		issuer, err := a.getUserByID(r.Context(), issuerID)
+		if err != nil {
+			writeError(w, 401, "Не удалось проверить учётные данные")
+			return
+		}
+		if _, err := a.authorizedEntry(r, issuer, entryID); err != nil {
+			writeHTTPError(w, err)
+			return
+		}
 	}
 	entry, err := a.entryQueryService().GetEntry(r.Context(), entryID)
 	if err != nil {
@@ -740,8 +761,8 @@ func (a *App) serveStoredAttachment(w http.ResponseWriter, r *http.Request, stor
 	http.ServeContent(w, r, name, info.ModTime(), file)
 }
 
-func (a *App) createAttachmentPlaybackToken(entryID, attachmentID int) string {
-	payload := fmt.Sprintf("%d:%d:%d", entryID, attachmentID, time.Now().UTC().Add(attachmentPlaybackTTL).Unix())
+func (a *App) createAttachmentPlaybackToken(entryID, attachmentID, issuerID int) string {
+	payload := fmt.Sprintf("%d:%d:%d:%d", entryID, attachmentID, time.Now().UTC().Add(attachmentPlaybackTTL).Unix(), issuerID)
 	signature := base64.RawURLEncoding.EncodeToString(signHS256([]byte(payload), a.secret))
 	return base64.RawURLEncoding.EncodeToString([]byte(payload)) + "." + signature
 }
@@ -760,7 +781,7 @@ func (a *App) verifyAttachmentPlaybackToken(token string, entryID, attachmentID 
 		return false
 	}
 	values := strings.Split(string(payloadBytes), ":")
-	if len(values) != 3 || values[0] != strconv.Itoa(entryID) || values[1] != strconv.Itoa(attachmentID) {
+	if len(values) != 4 || values[0] != strconv.Itoa(entryID) || values[1] != strconv.Itoa(attachmentID) {
 		return false
 	}
 	expires, err := strconv.ParseInt(values[2], 10, 64)

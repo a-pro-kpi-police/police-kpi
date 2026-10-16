@@ -1,6 +1,10 @@
 package main
 
-import "context"
+import (
+	"context"
+
+	"kpi-police/backend-golang/internal/infrastructure/viewingscope"
+)
 
 // globalKPIAverage returns only an aggregate, never an unrestricted officer list.
 // LEFT JOIN keeps officers without confirmed activity in the denominator.
@@ -21,6 +25,7 @@ func (a *App) globalKPIAverage(ctx context.Context, month string, districtIDs ..
 		query += ` AND u.district_id = ?`
 		args = append(args, districtIDs[0])
 	}
+	query += ` AND ` + viewingscope.Predicate(ctx, "u.district_id", &args)
 	query += ` GROUP BY u.id) officer_scores`
 	var average float64
 	err := a.db.QueryRowContext(ctx, query, args...).Scan(&average)

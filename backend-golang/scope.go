@@ -7,7 +7,13 @@ import (
 )
 
 func scopedHeadDistrictID(user *User, requested *int) (*int, error) {
-	if user == nil || (user.Role != roleHead && user.Role != roleLeadership) || !user.DistrictID.Valid {
+	if user != nil && user.Role == roleLeadership {
+		if requested != nil && !user.LeadershipScope.allows(*requested) {
+			return nil, httpErr{status: 403, detail: "Недостаточно прав для другой роты"}
+		}
+		return requested, nil
+	}
+	if user == nil || user.Role != roleHead || !user.DistrictID.Valid {
 		return requested, nil
 	}
 	scope := int(user.DistrictID.Int64)
@@ -18,7 +24,7 @@ func scopedHeadDistrictID(user *User, requested *int) (*int, error) {
 }
 
 func headScopeDistrictValue(user *User) (int, bool) {
-	if user == nil || (user.Role != roleHead && user.Role != roleLeadership) || !user.DistrictID.Valid {
+	if user == nil || user.Role != roleHead || !user.DistrictID.Valid {
 		return 0, false
 	}
 	return int(user.DistrictID.Int64), true
@@ -26,7 +32,7 @@ func headScopeDistrictValue(user *User) (int, bool) {
 
 func (a *App) ensureOfficerInHeadScope(ctx context.Context, user *User, officerID int) error {
 	scope, ok := headScopeDistrictValue(user)
-	if !ok {
+	if !ok && (user == nil || user.Role != roleLeadership) {
 		return nil
 	}
 	var districtID sql.NullInt64
@@ -38,7 +44,14 @@ func (a *App) ensureOfficerInHeadScope(ctx context.Context, user *User, officerI
 	if err != nil {
 		return err
 	}
-	if !districtID.Valid || int(districtID.Int64) != scope {
+	if user.Role == roleLeadership && user.LeadershipScope != nil && user.LeadershipScope.Mode == "all" {
+		return nil
+	}
+	allowed := districtID.Valid && int(districtID.Int64) == scope
+	if user.Role == roleLeadership {
+		allowed = districtID.Valid && user.LeadershipScope.allows(int(districtID.Int64))
+	}
+	if !allowed {
 		return httpErr{status: http.StatusForbidden, detail: "Недостаточно прав для другой роты"}
 	}
 	return nil

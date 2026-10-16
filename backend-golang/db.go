@@ -263,6 +263,9 @@ func createSchema(db *Store) error {
 	if err := ensureColumns(db); err != nil {
 		return err
 	}
+	if err := migrateLeadershipScope(db); err != nil {
+		return err
+	}
 	_, err := db.ExecContext(context.Background(), `INSERT INTO entry_attachments
 		(entry_id, name, storage_name, content_type, size, created_at)
 		SELECT id, attachment_name, attachment_storage_name, attachment_content_type, attachment_size, ?
@@ -277,6 +280,7 @@ func ensureColumns(db *Store) error {
 		"users": {
 			`source_employee_number TEXT`,
 			`monthly_norm REAL NOT NULL DEFAULT 100.0`,
+			`leadership_scope TEXT NOT NULL DEFAULT ''`,
 		},
 		"kpi_catalog": {
 			`subblock TEXT NOT NULL DEFAULT ''`,

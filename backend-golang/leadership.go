@@ -1,8 +1,11 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"strings"
+
+	"kpi-police/backend-golang/internal/infrastructure/viewingscope"
 )
 
 func isEntryViewerRole(role string) bool {
@@ -42,6 +45,30 @@ func (a *App) leadershipPermissions(next http.Handler) http.Handler {
 			writeError(w, http.StatusForbidden, "Доступно только для просмотра")
 			return
 		}
+		if err == nil && user.Role == roleLeadership {
+			if value := r.URL.Query().Get("district_id"); value != "" {
+				id, parseErr := parseInt(value)
+				if parseErr != nil || id <= 0 {
+					writeError(w, 400, "Рота указана неверно")
+					return
+				}
+				if !user.LeadershipScope.allows(id) {
+					writeError(w, 403, "Недостаточно прав для другой роты")
+					return
+				}
+			}
+		}
+		if err == nil {
+			ctx := context.WithValue(r.Context(), currentUserKey{}, user)
+			if user.Role == roleLeadership && (user.LeadershipScope == nil || user.LeadershipScope.Mode != "all") {
+				ids := []int{}
+				if user.LeadershipScope != nil && user.LeadershipScope.Mode == "selected" {
+					ids = user.LeadershipScope.DistrictIDs
+				}
+				ctx = viewingscope.WithDistricts(ctx, ids)
+			}
+			r = r.WithContext(ctx)
+		}
 		next.ServeHTTP(w, r)
 	})
 }
@@ -62,9 +89,4 @@ func leadershipRouteAllowed(r *http.Request) bool {
 	return strings.HasPrefix(r.URL.Path, "/api/entries/")
 }
 
-func leadershipAverageScope(user *User) int {
-	if user.Role == roleLeadership && user.DistrictID.Valid {
-		return int(user.DistrictID.Int64)
-	}
-	return 0
-}
+type currentUserKey struct{}

@@ -9,6 +9,7 @@ import (
 
 	apptargets "kpi-police/backend-golang/internal/application/targets"
 	domaintargets "kpi-police/backend-golang/internal/domain/targets"
+	"kpi-police/backend-golang/internal/infrastructure/viewingscope"
 )
 
 type Queryer interface {
@@ -119,6 +120,7 @@ func (r Repository) ListOfficerProfiles(ctx context.Context, districtID int) ([]
 		sqlText += ` AND u.district_id = ?`
 		args = append(args, districtID)
 	}
+	sqlText += ` AND ` + viewingscope.Predicate(ctx, "u.district_id", &args)
 	sqlText += ` ORDER BY u.full_name`
 	rows, err := r.q.QueryContext(ctx, sqlText, args...)
 	if err != nil {

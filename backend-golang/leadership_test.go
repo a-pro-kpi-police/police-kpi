@@ -22,7 +22,7 @@ func TestLeadershipAccountLifecycleAndLogin(t *testing.T) {
 	}
 	adminToken := supportToken(t, a, admin)
 	district := insertSupportDistrict(t, a)
-	payload := map[string]any{"username": "leadership", "password": "pass123", "full_name": "Руководство", "role": roleLeadership, "district_id": district}
+	payload := map[string]any{"username": "leadership", "password": "pass123", "full_name": "Руководство", "role": roleLeadership, "district_id": district, "leadership_scope": map[string]any{"mode": "selected", "district_ids": []int{district}}}
 	r := supportJSONRequest(t, h, "POST", "/api/admin/users", adminToken, payload)
 	if r.Code != 200 {
 		t.Fatalf("create: %d %s", r.Code, r.Body)
@@ -47,6 +47,7 @@ func TestLeadershipAccountLifecycleAndLogin(t *testing.T) {
 	}
 	path := "/api/admin/users/" + intString(created.ID)
 	payload["district_id"] = nil
+	payload["leadership_scope"] = map[string]any{"mode": "all", "district_ids": []int{}}
 	payload["full_name"] = "Обновлённое руководство"
 	payload["password"] = "new-password"
 	r = supportJSONRequest(t, h, "PATCH", path, adminToken, payload)
@@ -68,6 +69,7 @@ func TestLeadershipAccountLifecycleAndLogin(t *testing.T) {
 	}
 	// Updating without a password preserves it; existing sessions use the new scope.
 	payload["district_id"] = district
+	payload["leadership_scope"] = map[string]any{"mode": "selected", "district_ids": []int{district}}
 	payload["password"] = ""
 	r = supportJSONRequest(t, h, "PATCH", path, adminToken, payload)
 	if r.Code != 200 {
@@ -123,7 +125,13 @@ func TestLeadershipScopeAndReadOnlyAPI(t *testing.T) {
 	inside := insertSupportUser(t, a, "inside", "Inside", "", roleOfficer, &d1)
 	outside := insertSupportUser(t, a, "outside", "Outside", "", roleOfficer, &d2)
 	local := insertSupportUser(t, a, "local-leader", "Local leader", "", roleLeadership, &d1)
+	if err := migrateLeadershipScope(a.db); err != nil {
+		t.Fatal(err)
+	}
 	global := insertSupportUser(t, a, "global-leader", "Global leader", "", roleLeadership, nil)
+	if err := migrateLeadershipScope(a.db); err != nil {
+		t.Fatal(err)
+	}
 	var catalog int
 	if err := a.db.QueryRowContext(t.Context(), `INSERT INTO kpi_catalog(code, indicator, block, points_per_unit, is_active) VALUES ('LEADERSHIP-TEST', 'Test', 'Test', 10, 1) RETURNING id`).Scan(&catalog); err != nil {
 		t.Fatal(err)
@@ -232,7 +240,7 @@ func TestLeadershipScopeAndReadOnlyAPI(t *testing.T) {
 	}
 	// Invalid/foreign filter values never expand collection access.
 	r = supportJSONRequest(t, h, "GET", "/api/entries?district_id="+intString(d2)+"&limit=100&offset=0", localToken, nil)
-	if r.Code != 200 || strings.Contains(r.Body.String(), "Outside") {
+	if r.Code != 403 {
 		t.Fatalf("tampered filter: %d %s", r.Code, r.Body)
 	}
 	// Snapshot the entire database to verify all denied requests have no effects.

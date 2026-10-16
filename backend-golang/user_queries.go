@@ -17,7 +17,11 @@ func (a *App) getUserByUsername(ctx context.Context, username string) (*User, er
 	if err != nil {
 		return nil, err
 	}
-	return userModel(user), nil
+	result := userModel(user)
+	if err := loadLeadershipScope(ctx, a.db, result); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func (a *App) getOfficer(ctx context.Context, id int) (*User, error) {
@@ -41,7 +45,11 @@ func queryUserByID(ctx context.Context, q dbtx, id int) (*User, error) {
 	if err != nil {
 		return nil, err
 	}
-	return userModel(user), nil
+	result := userModel(user)
+	if err := loadLeadershipScope(ctx, q, result); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func districtModels(districts []domainusers.District) []District {
@@ -84,12 +92,13 @@ func districtModel(district domainusers.District) *District {
 
 func userOut(user *User) UserOut {
 	return UserOut{
-		ID:          user.ID,
-		Username:    user.Username,
-		FullName:    user.FullName,
-		Rank:        user.Rank,
-		Role:        user.Role,
-		MonthlyNorm: round2(user.MonthlyNorm),
-		District:    user.District,
+		ID:              user.ID,
+		Username:        user.Username,
+		FullName:        user.FullName,
+		Rank:            user.Rank,
+		Role:            user.Role,
+		MonthlyNorm:     round2(user.MonthlyNorm),
+		District:        user.District,
+		LeadershipScope: user.LeadershipScope,
 	}
 }

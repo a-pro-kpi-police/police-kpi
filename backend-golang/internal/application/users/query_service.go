@@ -58,7 +58,7 @@ func (s QueryService) ListMonths(ctx context.Context, actor domainusers.User) ([
 	if actor.Role == domainusers.RoleOfficer {
 		id := actor.ID
 		officerID = &id
-	} else if (actor.Role == domainusers.RoleHead || actor.Role == domainusers.RoleLeadership) && actor.DistrictID != nil {
+	} else if actor.Role == domainusers.RoleHead && actor.DistrictID != nil {
 		districtID = actor.DistrictID
 	}
 	return s.repo.ListMonths(ctx, officerID, districtID)

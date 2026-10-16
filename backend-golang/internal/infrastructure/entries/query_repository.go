@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	domainentries "kpi-police/backend-golang/internal/domain/entries"
+	"kpi-police/backend-golang/internal/infrastructure/viewingscope"
 )
 
 const listedEntrySelect = `SELECT
@@ -30,6 +31,7 @@ type rowScanner interface {
 func (r Repository) ListEntries(ctx context.Context, query domainentries.EntryQuery) ([]domainentries.ListedEntry, error) {
 	where := []string{"e.quantity > 0"}
 	args := []any{}
+	where = append(where, viewingscope.Predicate(ctx, "u.district_id", &args))
 	if query.OfficerID != nil {
 		where = append(where, "e.officer_id = ?")
 		args = append(args, *query.OfficerID)

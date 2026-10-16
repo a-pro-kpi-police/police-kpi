@@ -3144,3 +3144,8 @@ html[data-theme='dark'] .recharts-line-curve {
 html[data-theme='dark'] .recharts-line-dot {
   fill: var(--card);
 }
+
+.leadership-scope { margin: 12px 0; border: 1px solid var(--border); border-radius: 8px; }
+.leadership-scope label { display: flex; align-items: center; gap: 8px; }
+.leadership-scope input { width: auto; }
+.leadership-company-list { max-height: 220px; overflow-y: auto; }
