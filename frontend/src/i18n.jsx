@@ -40,6 +40,7 @@ const DICT = {
     allCompaniesHint: 'Доступ ко всем существующим и будущим ротам.',
     selectAtLeastOneCompany: 'Выберите хотя бы одну роту',
     noAffiliation: 'Подразделение не назначено',
+    userDepartment: 'Подразделение пользователя',
     role_officer: 'Сотрудник',
     // дашборд
     totalFinal: 'Итоговые баллы (подтв.)',
@@ -391,6 +392,7 @@ const DICT = {
     allCompaniesHint: 'Қазіргі және болашақ барлық роталарға қолжетімділік.',
     selectAtLeastOneCompany: 'Кемінде бір ротаны таңдаңыз',
     noAffiliation: 'Бөлімше тағайындалмаған',
+    userDepartment: 'Пайдаланушының бөлімшесі',
     role_officer: 'Қызметкер',
     totalFinal: 'Қорытынды баллдар (раст.)',
     confirmedCount: 'Расталды',

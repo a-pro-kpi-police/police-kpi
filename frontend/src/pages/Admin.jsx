@@ -239,7 +239,7 @@ function EmployeeModal({ employee, districts, onClose, onSaved }) {
 
           <div className="form-row">
             <div>
-              <label>{t('colDistrict')}</label>
+              <label>{t(form.role === 'leadership' ? 'userDepartment' : 'colDistrict')}</label>
               <select
                 value={form.district_id}
                 onChange={(event) => updateField('district_id', event.target.value)}
@@ -253,24 +253,28 @@ function EmployeeModal({ employee, districts, onClose, onSaved }) {
                 ))}
               </select>
             </div>
-            <div>
-              <label>{t('sourceEmployeeNumber')}</label>
-              <input
-                value={form.source_employee_number}
-                onChange={(event) => updateField('source_employee_number', event.target.value)}
-              />
-            </div>
-            <div>
-              <label>{t('monthlyNorm')}</label>
-              <input
-                type="number"
-                min="1"
-                step="1"
-                value={form.monthly_norm}
-                onChange={(event) => updateField('monthly_norm', event.target.value)}
-                required
-              />
-            </div>
+            {form.role !== 'leadership' && (
+              <>
+                <div>
+                  <label>{t('sourceEmployeeNumber')}</label>
+                  <input
+                    value={form.source_employee_number}
+                    onChange={(event) => updateField('source_employee_number', event.target.value)}
+                  />
+                </div>
+                <div>
+                  <label>{t('monthlyNorm')}</label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={form.monthly_norm}
+                    onChange={(event) => updateField('monthly_norm', event.target.value)}
+                    required
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           {form.role === 'leadership' && (
