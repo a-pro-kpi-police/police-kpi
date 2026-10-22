@@ -18,8 +18,8 @@ backend/uploads/
 .codex-dev/
 
 # Generated credential exports
-backend-golang/import_data/*accounts*.csv
-backend-golang/import_data/*credentials*.csv
+backend/import_data/*accounts*.csv
+backend/import_data/*credentials*.csv
 credential_delivery/
 output/pdf/dps_account_cards_*.pdf
 tmp/pdfs/credential_cards_*/
