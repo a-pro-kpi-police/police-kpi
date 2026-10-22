@@ -93,7 +93,7 @@ KPI_SEED_MODE=monthly_import
 ### Backend
 
 ```bash
-cd backend-golang
+cd backend
 go mod tidy
 go run .
 ```
@@ -122,9 +122,9 @@ Vite по умолчанию отправляет запросы `/api` на
 |---|---|---|
 | `KPI_DATABASE_URL` | URL подключения PostgreSQL | `postgres://kpi:kpi@localhost:5432/kpi?sslmode=disable` |
 | `KPI_SECRET` | Секрет подписи JWT | тестовое значение в исходном коде |
-| `KPI_UPLOAD_DIR` | Каталог для вложений | `backend-golang/uploads` |
+| `KPI_UPLOAD_DIR` | Каталог для вложений | `backend/uploads` |
 | `KPI_SEED_MODE` | Режим начального заполнения: `catalog_only`, `monthly_import`, `demo` | `catalog_only` |
-| `KPI_MONTHLY_IMPORT_PATH` | Путь к CSV месячного импорта | `backend-golang/import_data/monthly_kpi_2026_07.csv` |
+| `KPI_MONTHLY_IMPORT_PATH` | Путь к CSV месячного импорта | `backend/import_data/monthly_kpi_2026_07.csv` |
 | `KPI_ADMIN_PASSWORD` | Пароль системного администратора | `admin123` |
 | `KPI_HEAD_PASSWORD` | Пароль начальника при месячном импорте | `head123` |
 | `KPI_IMPORT_DEFAULT_PASSWORD` | Пароль импортированных сотрудников | `pass123` |
@@ -132,7 +132,7 @@ Vite по умолчанию отправляет запросы `/api` на
 Чтобы локально запустить импорт июльского снимка в отдельную БД:
 
 ```bash
-cd backend-golang
+cd backend
 KPI_DATABASE_URL=postgres://kpi:kpi@localhost:5432/kpi?sslmode=disable \
 KPI_SEED_MODE=monthly_import \
 go run .
@@ -142,7 +142,7 @@ go run .
 
 Режим `KPI_SEED_MODE=monthly_import` предназначен только для разработки или
 разового восстановления тестового снимка. Он импортирует
-`backend-golang/import_data/monthly_kpi_2026_07.csv`:
+`backend/import_data/monthly_kpi_2026_07.csv`:
 
 - 152 сотрудника;
 - 134 показателя KPI;
@@ -157,17 +157,17 @@ SHA-256 и не создаёт дубликаты.
 ```bash
 osascript -l JavaScript scripts/export_monthly_numbers.js \
   ./KPI_*.numbers \
-  backend-golang/import_data/monthly_kpi_2026_07.csv \
-  backend-golang/kpi_catalog.csv
+  backend/import_data/monthly_kpi_2026_07.csv \
+  backend/kpi_catalog.csv
 ```
 
 Подробности формата снимка находятся в
-[`backend-golang/import_data/README.md`](backend-golang/import_data/README.md).
+[`backend/import_data/README.md`](backend/import_data/README.md).
 
 ## Массовое создание кабинетов сотрудников
 
 Когда передадут список сотрудников, подготовьте CSV по шаблону
-`backend-golang/import_data/users_template.csv`:
+`backend/import_data/users_template.csv`:
 
 ```csv
 employee_number,full_name,rank,district,monthly_norm
@@ -177,7 +177,7 @@ employee_number,full_name,rank,district,monthly_norm
 Для ФИО в формате `Фамилия Имя Отчество` запуск:
 
 ```bash
-cd backend-golang
+cd backend
 go run ./cmd/import-users \
   -input import_data/users.csv \
   -output import_data/users_accounts.csv
@@ -244,7 +244,7 @@ go run ./cmd/import-users \
 ## Тесты и сборка
 
 ```bash
-cd backend-golang
+cd backend
 go test ./...
 ```
 
@@ -257,7 +257,7 @@ npm run build
 
 ```text
 .
-├── backend-golang/
+├── backend/
 │   ├── import_data/      # CSV-снимок месячного импорта
 │   ├── kpi_catalog.csv   # активный справочник показателей
 │   ├── main.go           # Go HTTP API

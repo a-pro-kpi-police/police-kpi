@@ -23,8 +23,7 @@
 | Компонент | Путь | Назначение |
 |---|---|---|
 | Frontend | `frontend/` | React-приложение для пользователей системы |
-| Backend Go | `backend-golang/` | Основной HTTP API, бизнес-логика, работа с PostgreSQL |
-| Legacy backend | `backend/` | Старый Python/FastAPI backend, не является основным production-компонентом |
+| Backend Go | `backend/` | Основной HTTP API, бизнес-логика, работа с PostgreSQL |
 | Deploy | `docker-compose.yml`, `docker-compose.prod.yml`, `deploy/` | Docker Compose и примеры nginx-конфигурации |
 | Docs | `docs/` | Документация по деплою и техническая спецификация |
 | Scripts | `scripts/` | Вспомогательные скрипты экспорта/подготовки данных |
@@ -281,7 +280,7 @@
 
 ### 5.13 Импорт данных
 
-- Backend должен синхронизировать справочник из `backend-golang/kpi_catalog.csv` при запуске.
+- Backend должен синхронизировать справочник из `backend/kpi_catalog.csv` при запуске.
 - Система должна создавать системного администратора при первом запуске.
 - Режимы начального заполнения:
   - `catalog_only`: только справочник KPI и системный администратор;
@@ -613,7 +612,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 Backend:
 
 ```bash
-cd backend-golang
+cd backend
 go test ./...
 ```
 
@@ -662,7 +661,6 @@ npm run test
 
 ## 16. Известные ограничения текущей реализации
 
-- Основной production backend находится в `backend-golang/`; каталог `backend/` содержит legacy Python/FastAPI-реализацию.
 - JWT хранится на frontend в `localStorage`, поэтому для production особенно важны HTTPS, защита от XSS и аккуратная работа с пользовательским контентом.
 - CORS middleware backend сейчас разрешает `*`; при прямой публикации backend наружу рекомендуется ограничить origin.
 - Нет отдельного refresh-token механизма; пользовательская сессия ограничена TTL access token.

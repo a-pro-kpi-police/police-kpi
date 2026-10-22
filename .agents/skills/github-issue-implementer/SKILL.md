@@ -33,7 +33,7 @@ Do not start implementation if the selected issue lacks a clear goal or acceptan
 3. Create branch `codex/issue-<number>-<short-slug>`.
 4. Implement only the requested change.
 5. Run relevant checks:
-   - backend: `cd backend-golang && go test ./...`
+   - backend: `cd backend && go test ./...`
    - frontend: `cd frontend && npm test` when relevant, and `cd frontend && npm run build`
    - docs: read back changed docs for coherence
 6. Commit and push the branch.

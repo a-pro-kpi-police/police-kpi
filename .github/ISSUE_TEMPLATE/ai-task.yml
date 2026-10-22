@@ -39,7 +39,7 @@ body:
       description: Tell the agent which checks should pass.
       placeholder: |
         - cd frontend && npm run build
-        - cd backend-golang && go test ./...
+        - cd backend && go test ./...
         - Manual check: head dashboard month filter
     validations:
       required: false

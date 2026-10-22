@@ -1,7 +1,6 @@
-__pycache__/
-*.py[cod]
-.venv/
-venv/
-*.egg-info/
-*.db
-*.sqlite3
+.gocache/
+.gomodcache/
+kpi.db
+kpi_*.db
+uploads/
+*.test

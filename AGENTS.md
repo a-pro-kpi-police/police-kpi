@@ -12,9 +12,8 @@ This repository uses an AI-agent workflow:
 ## Project Context
 
 - Product: KPI web app for police department staff and leadership.
-- Backend: Go 1.24 in `backend-golang/`, using `net/http` and PostgreSQL.
+- Backend: Go 1.24 in `backend/`, using `net/http` and PostgreSQL.
 - Frontend: React 18 and Vite in `frontend/`.
-- Legacy/alternate Python backend files may exist under `backend/`; do not edit them unless the issue explicitly asks.
 - Primary docs live in `README.md` and `docs/`.
 
 ## Working Rules
@@ -35,7 +34,7 @@ This repository uses an AI-agent workflow:
 Choose checks based on touched areas:
 
 - Backend Go changes:
-  - `cd backend-golang`
+  - `cd backend`
   - `go test ./...`
 - Frontend changes:
   - `cd frontend`
