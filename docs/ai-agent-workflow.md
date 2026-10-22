@@ -29,6 +29,9 @@ For this repository, the expected automation name is `KPI-POLICE Auto Issue Runn
 6. The agent requests review by commenting `@codex review` on the pull request.
 7. Codex review checks the PR.
 8. A human merges only after review and checks are acceptable.
+9. After the user confirms the merge, the implementation agent verifies that the PR is merged, switches to its base branch, fast-forwards it from the remote, and deletes the local task branch.
+
+Post-merge cleanup must preserve uncommitted work and branches checked out in other worktrees. If updating the base branch or deleting the task branch is blocked, report the blocker instead of forcing a reset or deletion. Remote branch deletion requires a separate user request.
 
 ## Labels
 

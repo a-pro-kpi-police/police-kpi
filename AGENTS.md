@@ -24,6 +24,7 @@ This repository uses an AI-agent workflow:
 - Keep changes scoped to the requested behavior.
 - Do not push directly to `main`.
 - Do not merge pull requests.
+- After the user confirms a PR was merged, verify its merged state, switch to its base branch, fast-forward that branch from the remote, and delete the PR's local task branch. Preserve uncommitted work and branches used by other worktrees; report any blocker instead of forcing deletion. Do not delete remote branches unless requested.
 - Do not make unrelated refactors, formatting sweeps, dependency upgrades, or metadata churn.
 - Do not commit secrets, credentials, local config, generated caches, uploads, or personal data.
 - For user-visible text, preserve the existing Russian/Kazakh product tone and terminology.
